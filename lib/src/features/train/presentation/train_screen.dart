@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
-import '../../../core/widgets/animated_progress_ring.dart';
 import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
-import '../../../core/widgets/atlas_pressable.dart';
+import '../../../core/widgets/atlas_gradient_button.dart';
 import '../../../core/widgets/atlas_progress_bar.dart';
 import '../../../core/widgets/section_title.dart';
 
@@ -15,215 +14,116 @@ class TrainScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AtlasAppFrame(
-      subtitle: 'Chest + Triceps',
+      subtitle: 'Workout foundation',
       title: 'Train',
-      children: const [_WorkoutHero(), _ExerciseList(), _WorkoutCyclePreview()],
-    );
-  }
-}
-
-class _WorkoutHero extends StatelessWidget {
-  const _WorkoutHero();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              AnimatedProgressRing(
-                progress: 0.72,
-                size: 96,
-                strokeWidth: 10,
-                color: AtlasColors.success,
-                trackColor: AtlasColors.successSoft,
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('18', style: Theme.of(context).textTheme.titleLarge),
-                    Text('sets', style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today\'s Workout',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Chest + Triceps',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '6 exercises / 58 min / moderate load',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => showWorkoutPreviewSheet(context),
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Start Workout'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 54,
-                height: 52,
-                child: AtlasPressable(
-                  onTap: () => showCompletionCelebration(context),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AtlasColors.successSoft,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.celebration_outlined,
-                      color: AtlasColors.success,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Completion animation preview only',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExerciseList extends StatelessWidget {
-  const _ExerciseList();
-
-  static const exercises = [
-    _Exercise('Barbell Bench Press', '4 sets', '8-10 reps', 'Main lift'),
-    _Exercise('Incline Dumbbell Press', '3 sets', '10 reps', 'Controlled'),
-    _Exercise('Cable Fly', '3 sets', '12-15 reps', 'Stretch'),
-    _Exercise('Dips', '3 sets', '8-12 reps', 'Chest lean'),
-    _Exercise('Rope Pushdown', '3 sets', '12 reps', 'Full lockout'),
-    _Exercise('Overhead Extension', '2 sets', '12-15 reps', 'Slow eccentric'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Exercises'),
-        const SizedBox(height: 12),
-        for (var index = 0; index < exercises.length; index++) ...[
-          _ExerciseCard(index: index + 1, exercise: exercises[index]),
-          if (index != exercises.length - 1) const SizedBox(height: 10),
-        ],
+      children: const [
+        _WorkoutEmptyCard(),
+        _DefaultCycleCard(),
+        _ExerciseLibraryEmptyCard(),
       ],
     );
   }
 }
 
-class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.index, required this.exercise});
-
-  final int index;
-  final _Exercise exercise;
+class _WorkoutEmptyCard extends StatelessWidget {
+  const _WorkoutEmptyCard();
 
   @override
   Widget build(BuildContext context) {
-    return AtlasPressable(
-      onTap:
-          () => showAtlasSnack(
-            context,
-            message: '${exercise.name} selection preview',
-          ),
-      child: AtlasCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(34),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AtlasColors.accentSoft,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$index',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: AtlasColors.accent),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    exercise.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    exercise.note,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  exercise.sets,
-                  style: Theme.of(context).textTheme.labelLarge,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.94),
+                    AtlasColors.successSoft.withValues(alpha: 0.84),
+                    AtlasColors.accentSoft.withValues(alpha: 0.55),
+                  ],
                 ),
-                const SizedBox(height: 5),
+              ),
+            ),
+          ),
+          AtlasCard(
+            isGlass: true,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 66,
+                      height: 66,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AtlasColors.success.withValues(alpha: 0.22),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.fitness_center_rounded,
+                        color: AtlasColors.success,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Text(
+                        'Workout logging not connected yet',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
-                  exercise.reps,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  'No exercises, sets, reps, or workout history have been created for this account. This screen will become dynamic when logging is implemented.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 24),
+                AtlasGradientButton(
+                  label: 'Start Workout coming soon',
+                  icon: Icons.play_arrow_rounded,
+                  colors: const [AtlasColors.success, AtlasColors.accent],
+                  onPressed:
+                      () => showAtlasSnack(
+                        context,
+                        message:
+                            'Start Workout is disabled until real logging exists.',
+                        icon: Icons.info_outline_rounded,
+                      ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _WorkoutCyclePreview extends StatelessWidget {
-  const _WorkoutCyclePreview();
+class _DefaultCycleCard extends StatelessWidget {
+  const _DefaultCycleCard();
 
   @override
   Widget build(BuildContext context) {
-    const days = [
-      ('D1', 'Chest + Triceps', 1.0, AtlasColors.accent),
-      ('D2', 'Back + Biceps', 0.0, AtlasColors.inkSoft),
-      ('D3', 'Arms + Abs', 0.0, AtlasColors.inkSoft),
-      ('D4', 'Shoulders + Legs', 0.0, AtlasColors.inkSoft),
-      ('D5', 'Rest', 0.0, AtlasColors.inkSoft),
+    const cycle = [
+      ('Day 1', 'Chest + Triceps'),
+      ('Day 2', 'Back + Biceps'),
+      ('Day 3', 'Arms + Abs'),
+      ('Day 4', 'Shoulders + Legs'),
+      ('Day 5', 'Rest'),
     ];
 
     return AtlasCard(
@@ -231,53 +131,82 @@ class _WorkoutCyclePreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionTitle('Workout Cycle'),
+          const SectionTitle('Default Workout Cycle'),
+          const SizedBox(height: 8),
+          Text(
+            'This is the planned routine from your Atlas brief, not logged workout data.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 16),
-          for (final day in days) ...[
+          for (final item in cycle) ...[
             Row(
               children: [
                 SizedBox(
-                  width: 34,
+                  width: 54,
                   child: Text(
-                    day.$1,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelLarge?.copyWith(color: day.$4),
+                    item.$1,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        day.$2,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 7),
-                      AtlasProgressBar(
-                        value: day.$3,
-                        color: day.$4,
-                        trackColor: AtlasColors.surfaceMuted,
-                        height: 5,
-                      ),
-                    ],
+                  child: Text(
+                    item.$2,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
               ],
             ),
-            if (day != days.last) const SizedBox(height: 14),
+            if (item != cycle.last) const SizedBox(height: 13),
           ],
+          const SizedBox(height: 18),
+          const AtlasProgressBar(
+            value: 0,
+            semanticLabel: 'No workout progress logged yet',
+          ),
         ],
       ),
     );
   }
 }
 
-class _Exercise {
-  const _Exercise(this.name, this.sets, this.reps, this.note);
+class _ExerciseLibraryEmptyCard extends StatelessWidget {
+  const _ExerciseLibraryEmptyCard();
 
-  final String name;
-  final String sets;
-  final String reps;
-  final String note;
+  @override
+  Widget build(BuildContext context) {
+    return AtlasCard(
+      isGlass: true,
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AtlasColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.library_books_outlined,
+              color: AtlasColors.accent,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionTitle('Exercise Library'),
+                const SizedBox(height: 6),
+                Text(
+                  'Exercise selection will appear after the real library is connected.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

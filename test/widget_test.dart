@@ -24,11 +24,14 @@ void main() {
     expect(find.text('Progress'), findsOneWidget);
     expect(find.text('Goals'), findsOneWidget);
     expect(find.text('Me'), findsOneWidget);
-    expect(find.text('Good Morning Pranav'), findsOneWidget);
-    expect(find.text('Today\'s Mission'), findsOneWidget);
+    expect(find.textContaining('Pranav'), findsOneWidget);
+    expect(find.text('No workout data yet'), findsOneWidget);
+    expect(find.text('Workout logging coming soon'), findsOneWidget);
   });
 
-  testWidgets('Train tab shows the premium workout prototype', (tester) async {
+  testWidgets('Train tab shows honest fresh-install workout state', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AtlasTheme.light,
@@ -39,9 +42,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.fitness_center_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today\'s Workout'), findsOneWidget);
-    expect(find.text('Chest + Triceps'), findsWidgets);
-    expect(find.text('Barbell Bench Press'), findsOneWidget);
-    expect(find.text('Start Workout'), findsOneWidget);
+    expect(find.text('Workout logging not connected yet'), findsOneWidget);
+    expect(find.text('Default Workout Cycle'), findsOneWidget);
+    expect(find.text('Chest + Triceps'), findsOneWidget);
+    expect(find.text('Barbell Bench Press'), findsNothing);
+    expect(find.text('Start Workout coming soon'), findsOneWidget);
   });
 }

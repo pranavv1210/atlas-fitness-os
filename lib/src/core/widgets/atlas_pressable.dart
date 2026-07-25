@@ -24,22 +24,30 @@ class _AtlasPressableState extends State<AtlasPressable> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      onTapDown: (_) {
-        if (widget.enableHaptics) {
-          HapticFeedback.selectionClick();
-        }
-        setState(() => _isPressed = true);
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      child: AnimatedScale(
-        scale: _isPressed ? widget.scale : 1,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
-        child: widget.child,
+    return MouseRegion(
+      cursor:
+          widget.onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: (_) {
+          if (widget.onTap != null && widget.enableHaptics) {
+            HapticFeedback.selectionClick();
+          }
+          setState(() => _isPressed = true);
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        child: AnimatedScale(
+          scale: _isPressed && widget.onTap != null ? widget.scale : 1,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutBack,
+          child: AnimatedOpacity(
+            opacity: widget.onTap == null ? 0.62 : 1,
+            duration: const Duration(milliseconds: 180),
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

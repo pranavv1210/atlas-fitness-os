@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
-import '../../../core/widgets/animated_progress_ring.dart';
 import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
+import '../../../core/widgets/atlas_gradient_button.dart';
 import '../../../core/widgets/atlas_pressable.dart';
-import '../../../core/widgets/atlas_progress_bar.dart';
-import '../../../core/widgets/atlas_state_cards.dart';
 import '../../../core/widgets/section_title.dart';
 
 class GoalsScreen extends StatelessWidget {
@@ -18,52 +16,86 @@ class GoalsScreen extends StatelessWidget {
     return AtlasAppFrame(
       subtitle: 'Quiet accountability',
       title: 'Goals',
-      children: const [
-        _GoalSummaryCard(),
-        _GoalList(),
-        _MilestoneCard(),
-        _GoalTemplateEmptyState(),
-      ],
+      children: const [_GoalsEmptyCard(), _GoalTypesCard()],
     );
   }
 }
 
-class _GoalSummaryCard extends StatelessWidget {
-  const _GoalSummaryCard();
+class _GoalsEmptyCard extends StatelessWidget {
+  const _GoalsEmptyCard();
 
   @override
   Widget build(BuildContext context) {
     return AtlasCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+      isGlass: true,
+      padding: const EdgeInsets.all(24),
+      child: Stack(
         children: [
-          AnimatedProgressRing(
-            progress: 0.74,
-            size: 108,
-            strokeWidth: 11,
-            color: AtlasColors.accent,
-            trackColor: AtlasColors.accentSoft,
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('74%', style: Theme.of(context).textTheme.titleLarge),
-                Text('aligned', style: Theme.of(context).textTheme.bodyMedium),
-              ],
+          Positioned(
+            right: -18,
+            top: -18,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutBack,
+              builder:
+                  (context, value, child) =>
+                      Transform.scale(scale: value, child: child),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 110,
+                color: AtlasColors.lilac.withValues(alpha: 0.08),
+              ),
             ),
           ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionTitle('Goal Health'),
-                const SizedBox(height: 8),
-                Text(
-                  'You are on pace for weight, strength, and habit targets this month.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AtlasColors.lilac.withValues(alpha: 0.95),
+                      AtlasColors.accent.withValues(alpha: 0.92),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AtlasColors.lilac.withValues(alpha: 0.24),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+                child: const Icon(Icons.flag_rounded, color: Colors.white),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'No active goals yet',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Atlas will show goal health, progress bars, and milestones only after real goals are created.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 24),
+              AtlasGradientButton(
+                label: 'Create Goal coming soon',
+                icon: Icons.add_rounded,
+                colors: const [AtlasColors.lilac, AtlasColors.accent],
+                onPressed:
+                    () => showAtlasSnack(
+                      context,
+                      message:
+                          'Goal creation is coming soon. No data was saved.',
+                      icon: Icons.info_outline_rounded,
+                    ),
+              ),
+            ],
           ),
         ],
       ),
@@ -71,187 +103,69 @@ class _GoalSummaryCard extends StatelessWidget {
   }
 }
 
-class _GoalList extends StatelessWidget {
-  const _GoalList();
-
-  static const goals = [
-    _Goal(
-      'Weight Goal',
-      'Reach 74.5 kg',
-      '76.4 kg now',
-      0.68,
-      AtlasColors.accent,
-      Icons.monitor_weight_outlined,
-    ),
-    _Goal(
-      'Strength Goal',
-      'Bench 80 kg for 5',
-      '72.5 kg current',
-      0.58,
-      AtlasColors.success,
-      Icons.fitness_center_outlined,
-    ),
-    _Goal(
-      'Habit Goal',
-      '5 workouts weekly',
-      '4 complete',
-      0.8,
-      AtlasColors.lilac,
-      Icons.calendar_month_outlined,
-    ),
-  ];
+class _GoalTypesCard extends StatelessWidget {
+  const _GoalTypesCard();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Active Goals'),
-        const SizedBox(height: 12),
-        for (var index = 0; index < goals.length; index++) ...[
-          _GoalCard(goal: goals[index]),
-          if (index != goals.length - 1) const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
+    final goalTypes = [
+      (Icons.monitor_weight_outlined, 'Weight goal'),
+      (Icons.fitness_center_rounded, 'Strength goal'),
+      (Icons.calendar_month_rounded, 'Habit goal'),
+    ];
 
-class _GoalCard extends StatelessWidget {
-  const _GoalCard({required this.goal});
-
-  final _Goal goal;
-
-  @override
-  Widget build(BuildContext context) {
     return AtlasCard(
-      padding: const EdgeInsets.all(18),
+      isGlass: true,
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: goal.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(goal.icon, size: 19, color: goal.color),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SectionTitle('Planned Goal Types'),
+          const SizedBox(height: 8),
+          Text(
+            'These are product placeholders, not goals assigned to your account.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          for (final item in goalTypes) ...[
+            AtlasPressable(
+              onTap:
+                  () => showAtlasSnack(
+                    context,
+                    message: '${item.$2} setup is coming soon.',
+                    icon: Icons.info_outline_rounded,
+                  ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                child: Row(
                   children: [
-                    Text(
-                      goal.title,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Icon(item.$1, color: AtlasColors.inkMuted, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.$2,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
-                    const SizedBox(height: 3),
                     Text(
-                      goal.caption,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      'Not set',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AtlasColors.inkMuted,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Text(
-                '${(goal.progress * 100).round()}%',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: goal.color),
+            ),
+            if (item != goalTypes.last)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AtlasColors.hairline,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(goal.target, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 10),
-          AtlasProgressBar(value: goal.progress, color: goal.color),
+          ],
         ],
       ),
     );
   }
-}
-
-class _MilestoneCard extends StatelessWidget {
-  const _MilestoneCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasPressable(
-      onTap: () => showCompletionCelebration(context),
-      child: AtlasCard(
-        isGlass: true,
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AtlasColors.warningSoft,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.auto_awesome_outlined,
-                color: AtlasColors.warning,
-              ),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionTitle('Next Milestone'),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Two more workouts complete your strongest month so far.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(Icons.chevron_right_rounded, color: AtlasColors.inkSoft),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GoalTemplateEmptyState extends StatelessWidget {
-  const _GoalTemplateEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasEmptyStateCard(
-      icon: Icons.add_task_outlined,
-      title: 'Goal Templates',
-      body: 'Future templates for weight, strength, habit, and deadlines.',
-      actionLabel: 'Preview template library',
-      onAction:
-          () => showAtlasSnack(context, message: 'Goal templates preview'),
-    );
-  }
-}
-
-class _Goal {
-  const _Goal(
-    this.title,
-    this.target,
-    this.caption,
-    this.progress,
-    this.color,
-    this.icon,
-  );
-
-  final String title;
-  final String target;
-  final String caption;
-  final double progress;
-  final Color color;
-  final IconData icon;
 }

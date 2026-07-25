@@ -5,8 +5,6 @@ import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
 import '../../../core/widgets/atlas_pressable.dart';
-import '../../../core/widgets/atlas_progress_bar.dart';
-import '../../../core/widgets/atlas_state_cards.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../profile/domain/models/user_profile.dart';
 
@@ -25,15 +23,6 @@ class MeScreen extends StatelessWidget {
         _ProfileCard(profile: profile, onSignOut: onSignOut),
         const _WorkoutCycleCard(),
         _PreferenceCard(),
-        const AtlasErrorStateCard(
-          title: 'Sync Not Connected',
-          body: 'A future error state for Supabase setup and retry handling.',
-        ),
-        const AtlasEmptyStateCard(
-          icon: Icons.explore_outlined,
-          title: 'Onboarding Placeholder',
-          body: 'A future first-run flow can introduce Atlas without clutter.',
-        ),
         const _AboutCard(),
       ],
     );
@@ -49,76 +38,92 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AtlasCard(
-      padding: const EdgeInsets.all(20),
+      radius: 34,
+      padding: const EdgeInsets.all(24),
       color: AtlasColors.ink,
-      child: Row(
+      child: Stack(
         children: [
-          Container(
-            width: 62,
-            height: 62,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+          Positioned(
+            right: -22,
+            top: -22,
+            child: Icon(
+              Icons.blur_on_rounded,
+              size: 132,
+              color: Colors.white.withValues(alpha: 0.045),
             ),
-            child:
-                profile.avatarUrl == null
-                    ? Text(
-                      _initial,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    )
-                    : ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        profile.avatarUrl!,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile.displayName,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  profile.email,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.68),
+          Row(
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.22),
+                      Colors.white.withValues(alpha: 0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
                   ),
                 ),
-                const SizedBox(height: 14),
-                const AtlasProgressBar(
-                  value: 0.82,
-                  color: AtlasColors.success,
-                  trackColor: Color(0x33FFFFFF),
-                  height: 6,
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: onSignOut,
-                  icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Logout'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.24),
+                child:
+                    profile.avatarUrl == null
+                        ? Text(
+                          _initial,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        )
+                        : ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.network(
+                            profile.avatarUrl!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.displayName,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(color: Colors.white, height: 1.05),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      profile.email,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.68),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: onSignOut,
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Logout'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                        backgroundColor: Colors.white.withValues(alpha: 0.06),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.24),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -151,11 +156,17 @@ class _WorkoutCycleCard extends StatelessWidget {
     ];
 
     return AtlasCard(
+      isGlass: true,
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionTitle('Workout Cycle'),
+          const SectionTitle('Default Workout Cycle'),
+          const SizedBox(height: 8),
+          Text(
+            'Planned routine from your Atlas setup. Completion data will appear only after workout logging exists.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 16),
           for (final item in cycle) ...[
             Row(
@@ -210,8 +221,12 @@ class _PreferenceCard extends StatelessWidget {
           _PreferenceRow(
             icon: Icons.cloud_done_outlined,
             title: 'Sync',
-            value: 'Planned',
-            onTap: () => showAtlasSnack(context, message: 'Sync state preview'),
+            value: 'Configured',
+            onTap:
+                () => showAtlasSnack(
+                  context,
+                  message: 'Supabase configuration is present.',
+                ),
           ),
           _PreferenceRow(
             icon: Icons.lock_outline,
@@ -252,7 +267,16 @@ class _PreferenceRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: AtlasColors.inkMuted),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AtlasColors.surfaceWarm,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AtlasColors.hairline),
+                  ),
+                  child: Icon(icon, size: 19, color: AtlasColors.inkMuted),
+                ),
                 const SizedBox(width: 13),
                 Expanded(
                   child: Text(

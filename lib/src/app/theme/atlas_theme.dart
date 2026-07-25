@@ -78,12 +78,12 @@ class AtlasTheme {
         centerTitle: false,
       ),
       cardTheme: CardTheme(
-        elevation: 8,
-        shadowColor: AtlasColors.ink.withValues(alpha: 0.04),
+        elevation: 0,
+        shadowColor: Colors.transparent,
         color: AtlasColors.surface,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(30),
           side: const BorderSide(color: AtlasColors.hairline),
         ),
       ),
@@ -119,8 +119,10 @@ class AtlasTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AtlasColors.accent,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          minimumSize: const Size.fromHeight(58),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
           elevation: 0,
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
@@ -128,9 +130,11 @@ class AtlasTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AtlasColors.ink,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(58),
           side: const BorderSide(color: AtlasColors.hairline),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -142,7 +146,7 @@ class AtlasTheme {
           color: Colors.white,
           fontWeight: FontWeight.w600,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -153,7 +157,7 @@ class AtlasTheme {
         showDragHandle: true,
         dragHandleColor: AtlasColors.surfaceMuted,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
       ),
       dialogTheme: DialogTheme(
@@ -161,7 +165,7 @@ class AtlasTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 12,
         shadowColor: AtlasColors.ink.withValues(alpha: 0.08),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

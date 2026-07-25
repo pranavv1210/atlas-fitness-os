@@ -1,82 +1,98 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
-import '../../../core/widgets/animated_counter_text.dart';
 import '../../../core/widgets/animated_progress_ring.dart';
 import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
+import '../../../core/widgets/atlas_gradient_button.dart';
 import '../../../core/widgets/atlas_pressable.dart';
-import '../../../core/widgets/atlas_progress_bar.dart';
 import '../../../core/widgets/atlas_stat_card.dart';
-import '../../../core/widgets/atlas_state_cards.dart';
 import '../../../core/widgets/section_title.dart';
+import '../../profile/domain/models/user_profile.dart';
 
 class TodayScreen extends StatelessWidget {
-  const TodayScreen({super.key});
+  const TodayScreen({required this.profile, super.key});
+
+  final UserProfile profile;
 
   @override
   Widget build(BuildContext context) {
+    final firstName = _firstName(profile);
+
     return AtlasAppFrame(
-      subtitle: 'Good Morning Pranav',
+      subtitle: '${_greeting(DateTime.now())} $firstName',
       title: 'Today',
-      trailing: const _WeatherPill(),
+      trailing: const _SetupPill(),
       children: [
-        const _QuoteCard(),
-        const _MissionCard(),
-        const _ScoreAndWeekRow(),
-        const _ProgressOverview(),
-        const _WeightAndWaterRow(),
-        const AtlasLoadingStateCard(
-          title: 'Readiness Insight',
-          subtitle: 'A future loading state for recovery and wellness signals.',
-        ),
-        const _QuickActions(),
+        const _FreshInstallCard(),
+        const _MissionEmptyCard(),
+        const _NewAccountGrid(),
+        const _ReadinessEmptyCard(),
+        const _QuickActionsCard(),
       ],
     );
   }
+
+  String _firstName(UserProfile profile) {
+    final name = profile.displayName.trim();
+    if (name.isNotEmpty) {
+      return name.split(RegExp(r'\s+')).first;
+    }
+
+    final emailName = profile.email.split('@').first.trim();
+    return emailName.isEmpty ? 'there' : emailName;
+  }
+
+  String _greeting(DateTime now) {
+    if (now.hour < 12) {
+      return 'Good Morning';
+    }
+    if (now.hour < 17) {
+      return 'Good Afternoon';
+    }
+    return 'Good Evening';
+  }
 }
 
-class _WeatherPill extends StatelessWidget {
-  const _WeatherPill();
+class _SetupPill extends StatelessWidget {
+  const _SetupPill();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AtlasColors.surface,
+        color: AtlasColors.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(color: AtlasColors.accent.withValues(alpha: 0.16)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.wb_sunny_outlined, size: 17, color: AtlasColors.warning),
-          const SizedBox(width: 7),
-          Text('28 deg', style: Theme.of(context).textTheme.labelLarge),
-        ],
+      child: Text(
+        'New setup',
+        style: Theme.of(
+          context,
+        ).textTheme.labelLarge?.copyWith(color: AtlasColors.accent),
       ),
     );
   }
 }
 
-class _QuoteCard extends StatelessWidget {
-  const _QuoteCard();
+class _FreshInstallCard extends StatelessWidget {
+  const _FreshInstallCard();
 
   @override
   Widget build(BuildContext context) {
     return AtlasCard(
       isGlass: true,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Daily Focus', style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 10),
           Text(
-            'Strength is built quietly, one precise session at a time.',
-            style: Theme.of(context).textTheme.titleLarge,
+            'Atlas is ready. Your dashboard will build from the data you log.',
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
         ],
       ),
@@ -84,294 +100,326 @@ class _QuoteCard extends StatelessWidget {
   }
 }
 
-class _MissionCard extends StatelessWidget {
-  const _MissionCard();
+class _MissionEmptyCard extends StatelessWidget {
+  const _MissionEmptyCard();
 
   @override
   Widget build(BuildContext context) {
-    return AtlasCard(
-      padding: const EdgeInsets.all(20),
-      color: AtlasColors.ink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.fitness_center,
-                  color: Colors.white,
-                  size: 21,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'Day 1 of 5',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 1200),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(34),
+            boxShadow: [
+              BoxShadow(
+                color: AtlasColors.accent.withValues(alpha: 0.16 * value),
+                blurRadius: 34 + 10 * value,
+                offset: const Offset(0, 22),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Today\'s Mission',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.62),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Chest + Triceps',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _MissionChip(
-                  icon: Icons.timer_outlined,
-                  label: '58 min',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MissionChip(
-                  icon: Icons.repeat_outlined,
-                  label: '18 sets',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: () => showWorkoutPreviewSheet(context),
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Open Workout Preview'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MissionChip extends StatelessWidget {
-  const _MissionChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScoreAndWeekRow extends StatelessWidget {
-  const _ScoreAndWeekRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(child: _FitnessScoreCard()),
-        SizedBox(width: 14),
-        Expanded(child: _WeeklyProgressCard()),
-      ],
-    );
-  }
-}
-
-class _FitnessScoreCard extends StatelessWidget {
-  const _FitnessScoreCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Fitness Score'),
-          const SizedBox(height: 18),
-          Center(
-            child: AnimatedProgressRing(
-              progress: 0.86,
-              size: 116,
-              color: AtlasColors.accent,
-              trackColor: AtlasColors.accentSoft,
-              center: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedCounterText(
-                    value: 86,
-                    formatter: (value) => value.round().toString(),
-                    style: Theme.of(context).textTheme.displaySmall,
-                  ),
-                  Text('Prime', style: Theme.of(context).textTheme.bodyMedium),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WeeklyProgressCard extends StatelessWidget {
-  const _WeeklyProgressCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Weekly Progress'),
-          const SizedBox(height: 18),
-          AnimatedCounterText(
-            value: 4,
-            formatter: (value) => '${value.round()} / 5',
-            style: Theme.of(context).textTheme.displaySmall,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'workouts complete',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 26),
-          const AtlasProgressBar(value: 0.8, color: AtlasColors.success),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressOverview extends StatelessWidget {
-  const _ProgressOverview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        SectionTitle('Workout Progress'),
-        SizedBox(height: 12),
-        Row(
+          child: child,
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: Stack(
           children: [
-            Expanded(
-              child: AtlasStatCard(
-                label: 'Completed',
-                value: '123',
-                caption: 'sessions',
-                icon: Icons.check_circle_outline,
-                color: AtlasColors.success,
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF111111),
+                      AtlasColors.accentDeep.withValues(alpha: 0.96),
+                      AtlasColors.ink,
+                    ],
+                  ),
+                ),
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: AtlasStatCard(
-                label: 'This Month',
-                value: '18',
-                caption: 'workouts',
-                icon: Icons.calendar_month_outlined,
-                color: AtlasColors.lilac,
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                  borderRadius: BorderRadius.circular(34),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const _FloatingWorkoutGlyph(),
+                      const Spacer(),
+                      AnimatedProgressRing(
+                        progress: 0,
+                        size: 86,
+                        strokeWidth: 8,
+                        color: Colors.white,
+                        trackColor: Colors.white.withValues(alpha: 0.18),
+                        semanticLabel: 'No workout progress logged yet',
+                        center: Text(
+                          'Ready',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'No workout data yet',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: Colors.white,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Today\'s workout will be calculated from your real history once workout logging is built.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.74),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AtlasGradientButton(
+                    label: 'Workout logging coming soon',
+                    icon: Icons.lock_clock_rounded,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.24),
+                      Colors.white.withValues(alpha: 0.12),
+                    ],
+                    onPressed:
+                        () => showAtlasSnack(
+                          context,
+                          message:
+                              'Workout logging is coming soon. No data was saved.',
+                          icon: Icons.info_outline_rounded,
+                        ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _WeightAndWaterRow extends StatelessWidget {
-  const _WeightAndWaterRow();
+class _FloatingWorkoutGlyph extends StatelessWidget {
+  const _FloatingWorkoutGlyph();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: AtlasStatCard(
-            label: 'Weight',
-            value: '76.4 kg',
-            caption: '-0.8 kg this month',
-            icon: Icons.monitor_weight_outlined,
-            color: AtlasColors.accent,
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 1600),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        final lift = 4 * (1 - (value - 0.5).abs() * 2);
+        return Transform.translate(offset: Offset(0, -lift), child: child);
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: const Icon(
+            Icons.fitness_center_rounded,
+            color: Colors.white,
+            size: 27,
           ),
         ),
-        SizedBox(width: 14),
-        Expanded(
-          child: AtlasStatCard(
-            label: 'Water',
-            value: 'Next 2:30',
-            caption: 'hydration nudge',
-            icon: Icons.water_drop_outlined,
-            color: AtlasColors.warning,
-          ),
+      ),
+    );
+  }
+}
+
+class _RecoveryWave extends StatelessWidget {
+  const _RecoveryWave();
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 1800),
+      curve: Curves.easeInOut,
+      builder: (context, value, _) {
+        return CustomPaint(
+          painter: _WavePainter(value),
+          child: const SizedBox.expand(),
+        );
+      },
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  const _WavePainter(this.phase);
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..shader = LinearGradient(
+            colors: [
+              AtlasColors.success.withValues(alpha: 0.08),
+              AtlasColors.accent.withValues(alpha: 0.05),
+            ],
+          ).createShader(Offset.zero & size);
+    final path = Path()..moveTo(0, size.height * 0.62);
+    for (var x = 0.0; x <= size.width; x += 8) {
+      final y =
+          size.height * 0.62 +
+          10 * (1 - phase) +
+          10 * (0.5 - (x / size.width - 0.5).abs());
+      path.lineTo(x, y);
+    }
+    path
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter oldDelegate) {
+    return oldDelegate.phase != phase;
+  }
+}
+
+class _NewAccountGrid extends StatelessWidget {
+  const _NewAccountGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.02,
+      ),
+      children: const [
+        AtlasStatCard(
+          label: 'Fitness Score',
+          value: 'No data yet',
+          caption: 'calculated later',
+          icon: Icons.speed_rounded,
+          color: AtlasColors.accent,
+        ),
+        AtlasStatCard(
+          label: 'Weekly Progress',
+          value: 'No data yet',
+          caption: 'workouts logged',
+          icon: Icons.calendar_month_rounded,
+          color: AtlasColors.success,
+        ),
+        AtlasStatCard(
+          label: 'Weight',
+          value: 'No data yet',
+          caption: 'first entry pending',
+          icon: Icons.monitor_weight_outlined,
+          color: AtlasColors.accent,
+        ),
+        AtlasStatCard(
+          label: 'Hydration',
+          value: 'No data yet',
+          caption: 'nudges not enabled',
+          icon: Icons.water_drop_outlined,
+          color: AtlasColors.warning,
         ),
       ],
     );
   }
 }
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
+class _ReadinessEmptyCard extends StatelessWidget {
+  const _ReadinessEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasCard(
+      isGlass: true,
+      padding: const EdgeInsets.all(20),
+      child: SizedBox(
+        height: 142,
+        child: Stack(
+          children: [
+            const Positioned.fill(child: _RecoveryWave()),
+            Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: AtlasColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: const Icon(
+                    Icons.favorite_border_rounded,
+                    color: AtlasColors.success,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionTitle('Readiness Insight'),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Recovery, energy, and stress will appear after you start logging wellness inputs.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionsCard extends StatelessWidget {
+  const _QuickActionsCard();
 
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (
-        Icons.add_chart_outlined,
-        'Log Weight',
-        () => showAtlasSnack(context, message: 'Weight logging preview'),
-      ),
-      (
-        Icons.mood_outlined,
-        'Mood',
-        () => showAtlasSnack(context, message: 'Mood check-in preview'),
-      ),
-      (
-        Icons.water_drop_outlined,
-        'Water',
-        () => showAtlasSnack(context, message: 'Hydration nudge preview'),
-      ),
-      (
-        Icons.directions_run_outlined,
-        'Cardio',
-        () => showAtlasSnack(context, message: 'Cardio entry preview'),
-      ),
+      (Icons.monitor_weight_outlined, 'Log Weight'),
+      (Icons.mood_outlined, 'Mood'),
+      (Icons.water_drop_outlined, 'Water'),
+      (Icons.directions_run_rounded, 'Cardio'),
     ];
 
     return AtlasCard(
@@ -382,27 +430,32 @@ class _QuickActions extends StatelessWidget {
           const SectionTitle('Quick Actions'),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 12,
+            runSpacing: 12,
             children: [
               for (final action in actions)
                 AtlasPressable(
-                  onTap: action.$3,
+                  onTap:
+                      () => showAtlasSnack(
+                        context,
+                        message:
+                            '${action.$2} is coming soon. No data was saved.',
+                        icon: Icons.info_outline_rounded,
+                      ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                      horizontal: 16,
+                      vertical: 13,
                     ),
                     decoration: BoxDecoration(
-                      color: AtlasColors.surfaceWarm,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AtlasColors.hairline),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(action.$1, size: 18, color: AtlasColors.inkMuted),
-                        const SizedBox(width: 8),
+                        Icon(action.$1, size: 19, color: AtlasColors.inkMuted),
+                        const SizedBox(width: 9),
                         Text(
                           action.$2,
                           style: Theme.of(context).textTheme.labelLarge,

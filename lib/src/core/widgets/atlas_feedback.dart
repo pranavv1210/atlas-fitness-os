@@ -44,20 +44,24 @@ Future<void> showWorkoutPreviewSheet(BuildContext context) {
             const SectionTitle('Workout Preview'),
             const SizedBox(height: 8),
             Text(
-              'Chest + Triceps is ready. This is a mock-only sheet for the prototype polish phase.',
+              'Workout preview will be available after real workout logging is implemented.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
-            const _PreviewRow(label: 'Estimated time', value: '58 min'),
-            const _PreviewRow(label: 'Working sets', value: '18'),
-            const _PreviewRow(label: 'Intensity', value: 'Moderate'),
+            const _PreviewRow(label: 'Workout', value: 'Not created'),
+            const _PreviewRow(label: 'Sets', value: 'No data yet'),
+            const _PreviewRow(label: 'Status', value: 'Coming soon'),
             const SizedBox(height: 18),
-            const AtlasProgressBar(value: 0.72, color: AtlasColors.success),
+            const AtlasProgressBar(value: 0, color: AtlasColors.success),
             const SizedBox(height: 22),
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                showAtlasSnack(rootContext, message: 'Workout preview opened');
+                showAtlasSnack(
+                  rootContext,
+                  message: 'Workout preview is coming soon. No data was saved.',
+                  icon: Icons.info_outline_rounded,
+                );
               },
               child: const Text('Continue'),
             ),
