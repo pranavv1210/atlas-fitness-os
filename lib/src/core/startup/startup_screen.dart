@@ -5,6 +5,7 @@ import '../../app/theme/atlas_colors.dart';
 import '../../features/auth/presentation/auth_screen.dart';
 import '../di/app_scope.dart';
 import '../errors/app_failure.dart';
+import '../widgets/atlas_logo.dart';
 import 'startup_controller.dart';
 import 'startup_state.dart';
 
@@ -106,6 +107,8 @@ class _SplashView extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const AtlasLogo(size: 122),
+                const SizedBox(height: 18),
                 Text('Atlas', style: Theme.of(context).textTheme.displayMedium),
                 const SizedBox(height: 14),
                 Text(message, style: Theme.of(context).textTheme.bodyMedium),

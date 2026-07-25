@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
 import '../../../core/errors/app_failure.dart';
+import '../../../core/widgets/atlas_logo.dart';
 
 class AuthScreen extends StatelessWidget {
   const AuthScreen({
@@ -33,6 +34,8 @@ class AuthScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Spacer(),
+                const AtlasLogo(size: 116),
+                const SizedBox(height: 18),
                 Text('Atlas', style: Theme.of(context).textTheme.displayMedium),
                 const SizedBox(height: 10),
                 Text(

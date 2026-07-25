@@ -147,7 +147,7 @@ class AtlasTheme {
           fontWeight: FontWeight.w600,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
+        insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AtlasColors.surface,
