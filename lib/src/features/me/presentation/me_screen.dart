@@ -210,13 +210,18 @@ class _PreferenceCard extends StatelessWidget {
             icon: Icons.straighten_outlined,
             title: 'Units',
             value: 'Metric',
-            onTap: () => showAtlasSnack(context, message: 'Units preview'),
+            onTap:
+                () => showAtlasSnack(context, message: 'Metric units active.'),
           ),
           _PreferenceRow(
             icon: Icons.palette_outlined,
             title: 'Appearance',
             value: 'Light',
-            onTap: () => showAtlasSnack(context, message: 'Appearance preview'),
+            onTap:
+                () => showAtlasSnack(
+                  context,
+                  message: 'Light glass appearance active.',
+                ),
           ),
           _PreferenceRow(
             icon: Icons.cloud_done_outlined,
@@ -231,10 +236,10 @@ class _PreferenceCard extends StatelessWidget {
           _PreferenceRow(
             icon: Icons.lock_outline,
             title: 'Privacy Lock',
-            value: 'Future',
+            value: 'Off',
             showDivider: false,
             onTap:
-                () => showAtlasSnack(context, message: 'Privacy lock preview'),
+                () => showAtlasSnack(context, message: 'Privacy lock is off.'),
           ),
         ],
       ),

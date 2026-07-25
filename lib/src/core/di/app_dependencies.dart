@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/atlas/data/atlas_data_repository.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/datasources/google_auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/supabase_auth_repository.dart';
@@ -40,6 +41,7 @@ class AppDependencies {
 
   AuthRepository? _authRepository;
   ProfileRepository? _profileRepository;
+  AtlasDataRepository? _atlasDataRepository;
 
   AuthRepository get authRepository {
     final repository = _authRepository;
@@ -61,8 +63,20 @@ class AppDependencies {
     return repository;
   }
 
+  AtlasDataRepository get atlasDataRepository {
+    final repository = _atlasDataRepository;
+    if (repository == null) {
+      throw StateError(
+        'AtlasDataRepository requested before Supabase is configured',
+      );
+    }
+    return repository;
+  }
+
   void registerSupabaseClient(SupabaseClient client) {
-    if (_authRepository != null && _profileRepository != null) {
+    if (_authRepository != null &&
+        _profileRepository != null &&
+        _atlasDataRepository != null) {
       return;
     }
 
@@ -75,5 +89,6 @@ class AppDependencies {
       remoteDataSource: SupabaseProfileRemoteDataSource(client),
       localCache: const NoopProfileLocalCache(),
     );
+    _atlasDataRepository = AtlasDataRepository(client);
   }
 }

@@ -44,13 +44,13 @@ Future<void> showWorkoutPreviewSheet(BuildContext context) {
             const SectionTitle('Workout Preview'),
             const SizedBox(height: 8),
             Text(
-              'Workout preview will be available after real workout logging is implemented.',
+              'Use the Train screen to choose exercises, enter sets, reps, and weight, then save the workout.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
-            const _PreviewRow(label: 'Workout', value: 'Not created'),
-            const _PreviewRow(label: 'Sets', value: 'No data yet'),
-            const _PreviewRow(label: 'Status', value: 'Coming soon'),
+            const _PreviewRow(label: 'Workout', value: 'Train tab'),
+            const _PreviewRow(label: 'Sets', value: 'Editable'),
+            const _PreviewRow(label: 'Status', value: 'Ready'),
             const SizedBox(height: 18),
             const AtlasProgressBar(value: 0, color: AtlasColors.success),
             const SizedBox(height: 22),
@@ -59,8 +59,8 @@ Future<void> showWorkoutPreviewSheet(BuildContext context) {
                 Navigator.of(context).pop();
                 showAtlasSnack(
                   rootContext,
-                  message: 'Workout preview is coming soon. No data was saved.',
-                  icon: Icons.info_outline_rounded,
+                  message: 'Open Train to log your workout.',
+                  icon: Icons.fitness_center_rounded,
                 );
               },
               child: const Text('Continue'),
@@ -93,7 +93,7 @@ Future<void> showCompletionCelebration(BuildContext context) {
               ),
               const SizedBox(height: 8),
               Text(
-                'A restrained success moment for future completion flow.',
+                'Your workout has been saved to Atlas.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),

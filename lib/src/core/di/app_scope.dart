@@ -23,6 +23,10 @@ class AppScope extends InheritedWidget {
     return scope.dependencies;
   }
 
+  static AppDependencies? maybeRead(BuildContext context) {
+    return context.getInheritedWidgetOfExactType<AppScope>()?.dependencies;
+  }
+
   @override
   bool updateShouldNotify(AppScope oldWidget) {
     return oldWidget.dependencies != dependencies;
