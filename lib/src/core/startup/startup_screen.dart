@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/navigation/atlas_shell.dart';
@@ -33,7 +35,13 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 
   Future<void> _start() async {
+    final started = DateTime.now();
     final result = await _controller.start(onStateChanged: _setState);
+    final elapsed = DateTime.now().difference(started);
+    const minimumSplash = Duration(milliseconds: 1900);
+    if (elapsed < minimumSplash) {
+      await Future<void>.delayed(minimumSplash - elapsed);
+    }
     _setState(result);
   }
 
@@ -85,44 +93,141 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 }
 
-class _SplashView extends StatelessWidget {
+class _SplashView extends StatefulWidget {
   const _SplashView({required this.message});
 
   final String message;
 
   @override
+  State<_SplashView> createState() => _SplashViewState();
+}
+
+class _SplashViewState extends State<_SplashView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFBFAF7), AtlasColors.background],
-          ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const AtlasLogo(size: 122),
-                const SizedBox(height: 18),
-                Text('Atlas', style: Theme.of(context).textTheme.displayMedium),
-                const SizedBox(height: 14),
-                Text(message, style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 28),
-                const SizedBox.square(
-                  dimension: 26,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
+      backgroundColor: const Color(0xFF05070D),
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final pulse = 0.96 + math.sin(_controller.value * math.pi) * 0.06;
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(painter: _SplashPainter(_controller.value)),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Transform.scale(
+                        scale: pulse,
+                        child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AtlasColors.accent.withValues(
+                                  alpha: 0.42,
+                                ),
+                                blurRadius: 62,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: const AtlasLogo(size: 132),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Atlas',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.displayMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Personal Fitness Operating System',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.74),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        widget.message,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.48),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+}
+
+class _SplashPainter extends CustomPainter {
+  const _SplashPainter(this.phase);
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gradientPaint =
+        Paint()
+          ..shader = RadialGradient(
+            center: Alignment(0.2 * math.sin(phase * math.pi * 2), -0.25),
+            radius: 0.9,
+            colors: [
+              AtlasColors.accent.withValues(alpha: 0.38),
+              AtlasColors.success.withValues(alpha: 0.12),
+              Colors.transparent,
+            ],
+          ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, gradientPaint);
+
+    final particlePaint = Paint()..color = Colors.white.withValues(alpha: 0.45);
+    for (var index = 0; index < 42; index++) {
+      final x = (math.sin(index * 11.7 + phase * 2) * 0.5 + 0.5) * size.width;
+      final y = (math.cos(index * 8.3 + phase * 3) * 0.5 + 0.5) * size.height;
+      canvas.drawCircle(Offset(x, y), 0.8 + (index % 4) * 0.35, particlePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SplashPainter oldDelegate) {
+    return oldDelegate.phase != phase;
   }
 }
 

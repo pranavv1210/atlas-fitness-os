@@ -24,50 +24,86 @@ class AtlasShell extends StatefulWidget {
 
 class _AtlasShellState extends State<AtlasShell> {
   int _selectedIndex = 0;
+  DateTime? _lastBackPress;
+
+  Future<bool> _handleBack() async {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return false;
+    }
+    if (_selectedIndex != 0) {
+      setState(() => _selectedIndex = 0);
+      return false;
+    }
+    final now = DateTime.now();
+    if (_lastBackPress == null ||
+        now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Press back again to exit')),
+        );
+      return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
     final destinations = AtlasDestination.values;
 
-    return Scaffold(
-      extendBody: true,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 360),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          final offset = Tween<Offset>(
-            begin: const Offset(0.03, 0.015),
-            end: Offset.zero,
-          ).animate(curved);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        final shouldExit = await _handleBack();
+        if (shouldExit) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 360),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            final offset = Tween<Offset>(
+              begin: const Offset(0.03, 0.015),
+              end: Offset.zero,
+            ).animate(curved);
 
-          return FadeTransition(
-            opacity: curved,
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
-              child: SlideTransition(position: offset, child: child),
-            ),
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: _buildScreen(destinations[_selectedIndex]),
+            return FadeTransition(
+              opacity: curved,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+                child: SlideTransition(position: offset, child: child),
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_selectedIndex),
+            child: _buildScreen(destinations[_selectedIndex]),
+          ),
         ),
-      ),
-      bottomNavigationBar: _FloatingDock(
-        destinations: destinations,
-        selectedIndex: _selectedIndex,
-        onSelected: (index) {
-          if (index != _selectedIndex) {
-            HapticFeedback.selectionClick();
-          }
-          setState(() => _selectedIndex = index);
-        },
+        bottomNavigationBar: _FloatingDock(
+          destinations: destinations,
+          selectedIndex: _selectedIndex,
+          onSelected: (index) {
+            if (index != _selectedIndex) {
+              HapticFeedback.selectionClick();
+            }
+            setState(() => _selectedIndex = index);
+          },
+        ),
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../../core/widgets/mock_charts.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../atlas/data/atlas_data_repository.dart';
 import '../../atlas/data/atlas_models.dart';
+import '../../today/presentation/today_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -29,7 +30,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Future<AtlasDashboardSnapshot> _load() async {
-    return _repository?.loadSnapshot() ?? _fallbackSnapshot();
+    return _repository?.loadSnapshot() ?? emptyAtlasSnapshot();
   }
 
   @override
@@ -37,7 +38,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? _fallbackSnapshot();
+        final data = snapshot.data ?? emptyAtlasSnapshot();
         return AtlasAppFrame(
           subtitle: 'Trends from your logs',
           title: 'Progress',
@@ -87,22 +88,17 @@ class _ProgressHero extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 22),
-          MockLineChart(
-            values:
-                weight == null
-                    ? const [1, 1, 1, 1, 1, 1, 1]
-                    : [
-                      weight + 0.4,
-                      weight + 0.2,
-                      weight + 0.1,
-                      weight,
-                      weight + 0.05,
-                      weight - 0.05,
-                      weight,
-                    ],
-            color: AtlasColors.accent,
-            semanticLabel: 'Weight trend chart',
-          ),
+          if (weight == null)
+            const _EmptyChartMessage(
+              icon: Icons.monitor_weight_outlined,
+              message: 'Log your first weight to start the trend line.',
+            )
+          else
+            MockLineChart(
+              values: List.filled(7, weight),
+              color: AtlasColors.accent,
+              semanticLabel: 'Weight trend chart',
+            ),
         ],
       ),
     );
@@ -142,15 +138,24 @@ class _MetricGrid extends StatelessWidget {
         ),
         AtlasStatCard(
           label: 'Recovery',
-          value: '${snapshot.recoveryScore}%',
-          caption: 'derived signal',
+          value:
+              snapshot.recoveryScore == null
+                  ? 'No signal'
+                  : '${snapshot.recoveryScore}%',
+          caption:
+              snapshot.recoveryScore == null
+                  ? 'log hydration first'
+                  : 'from logs',
           icon: Icons.bolt_rounded,
           color: AtlasColors.success,
         ),
         AtlasStatCard(
           label: 'Fitness Score',
-          value: '${snapshot.fitnessScore}',
-          caption: 'from logs',
+          value: snapshot.fitnessScore?.toString() ?? 'No score',
+          caption:
+              snapshot.fitnessScore == null
+                  ? 'log activity first'
+                  : 'from logs',
           icon: Icons.speed_rounded,
           color: AtlasColors.accent,
         ),
@@ -167,15 +172,6 @@ class _WorkoutFrequencyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final completed = snapshot.completedThisWeek;
-    final values = <double>[
-      0.12,
-      0.22,
-      0.18,
-      (completed / snapshot.weeklyTarget).clamp(0.08, 1).toDouble(),
-      0.16,
-      0.2,
-      0.14,
-    ];
     return AtlasCard(
       isGlass: true,
       padding: const EdgeInsets.all(22),
@@ -189,29 +185,59 @@ class _WorkoutFrequencyCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 22),
-          MockBarChart(
-            values: values,
-            labels: const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-            color: AtlasColors.success,
-            semanticLabel: 'Workout frequency chart',
-          ),
+          if (completed == 0)
+            const _EmptyChartMessage(
+              icon: Icons.fitness_center_rounded,
+              message:
+                  'Workout frequency appears after your first saved session.',
+            )
+          else
+            MockBarChart(
+              values: [
+                for (var index = 0; index < 7; index++)
+                  index < completed ? 1.0 : 0.0,
+              ],
+              labels: const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+              color: AtlasColors.success,
+              semanticLabel: 'Workout frequency chart',
+            ),
         ],
       ),
     );
   }
 }
 
-AtlasDashboardSnapshot _fallbackSnapshot() {
-  final today = fallbackCycle.first;
-  return AtlasDashboardSnapshot(
-    todayWorkout: today,
-    templateExercises: fallbackPlan(today.name, fallbackExercises),
-    exerciseLibrary: fallbackExercises,
-    completedThisWeek: 0,
-    weeklyTarget: 5,
-    totalWorkouts: 0,
-    monthWorkouts: 0,
-    hydrationToday: 0,
-    activeGoals: const [],
-  );
+class _EmptyChartMessage extends StatelessWidget {
+  const _EmptyChartMessage({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 150,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AtlasColors.surfaceWarm,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AtlasColors.inkMuted),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -15,7 +15,7 @@ class UserProfileMapper {
       displayName:
           metadata['full_name'] as String? ??
           metadata['name'] as String? ??
-          (email.isEmpty ? 'Pranav' : email),
+          (email.isEmpty ? 'Atlas User' : email.split('@').first),
       avatarUrl: metadata['avatar_url'] as String?,
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/atlas_colors.dart';
 import '../../../core/di/app_scope.dart';
@@ -7,9 +8,11 @@ import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
 import '../../../core/widgets/atlas_gradient_button.dart';
 import '../../../core/widgets/atlas_progress_bar.dart';
+import '../../../core/widgets/atlas_pressable.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../atlas/data/atlas_data_repository.dart';
 import '../../atlas/data/atlas_models.dart';
+import '../../today/presentation/today_screen.dart';
 
 class TrainScreen extends StatefulWidget {
   const TrainScreen({super.key});
@@ -32,11 +35,10 @@ class _TrainScreenState extends State<TrainScreen> {
   }
 
   Future<AtlasDashboardSnapshot> _load() async {
-    final repository = _repository;
     final snapshot =
-        repository == null
-            ? _fallbackSnapshot()
-            : await repository.loadSnapshot();
+        _repository == null
+            ? emptyAtlasSnapshot()
+            : await _repository!.loadSnapshot();
     _entries
       ..clear()
       ..addAll([
@@ -51,11 +53,20 @@ class _TrainScreenState extends State<TrainScreen> {
 
   Future<void> _saveWorkout(AtlasDashboardSnapshot snapshot) async {
     final repository = _repository;
-    if (repository == null) {
+    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    if (repository == null || workout == null) {
       showAtlasSnack(
         context,
-        message: 'Sign in is required before saving workout data.',
+        message: 'Sign in and choose at least one exercise before saving.',
         icon: Icons.info_outline_rounded,
+      );
+      return;
+    }
+    if (_entries.isEmpty) {
+      showAtlasSnack(
+        context,
+        message: 'Add an exercise before saving your workout.',
+        icon: Icons.add_rounded,
       );
       return;
     }
@@ -63,7 +74,7 @@ class _TrainScreenState extends State<TrainScreen> {
     setState(() => _saving = true);
     try {
       await repository.saveWorkout(
-        day: snapshot.todayWorkout,
+        day: workout,
         entries: [
           for (final entry in _entries)
             AtlasWorkoutEntry(
@@ -74,24 +85,18 @@ class _TrainScreenState extends State<TrainScreen> {
             ),
         ],
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       showCompletionCelebration(context);
       setState(() => _future = _load());
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
+    } catch (_) {
+      if (!mounted) return;
       showAtlasSnack(
         context,
-        message: 'Workout could not be saved. Check your connection.',
+        message: 'Workout could not be saved. Check Supabase and connection.',
         icon: Icons.error_outline_rounded,
       );
     } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -100,9 +105,13 @@ class _TrainScreenState extends State<TrainScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? _fallbackSnapshot();
+        final data = snapshot.data ?? emptyAtlasSnapshot();
+        final workout = data.todayWorkout ?? data.starterWorkout;
         return AtlasAppFrame(
-          subtitle: 'Day ${data.todayWorkout.dayNumber} of 5',
+          subtitle:
+              data.hasWorkoutCycleStarted
+                  ? workout?.name ?? 'Today\'s workout'
+                  : 'Start with Day 1 when you are ready',
           title: 'Train',
           children: [
             _WorkoutHero(
@@ -115,13 +124,18 @@ class _TrainScreenState extends State<TrainScreen> {
               entries: _entries,
               onChanged: () => setState(() {}),
               onAdd:
-                  () => setState(
-                    () => _entries.add(
-                      _EditableWorkoutEntry(data.exerciseLibrary.first),
-                    ),
-                  ),
+                  data.exerciseLibrary.isEmpty
+                      ? null
+                      : () {
+                        HapticFeedback.selectionClick();
+                        setState(
+                          () => _entries.add(
+                            _EditableWorkoutEntry(data.exerciseLibrary.first),
+                          ),
+                        );
+                      },
             ),
-            const _CycleCard(),
+            const _CycleExplainer(),
           ],
         );
       },
@@ -142,124 +156,97 @@ class _WorkoutHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final isFirst = !snapshot.hasWorkoutCycleStarted;
     final totalSets = snapshot.templateExercises.fold<int>(
       0,
       (sum, item) => sum + item.targetSets,
     );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(34),
-      child: AtlasCard(
-        isGlass: true,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 66,
-                  height: 66,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AtlasColors.success, AtlasColors.accent],
+    return AtlasCard(
+      isGlass: true,
+      radius: 34,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const _AnimatedExerciseGlyph(size: 74),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isFirst ? 'First workout' : 'Today\'s workout',
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AtlasColors.success.withValues(alpha: 0.22),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.fitness_center_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      workout?.name ?? 'Choose your workout',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Today\'s Workout',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        snapshot.todayWorkout.name,
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Text(
-              snapshot.todayWorkout.focus,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _HeroChip(
-                  label: '${snapshot.templateExercises.length} exercises',
-                  icon: Icons.list_alt_rounded,
-                ),
-                const SizedBox(width: 10),
-                _HeroChip(label: '$totalSets sets', icon: Icons.repeat_rounded),
-              ],
-            ),
-            const SizedBox(height: 22),
-            AtlasGradientButton(
-              label: saving ? 'Saving Workout' : 'Complete Workout',
-              icon: saving ? Icons.sync_rounded : Icons.check_rounded,
-              colors: const [AtlasColors.success, AtlasColors.accent],
-              onPressed: saving ? null : onSave,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isFirst
+                ? 'Save this session to anchor Atlas. Tomorrow continues with Back + Biceps, then the 5-day cycle repeats.'
+                : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _HeroChip(label: '${snapshot.templateExercises.length} moves'),
+              _HeroChip(label: '$totalSets target sets'),
+              _HeroChip(
+                label:
+                    isFirst
+                        ? 'Cycle not started'
+                        : 'Day ${workout?.dayNumber ?? 1}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          AtlasGradientButton(
+            label:
+                saving
+                    ? 'Saving'
+                    : isFirst
+                    ? 'Save First Workout'
+                    : 'Complete Workout',
+            icon: saving ? Icons.sync_rounded : Icons.check_rounded,
+            colors: const [AtlasColors.success, AtlasColors.accent],
+            onPressed: saving ? null : onSave,
+          ),
+        ],
       ),
     );
   }
 }
 
 class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.label, required this.icon});
+  const _HeroChip({required this.label});
 
   final String label;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AtlasColors.hairline),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: AtlasColors.inkMuted),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AtlasColors.hairline),
       ),
+      child: Text(label, style: Theme.of(context).textTheme.labelLarge),
     );
   }
 }
@@ -275,7 +262,7 @@ class _ExerciseLogger extends StatelessWidget {
   final List<AtlasExercise> library;
   final List<_EditableWorkoutEntry> entries;
   final VoidCallback onChanged;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -294,16 +281,34 @@ class _ExerciseLogger extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        for (var index = 0; index < entries.length; index++) ...[
-          _ExerciseEditor(
-            index: index + 1,
-            entry: entries[index],
-            library: library,
-            onChanged: onChanged,
-          ),
-          if (index != entries.length - 1) const SizedBox(height: 14),
-        ],
+        if (entries.isEmpty)
+          const _EmptyExerciseCard()
+        else
+          for (var index = 0; index < entries.length; index++) ...[
+            _ExerciseEditor(
+              index: index + 1,
+              entry: entries[index],
+              library: library,
+              onChanged: onChanged,
+            ),
+            if (index != entries.length - 1) const SizedBox(height: 14),
+          ],
       ],
+    );
+  }
+}
+
+class _EmptyExerciseCard extends StatelessWidget {
+  const _EmptyExerciseCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasCard(
+      padding: const EdgeInsets.all(22),
+      child: Text(
+        'No exercises loaded yet. Check your Supabase seed data or connection.',
+        style: Theme.of(context).textTheme.bodyLarge,
+      ),
     );
   }
 }
@@ -328,50 +333,39 @@ class _ExerciseEditor extends StatelessWidget {
       isGlass: true,
       padding: const EdgeInsets.all(18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ExerciseVisual(visual: visual, index: index),
+              _AnimatedExerciseGlyph(visual: visual, index: index),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DropdownButtonFormField<AtlasExercise>(
-                      value: entry.exercise,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        labelText: 'Exercise',
+                child: AtlasPressable(
+                  onTap: () => _pickExercise(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.exercise.name,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      items: [
-                        for (final exercise in library)
-                          DropdownMenuItem(
-                            value: exercise,
-                            child: Text(exercise.name),
-                          ),
-                      ],
-                      onChanged: (exercise) {
-                        if (exercise == null) {
-                          return;
-                        }
-                        entry.exercise = exercise;
-                        entry.sets = exercise.defaultSets;
-                        entry.reps = _firstNumber(exercise.defaultReps);
-                        onChanged();
-                      },
-                    ),
-                    Text(
-                      visual.cue,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
+                      const SizedBox(height: 5),
+                      Text(
+                        '${entry.exercise.primaryMuscle} / ${entry.exercise.equipment} / ${entry.exercise.difficulty}',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              IconButton(
+                onPressed: () => _pickExercise(context),
+                icon: const Icon(Icons.tune_rounded),
+                tooltip: 'Choose exercise',
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Row(
             children: [
               _NumberStepper(
@@ -391,11 +385,29 @@ class _ExerciseEditor extends StatelessWidget {
                   onChanged();
                 },
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _InlineNumberField(
+                  label: 'Weight kg',
+                  value: entry.weight,
+                  onChanged: (value) {
+                    entry.weight = value;
+                    onChanged();
+                  },
+                ),
+              ),
               const SizedBox(width: 10),
-              _WeightField(
-                value: entry.weight,
+              _NumberStepper(
+                label: 'Rest sec',
+                value: entry.restSeconds,
+                step: 15,
+                min: 15,
                 onChanged: (value) {
-                  entry.weight = value;
+                  entry.restSeconds = value;
                   onChanged();
                 },
               ),
@@ -403,8 +415,124 @@ class _ExerciseEditor extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AtlasProgressBar(
-            value: entry.sets.clamp(1, 6) / 6,
+            value: entry.completion,
             color: visual.gradient.first,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickExercise(BuildContext context) async {
+    final picked = await showModalBottomSheet<AtlasExercise>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder:
+          (context) =>
+              _ExercisePickerSheet(library: library, selected: entry.exercise),
+    );
+    if (picked == null) return;
+    HapticFeedback.selectionClick();
+    entry.exercise = picked;
+    entry.sets = picked.defaultSets;
+    entry.reps = _firstNumber(picked.defaultReps);
+    onChanged();
+  }
+}
+
+class _ExercisePickerSheet extends StatelessWidget {
+  const _ExercisePickerSheet({required this.library, required this.selected});
+
+  final List<AtlasExercise> library;
+  final AtlasExercise selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        MediaQuery.paddingOf(context).bottom + 22,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('Choose Exercise'),
+          const SizedBox(height: 6),
+          Text(
+            'Radio selection with movement preview.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.68,
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemBuilder: (context, index) {
+                final exercise = library[index];
+                final selectedRow = exercise == selected;
+                return AtlasPressable(
+                  onTap: () => Navigator.pop(context, exercise),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color:
+                          selectedRow
+                              ? AtlasColors.accent.withValues(alpha: 0.08)
+                              : Colors.white.withValues(alpha: 0.68),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color:
+                            selectedRow
+                                ? AtlasColors.accent.withValues(alpha: 0.2)
+                                : AtlasColors.hairline,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _AnimatedExerciseGlyph(
+                          visual: exerciseVisual(exercise),
+                          size: 58,
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                exercise.name,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${exercise.primaryMuscle} / ${exercise.equipment}',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          selectedRow
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_off_rounded,
+                          color:
+                              selectedRow
+                                  ? AtlasColors.accent
+                                  : AtlasColors.inkSoft,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemCount: library.length,
+            ),
           ),
         ],
       ),
@@ -412,51 +540,63 @@ class _ExerciseEditor extends StatelessWidget {
   }
 }
 
-class _ExerciseVisual extends StatelessWidget {
-  const _ExerciseVisual({required this.visual, required this.index});
+class _AnimatedExerciseGlyph extends StatelessWidget {
+  const _AnimatedExerciseGlyph({this.visual, this.index, this.size = 70});
 
-  final ExerciseVisual visual;
-  final int index;
+  final ExerciseVisual? visual;
+  final int? index;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
+    final resolved = visual ?? exerciseVisual(fallbackExercises.first);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 950),
+      duration: const Duration(milliseconds: 1100),
       curve: Curves.easeInOut,
       builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, -3 * (1 - (value - 0.5).abs() * 2)),
-          child: child,
+        return Transform.scale(
+          scale: 0.96 + value * 0.04,
+          child: Transform.translate(
+            offset: Offset(0, -3 * (1 - (value - 0.5).abs() * 2)),
+            child: child,
+          ),
         );
       },
       child: Container(
-        width: 72,
-        height: 96,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: visual.gradient),
-          borderRadius: BorderRadius.circular(28),
+          gradient: LinearGradient(colors: resolved.gradient),
+          borderRadius: BorderRadius.circular(size * 0.34),
           boxShadow: [
             BoxShadow(
-              color: visual.gradient.first.withValues(alpha: 0.26),
-              blurRadius: 24,
+              color: resolved.gradient.first.withValues(alpha: 0.24),
+              blurRadius: 22,
               offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Stack(
           children: [
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Text(
-                '$index',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.64),
+            if (index != null)
+              Positioned(
+                right: 9,
+                top: 8,
+                child: Text(
+                  '$index',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
                 ),
               ),
+            Center(
+              child: Icon(
+                resolved.icon,
+                color: Colors.white,
+                size: size * 0.42,
+              ),
             ),
-            Center(child: Icon(visual.icon, color: Colors.white, size: 34)),
           ],
         ),
       ),
@@ -469,17 +609,21 @@ class _NumberStepper extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.step = 1,
+    this.min = 1,
   });
 
   final String label;
   final int value;
+  final int step;
+  final int min;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: AtlasColors.surfaceWarm,
           borderRadius: BorderRadius.circular(18),
@@ -488,16 +632,17 @@ class _NumberStepper extends StatelessWidget {
         child: Column(
           children: [
             Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  onPressed: () => onChanged((value - 1).clamp(1, 99)),
+                  onPressed: () => onChanged((value - step).clamp(min, 999)),
                   icon: const Icon(Icons.remove_rounded),
                 ),
                 Text('$value', style: Theme.of(context).textTheme.titleMedium),
                 IconButton(
-                  onPressed: () => onChanged((value + 1).clamp(1, 99)),
+                  onPressed: () => onChanged((value + step).clamp(min, 999)),
                   icon: const Icon(Icons.add_rounded),
                 ),
               ],
@@ -509,42 +654,42 @@ class _NumberStepper extends StatelessWidget {
   }
 }
 
-class _WeightField extends StatelessWidget {
-  const _WeightField({required this.value, required this.onChanged});
+class _InlineNumberField extends StatelessWidget {
+  const _InlineNumberField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
+  final String label;
   final double value;
   final ValueChanged<double> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: TextFormField(
-        initialValue: value == 0 ? '' : value.toStringAsFixed(1),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(labelText: 'Kg'),
-        onChanged: (value) => onChanged(double.tryParse(value) ?? 0),
+    return TextFormField(
+      initialValue: value == 0 ? '' : value.toStringAsFixed(1),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: AtlasColors.surfaceWarm,
       ),
+      onChanged: (value) => onChanged(double.tryParse(value) ?? 0),
     );
   }
 }
 
-class _CycleCard extends StatelessWidget {
-  const _CycleCard();
+class _CycleExplainer extends StatelessWidget {
+  const _CycleExplainer();
 
   @override
   Widget build(BuildContext context) {
     return AtlasCard(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Workout Cycle Logic'),
-          const SizedBox(height: 8),
-          Text(
-            'Atlas follows Day 1 through Day 5 automatically from your profile anchor date: Chest + Triceps, Back + Biceps, Arms + Abs, Shoulders + Legs, Rest, then repeats.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
+      child: Text(
+        'Cycle rule: your first saved workout becomes Day 1. Atlas then moves through Back + Biceps, Arms + Abs, Shoulders + Legs, Rest, and repeats.',
+        style: Theme.of(context).textTheme.bodyLarge,
       ),
     );
   }
@@ -554,6 +699,7 @@ class _EditableWorkoutEntry {
   _EditableWorkoutEntry(this.exercise)
     : sets = exercise.defaultSets,
       reps = _firstNumber(exercise.defaultReps),
+      restSeconds = 60,
       weight = 0;
 
   factory _EditableWorkoutEntry.fromTemplate(AtlasWorkoutExercise template) {
@@ -565,25 +711,16 @@ class _EditableWorkoutEntry {
   AtlasExercise exercise;
   int sets;
   int reps;
+  int restSeconds;
   double weight;
+
+  double get completion {
+    final hasWeight = weight > 0 ? 0.25 : 0.0;
+    return (0.35 + sets.clamp(1, 6) / 6 * 0.4 + hasWeight).clamp(0, 1);
+  }
 }
 
 int _firstNumber(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
   return int.tryParse(match?.group(0) ?? '') ?? 10;
-}
-
-AtlasDashboardSnapshot _fallbackSnapshot() {
-  final today = fallbackCycle.first;
-  return AtlasDashboardSnapshot(
-    todayWorkout: today,
-    templateExercises: fallbackPlan(today.name, fallbackExercises),
-    exerciseLibrary: fallbackExercises,
-    completedThisWeek: 0,
-    weeklyTarget: 5,
-    totalWorkouts: 0,
-    monthWorkouts: 0,
-    hydrationToday: 0,
-    activeGoals: const [],
-  );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
+import '../../../core/di/app_scope.dart';
 import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
@@ -194,8 +195,26 @@ class _WorkoutCycleCard extends StatelessWidget {
   }
 }
 
-class _PreferenceCard extends StatelessWidget {
+class _PreferenceCard extends StatefulWidget {
   const _PreferenceCard();
+
+  @override
+  State<_PreferenceCard> createState() => _PreferenceCardState();
+}
+
+class _PreferenceCardState extends State<_PreferenceCard> {
+  bool _notifications = false;
+  bool _privacyLock = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final dependencies = AppScope.maybeRead(context);
+    if (dependencies != null) {
+      _notifications = dependencies.preferences.notificationEnabled;
+      _privacyLock = dependencies.preferences.biometricEnabled;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -234,16 +253,84 @@ class _PreferenceCard extends StatelessWidget {
                 ),
           ),
           _PreferenceRow(
-            icon: Icons.lock_outline,
-            title: 'Privacy Lock',
-            value: 'Off',
+            icon: Icons.notifications_active_outlined,
+            title: 'Notifications',
+            value: _notifications ? 'On' : 'Off',
+            onTap: _toggleNotifications,
+          ),
+          _PreferenceRow(
+            icon: Icons.fingerprint_rounded,
+            title: 'Biometrics',
+            value: _privacyLock ? 'On' : 'Off',
             showDivider: false,
-            onTap:
-                () => showAtlasSnack(context, message: 'Privacy lock is off.'),
+            onTap: _togglePrivacyLock,
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _toggleNotifications() async {
+    final dependencies = AppScope.maybeRead(context);
+    if (dependencies == null) return;
+    if (_notifications) {
+      await dependencies.notificationService.cancelHydrationNudge();
+      await dependencies.preferences.setNotificationEnabled(false);
+      setState(() => _notifications = false);
+      if (mounted) {
+        showAtlasSnack(context, message: 'Hydration reminders are off.');
+      }
+      return;
+    }
+
+    final granted = await dependencies.notificationService.requestPermission();
+    await dependencies.preferences.setNotificationPrompted();
+    await dependencies.preferences.setNotificationEnabled(granted);
+    if (granted) {
+      await dependencies.notificationService.scheduleHydrationNudge();
+    }
+    setState(() => _notifications = granted);
+    if (mounted) {
+      showAtlasSnack(
+        context,
+        message:
+            granted
+                ? 'Hydration reminders are on.'
+                : 'Notifications are blocked in Android settings.',
+      );
+    }
+  }
+
+  Future<void> _togglePrivacyLock() async {
+    final dependencies = AppScope.maybeRead(context);
+    if (dependencies == null) return;
+    if (_privacyLock) {
+      await dependencies.preferences.setBiometricEnabled(false);
+      setState(() => _privacyLock = false);
+      if (mounted) {
+        showAtlasSnack(context, message: 'Biometrics are off.');
+      }
+      return;
+    }
+
+    final available = await dependencies.biometricService.isAvailable();
+    if (!available) {
+      if (mounted) {
+        showAtlasSnack(
+          context,
+          message: 'Biometrics are not available on this device.',
+          icon: Icons.fingerprint_rounded,
+        );
+      }
+      return;
+    }
+    final authenticated = await dependencies.biometricService.authenticate();
+    if (!authenticated) return;
+    await dependencies.preferences.setBiometricEnabled(true);
+    setState(() => _privacyLock = true);
+    if (mounted) {
+      showAtlasSnack(context, message: 'Biometric lock is on.');
+    }
   }
 }
 
@@ -328,10 +415,7 @@ class _AboutCard extends StatelessWidget {
             children: [
               Text('Version', style: Theme.of(context).textTheme.bodyMedium),
               const Spacer(),
-              Text(
-                '0.1.0 Prototype',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+              Text('1.0.0', style: Theme.of(context).textTheme.labelLarge),
             ],
           ),
         ],

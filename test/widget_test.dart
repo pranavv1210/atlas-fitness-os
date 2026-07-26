@@ -25,8 +25,8 @@ void main() {
     expect(find.text('Goals'), findsOneWidget);
     expect(find.text('Me'), findsOneWidget);
     expect(find.textContaining('Pranav'), findsOneWidget);
-    expect(find.text('Chest + Triceps'), findsOneWidget);
-    expect(find.text('Log in Train'), findsOneWidget);
+    expect(find.text('Start your journey'), findsOneWidget);
+    expect(find.text('Start in Train'), findsOneWidget);
     expect(find.text('Daily Focus'), findsOneWidget);
   });
 
@@ -41,10 +41,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.fitness_center_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today\'s Workout'), findsOneWidget);
+    expect(find.text('First workout'), findsOneWidget);
     expect(find.text('Chest + Triceps'), findsOneWidget);
     expect(find.text('Exercises'), findsOneWidget);
     expect(find.text('Barbell Bench Press'), findsWidgets);
-    expect(find.text('Complete Workout'), findsOneWidget);
+    expect(find.text('Save First Workout'), findsOneWidget);
   });
 }

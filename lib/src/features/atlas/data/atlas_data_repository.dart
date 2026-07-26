@@ -12,18 +12,20 @@ class AtlasDataRepository {
   String get _userId => _client.auth.currentUser!.id;
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
-    final todayWorkout = await _loadTodayWorkout();
+    final totalWorkouts = await _countAllWorkouts();
+    final hasStarted = totalWorkouts > 0;
+    final todayWorkout = hasStarted ? await _loadTodayWorkout() : null;
+    final starterWorkout = hasStarted ? null : await _loadWorkoutDay(1);
     final library = await _loadExerciseLibrary();
     final templateExercises = await _loadTemplateExercises(
-      todayWorkout.templateId,
+      (todayWorkout ?? starterWorkout)?.templateId,
       library,
-      todayWorkout.name,
+      (todayWorkout ?? starterWorkout)?.name ?? 'Chest + Triceps',
     );
     final completedThisWeek = await _countWorkouts(
       _startOfWeek(DateTime.now()),
       DateTime.now(),
     );
-    final totalWorkouts = await _countAllWorkouts();
     final monthWorkouts = await _countWorkouts(
       DateTime(DateTime.now().year, DateTime.now().month),
       DateTime.now(),
@@ -35,6 +37,7 @@ class AtlasDataRepository {
 
     return AtlasDashboardSnapshot(
       todayWorkout: todayWorkout,
+      starterWorkout: starterWorkout,
       templateExercises: templateExercises,
       exerciseLibrary: library,
       completedThisWeek: completedThisWeek,
@@ -54,6 +57,17 @@ class AtlasDataRepository {
     required AtlasWorkoutDay day,
     required List<AtlasWorkoutEntry> entries,
   }) async {
+    final isFirstWorkout = await _countAllWorkouts() == 0;
+    if (isFirstWorkout) {
+      await _client.rpc(
+        'advance_workout_cycle',
+        params: {
+          'target_user_id': _userId,
+          'new_anchor_date': _date(DateTime.now()),
+        },
+      );
+    }
+
     final session =
         await _client
             .from('workout_sessions')
@@ -209,20 +223,47 @@ class AtlasDataRepository {
     ];
   }
 
-  Future<AtlasWorkoutDay> _loadTodayWorkout() async {
-    final rows = await _client.rpc('get_today_workout');
+  Future<AtlasWorkoutDay?> _loadTodayWorkout() async {
+    final rows = await _client.rpc('get_today_workout', params: {});
     if (rows is List && rows.isNotEmpty) {
       final row = rows.first as Map<String, dynamic>;
       return AtlasWorkoutDay(
-        dayNumber: row['cycle_day'] as int? ?? _fallbackDayNumber(),
-        name: row['workout_name'] as String? ?? _fallbackDay().name,
-        focus: row['focus'] as String? ?? _fallbackDay().focus,
+        dayNumber: row['cycle_day'] as int? ?? 1,
+        name: row['workout_name'] as String? ?? 'Workout',
+        focus: row['focus'] as String? ?? 'Train with intent',
         isRestDay: row['is_rest_day'] as bool? ?? false,
         workoutDayId: row['workout_day_id'] as String?,
         templateId: row['template_id'] as String?,
       );
     }
-    return _fallbackDay();
+    return null;
+  }
+
+  Future<AtlasWorkoutDay> _loadWorkoutDay(int dayNumber) async {
+    try {
+      final rows = await _client
+          .from('workout_days')
+          .select('id, name, focus, is_rest_day, workout_templates(id)')
+          .eq('day_number', dayNumber)
+          .limit(1);
+      if (rows.isNotEmpty) {
+        final row = rows.first;
+        final templates =
+            row['workout_templates'] as List<dynamic>? ?? const [];
+        return AtlasWorkoutDay(
+          dayNumber: dayNumber,
+          name: row['name'] as String? ?? 'Chest + Triceps',
+          focus: row['focus'] as String? ?? 'Start your Atlas cycle',
+          isRestDay: row['is_rest_day'] as bool? ?? false,
+          workoutDayId: row['id'] as String?,
+          templateId:
+              templates.isEmpty
+                  ? null
+                  : (templates.first as Map<String, dynamic>)['id'] as String?,
+        );
+      }
+    } catch (_) {}
+    return fallbackCycle.first;
   }
 
   Future<List<AtlasExercise>> _loadExerciseLibrary() async {
@@ -240,6 +281,9 @@ class AtlasDataRepository {
             pattern: row['movement_pattern'] as String? ?? 'strength',
             defaultSets: row['default_sets'] as int? ?? 3,
             defaultReps: row['default_reps'] as String? ?? '10',
+            primaryMuscle: _primaryMuscle(row['movement_pattern'] as String?),
+            equipment: _equipment(row['name'] as String? ?? ''),
+            difficulty: 'Moderate',
           ),
       ];
     } catch (_) {
@@ -282,6 +326,9 @@ class AtlasDataRepository {
       pattern: row['movement_pattern'] as String? ?? 'strength',
       defaultSets: row['default_sets'] as int? ?? 3,
       defaultReps: row['default_reps'] as String? ?? '10',
+      primaryMuscle: _primaryMuscle(row['movement_pattern'] as String?),
+      equipment: _equipment(row['name'] as String? ?? ''),
+      difficulty: 'Moderate',
     );
   }
 
@@ -376,18 +423,6 @@ DateTime _startOfWeek(DateTime date) {
   return local.subtract(Duration(days: local.weekday - 1));
 }
 
-int _fallbackDayNumber() {
-  final anchor = DateTime(2026, 7, 26);
-  final now = DateTime.now();
-  return now
-              .difference(DateTime(anchor.year, anchor.month, anchor.day))
-              .inDays %
-          5 +
-      1;
-}
-
-AtlasWorkoutDay _fallbackDay() => fallbackCycle[_fallbackDayNumber() - 1];
-
 const fallbackCycle = [
   AtlasWorkoutDay(
     dayNumber: 1,
@@ -428,6 +463,8 @@ const fallbackExercises = [
     pattern: 'horizontal_push',
     defaultSets: 4,
     defaultReps: '8-10',
+    primaryMuscle: 'Chest',
+    equipment: 'Barbell',
   ),
   AtlasExercise(
     id: 'incline',
@@ -435,6 +472,8 @@ const fallbackExercises = [
     pattern: 'incline_push',
     defaultSets: 3,
     defaultReps: '10',
+    primaryMuscle: 'Chest',
+    equipment: 'Dumbbells',
   ),
   AtlasExercise(
     id: 'fly',
@@ -442,6 +481,8 @@ const fallbackExercises = [
     pattern: 'chest_isolation',
     defaultSets: 3,
     defaultReps: '12-15',
+    primaryMuscle: 'Chest',
+    equipment: 'Cable',
   ),
   AtlasExercise(
     id: 'dips',
@@ -449,6 +490,8 @@ const fallbackExercises = [
     pattern: 'vertical_push',
     defaultSets: 3,
     defaultReps: '8-12',
+    primaryMuscle: 'Chest',
+    equipment: 'Bodyweight',
   ),
   AtlasExercise(
     id: 'pushdown',
@@ -456,6 +499,8 @@ const fallbackExercises = [
     pattern: 'triceps_isolation',
     defaultSets: 3,
     defaultReps: '12',
+    primaryMuscle: 'Triceps',
+    equipment: 'Cable',
   ),
   AtlasExercise(
     id: 'extension',
@@ -463,6 +508,8 @@ const fallbackExercises = [
     pattern: 'triceps_isolation',
     defaultSets: 2,
     defaultReps: '12-15',
+    primaryMuscle: 'Triceps',
+    equipment: 'Dumbbell',
   ),
   AtlasExercise(
     id: 'deadlift',
@@ -470,6 +517,8 @@ const fallbackExercises = [
     pattern: 'hinge_pull',
     defaultSets: 3,
     defaultReps: '5',
+    primaryMuscle: 'Back',
+    equipment: 'Barbell',
   ),
   AtlasExercise(
     id: 'pulldown',
@@ -477,6 +526,8 @@ const fallbackExercises = [
     pattern: 'vertical_pull',
     defaultSets: 4,
     defaultReps: '8-12',
+    primaryMuscle: 'Back',
+    equipment: 'Cable',
   ),
   AtlasExercise(
     id: 'row',
@@ -484,6 +535,8 @@ const fallbackExercises = [
     pattern: 'horizontal_pull',
     defaultSets: 3,
     defaultReps: '10-12',
+    primaryMuscle: 'Back',
+    equipment: 'Cable',
   ),
   AtlasExercise(
     id: 'curl',
@@ -491,6 +544,8 @@ const fallbackExercises = [
     pattern: 'biceps_isolation',
     defaultSets: 3,
     defaultReps: '10-12',
+    primaryMuscle: 'Biceps',
+    equipment: 'Dumbbells',
   ),
   AtlasExercise(
     id: 'raise',
@@ -498,6 +553,8 @@ const fallbackExercises = [
     pattern: 'shoulder_isolation',
     defaultSets: 4,
     defaultReps: '12-15',
+    primaryMuscle: 'Shoulders',
+    equipment: 'Dumbbells',
   ),
   AtlasExercise(
     id: 'press',
@@ -505,6 +562,8 @@ const fallbackExercises = [
     pattern: 'vertical_push',
     defaultSets: 4,
     defaultReps: '6-8',
+    primaryMuscle: 'Shoulders',
+    equipment: 'Barbell',
   ),
   AtlasExercise(
     id: 'squat',
@@ -512,6 +571,8 @@ const fallbackExercises = [
     pattern: 'squat',
     defaultSets: 4,
     defaultReps: '6-10',
+    primaryMuscle: 'Legs',
+    equipment: 'Barbell',
   ),
   AtlasExercise(
     id: 'leg_press',
@@ -519,6 +580,8 @@ const fallbackExercises = [
     pattern: 'squat',
     defaultSets: 3,
     defaultReps: '10-12',
+    primaryMuscle: 'Legs',
+    equipment: 'Machine',
   ),
   AtlasExercise(
     id: 'plank',
@@ -526,6 +589,8 @@ const fallbackExercises = [
     pattern: 'anti_extension',
     defaultSets: 3,
     defaultReps: '45',
+    primaryMuscle: 'Core',
+    equipment: 'Bodyweight',
   ),
 ];
 
@@ -569,6 +634,30 @@ List<AtlasWorkoutExercise> fallbackPlan(
           notes: '',
         ),
   ];
+}
+
+String _primaryMuscle(String? pattern) {
+  final value = pattern ?? '';
+  if (value.contains('pull') || value.contains('hinge')) return 'Back';
+  if (value.contains('curl')) return 'Biceps';
+  if (value.contains('triceps')) return 'Triceps';
+  if (value.contains('squat') || value.contains('leg')) return 'Legs';
+  if (value.contains('core') || value.contains('extension')) return 'Core';
+  if (value.contains('shoulder')) return 'Shoulders';
+  return 'Chest';
+}
+
+String _equipment(String name) {
+  final value = name.toLowerCase();
+  if (value.contains('dumbbell') || value.contains('curl')) return 'Dumbbells';
+  if (value.contains('cable') || value.contains('pushdown')) return 'Cable';
+  if (value.contains('press') ||
+      value.contains('deadlift') ||
+      value.contains('squat')) {
+    return 'Barbell';
+  }
+  if (value.contains('plank') || value.contains('dips')) return 'Bodyweight';
+  return 'Gym';
 }
 
 AtlasExercise? _findExercise(List<AtlasExercise> library, String name) {

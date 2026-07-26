@@ -35,7 +35,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<AtlasDashboardSnapshot> _load() async {
-    return _repository?.loadSnapshot() ?? _fallbackSnapshot();
+    return _repository?.loadSnapshot() ?? emptyAtlasSnapshot();
   }
 
   void _refresh() {
@@ -48,7 +48,7 @@ class _TodayScreenState extends State<TodayScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? _fallbackSnapshot();
+        final data = snapshot.data ?? emptyAtlasSnapshot();
         return AtlasAppFrame(
           subtitle: '${_greeting(DateTime.now())} $firstName',
           title: 'Today',
@@ -59,7 +59,10 @@ class _TodayScreenState extends State<TodayScreen> {
             _FocusCard(snapshot: data),
             _MissionCard(snapshot: data),
             _MetricsGrid(snapshot: data),
-            _ReadinessCard(snapshot: data),
+            if (data.recoveryScore == null)
+              const _EmptyInsightCard()
+            else
+              _ReadinessCard(snapshot: data),
             _QuickActionsCard(repository: _repository, onSaved: _refresh),
           ],
         );
@@ -118,10 +121,7 @@ class _FocusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final focus =
-        snapshot.lastWorkoutTitle == null
-            ? 'Start with one clean entry today. Atlas will build the operating system around your real training.'
-            : 'Last completed: ${snapshot.lastWorkoutTitle}. Keep the cycle moving with today\'s session.';
+    final quote = _quoteOfTheDay();
     return AtlasCard(
       isGlass: true,
       padding: const EdgeInsets.all(22),
@@ -130,7 +130,14 @@ class _FocusCard extends StatelessWidget {
         children: [
           Text('Daily Focus', style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 10),
-          Text(focus, style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            quote,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w600,
+              height: 1.22,
+            ),
+          ),
         ],
       ),
     );
@@ -145,6 +152,69 @@ class _MissionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final workout = snapshot.todayWorkout;
+    if (workout == null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF111111),
+                      AtlasColors.accentDeep.withValues(alpha: 0.96),
+                      AtlasColors.ink,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _FloatingWorkoutGlyph(),
+                  const SizedBox(height: 34),
+                  Text(
+                    'Start your journey',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: Colors.white,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your workout cycle begins only after you save your first real session.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.74),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AtlasGradientButton(
+                    label: 'Start in Train',
+                    icon: Icons.play_arrow_rounded,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.24),
+                      Colors.white.withValues(alpha: 0.12),
+                    ],
+                    onPressed:
+                        () => showAtlasSnack(
+                          context,
+                          message: 'Open Train to save your first workout.',
+                          icon: Icons.fitness_center_rounded,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final progress =
         snapshot.weeklyTarget == 0
             ? 0.0
@@ -283,15 +353,21 @@ class _MetricsGrid extends StatelessWidget {
       children: [
         AtlasStatCard(
           label: 'Fitness Score',
-          value: '${snapshot.fitnessScore}',
-          caption: _scoreLabel(snapshot.fitnessScore),
+          value: snapshot.fitnessScore?.toString() ?? 'No score',
+          caption:
+              snapshot.fitnessScore == null
+                  ? 'log activity first'
+                  : 'from logs',
           icon: Icons.speed_rounded,
           color: AtlasColors.accent,
         ),
         AtlasStatCard(
           label: 'Weekly Progress',
           value: '${snapshot.completedThisWeek} / ${snapshot.weeklyTarget}',
-          caption: 'workouts complete',
+          caption:
+              snapshot.completedThisWeek == 0
+                  ? 'no workouts yet'
+                  : 'workouts complete',
           icon: Icons.calendar_month_rounded,
           color: AtlasColors.success,
         ),
@@ -335,12 +411,12 @@ class _ReadinessCard extends StatelessWidget {
             Row(
               children: [
                 AnimatedProgressRing(
-                  progress: snapshot.recoveryScore / 100,
+                  progress: (snapshot.recoveryScore ?? 0) / 100,
                   size: 82,
                   strokeWidth: 8,
                   color: AtlasColors.success,
                   center: Text(
-                    '${snapshot.recoveryScore}',
+                    '${snapshot.recoveryScore ?? 0}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -363,6 +439,41 @@ class _ReadinessCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EmptyInsightCard extends StatelessWidget {
+  const _EmptyInsightCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasCard(
+      isGlass: true,
+      padding: const EdgeInsets.all(22),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: AtlasColors.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: AtlasColors.success,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Readiness will appear after Atlas has workout and hydration logs from you.',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -727,21 +838,26 @@ class _WavePainter extends CustomPainter {
   }
 }
 
-String _scoreLabel(int score) {
-  if (score >= 80) {
-    return 'strong';
-  }
-  if (score >= 60) {
-    return 'building';
-  }
-  return 'starting';
+String _quoteOfTheDay() {
+  const quotes = [
+    '✨ Small progress every day becomes extraordinary.',
+    '🔥 Discipline builds freedom.',
+    '💪 Earn your tomorrow.',
+    '🌿 Calm effort compounds.',
+    '⚡ One focused rep changes the day.',
+  ];
+  final now = DateTime.now();
+  return quotes[DateTime(now.year, now.month, now.day).day % quotes.length];
 }
 
-AtlasDashboardSnapshot _fallbackSnapshot() {
-  final today = fallbackCycle.first;
+AtlasDashboardSnapshot emptyAtlasSnapshot() {
   return AtlasDashboardSnapshot(
-    todayWorkout: today,
-    templateExercises: fallbackPlan(today.name, fallbackExercises),
+    todayWorkout: null,
+    starterWorkout: fallbackCycle.first,
+    templateExercises: fallbackPlan(
+      fallbackCycle.first.name,
+      fallbackExercises,
+    ),
     exerciseLibrary: fallbackExercises,
     completedThisWeek: 0,
     weeklyTarget: 5,

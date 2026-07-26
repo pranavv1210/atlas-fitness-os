@@ -1,4 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/atlas/data/atlas_data_repository.dart';
@@ -14,6 +17,9 @@ import '../logging/app_logger.dart';
 import '../logging/dev_logger.dart';
 import '../network/connectivity_plus_service.dart';
 import '../network/connectivity_service.dart';
+import '../services/atlas_biometric_service.dart';
+import '../services/atlas_notification_service.dart';
+import '../services/atlas_preferences.dart';
 import '../services/supabase_bootstrap.dart';
 
 class AppDependencies {
@@ -21,6 +27,8 @@ class AppDependencies {
     required this.logger,
     required this.connectivityService,
     required this.supabaseBootstrap,
+    required this.notificationService,
+    required this.biometricService,
     required GoogleAuthRemoteDataSource googleAuthRemoteDataSource,
   }) : _googleAuthRemoteDataSource = googleAuthRemoteDataSource;
 
@@ -30,6 +38,10 @@ class AppDependencies {
       logger: logger,
       connectivityService: ConnectivityPlusService(Connectivity()),
       supabaseBootstrap: SupabaseBootstrap(logger),
+      notificationService: AtlasNotificationService(
+        FlutterLocalNotificationsPlugin(),
+      ),
+      biometricService: AtlasBiometricService(LocalAuthentication()),
       googleAuthRemoteDataSource: GoogleSignInRemoteDataSource(logger),
     );
   }
@@ -37,11 +49,29 @@ class AppDependencies {
   final AppLogger logger;
   final ConnectivityService connectivityService;
   final SupabaseBootstrap supabaseBootstrap;
+  final AtlasNotificationService notificationService;
+  final AtlasBiometricService biometricService;
   final GoogleAuthRemoteDataSource _googleAuthRemoteDataSource;
 
   AuthRepository? _authRepository;
   ProfileRepository? _profileRepository;
   AtlasDataRepository? _atlasDataRepository;
+  AtlasPreferences? _preferences;
+
+  Future<void> initializeLocalServices() async {
+    _preferences ??= AtlasPreferences(await SharedPreferences.getInstance());
+    await notificationService.initialize();
+  }
+
+  AtlasPreferences get preferences {
+    final preferences = _preferences;
+    if (preferences == null) {
+      throw StateError(
+        'Preferences requested before local services initialize',
+      );
+    }
+    return preferences;
+  }
 
   AuthRepository get authRepository {
     final repository = _authRepository;

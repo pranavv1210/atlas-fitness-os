@@ -9,6 +9,9 @@ class AtlasExercise {
     required this.pattern,
     required this.defaultSets,
     required this.defaultReps,
+    this.primaryMuscle = 'Strength',
+    this.equipment = 'Gym',
+    this.difficulty = 'Moderate',
   });
 
   final String id;
@@ -16,6 +19,9 @@ class AtlasExercise {
   final String pattern;
   final int defaultSets;
   final String defaultReps;
+  final String primaryMuscle;
+  final String equipment;
+  final String difficulty;
 
   @override
   bool operator ==(Object other) {
@@ -95,6 +101,7 @@ class AtlasGoal {
 class AtlasDashboardSnapshot {
   const AtlasDashboardSnapshot({
     required this.todayWorkout,
+    required this.starterWorkout,
     required this.templateExercises,
     required this.exerciseLibrary,
     required this.completedThisWeek,
@@ -109,7 +116,8 @@ class AtlasDashboardSnapshot {
     this.lastWorkoutTitle,
   });
 
-  final AtlasWorkoutDay todayWorkout;
+  final AtlasWorkoutDay? todayWorkout;
+  final AtlasWorkoutDay? starterWorkout;
   final List<AtlasWorkoutExercise> templateExercises;
   final List<AtlasExercise> exerciseLibrary;
   final int completedThisWeek;
@@ -123,23 +131,37 @@ class AtlasDashboardSnapshot {
   final DateTime? latestWeightDate;
   final String? lastWorkoutTitle;
 
-  int get fitnessScore {
-    var score = 35;
+  bool get hasWorkoutCycleStarted => totalWorkouts > 0;
+
+  int? get fitnessScore {
+    if (totalWorkouts == 0 &&
+        latestWeight == null &&
+        hydrationToday == 0 &&
+        activeGoals.isEmpty) {
+      return null;
+    }
+    var score = 0;
     score += (completedThisWeek * 9).clamp(0, 36);
     if (latestWeight != null) {
-      score += 12;
+      score += 24;
     }
     if (hydrationToday > 0) {
-      score += 8;
+      score += 18;
     }
     if (activeGoals.isNotEmpty) {
-      score += 9;
+      score += 22;
     }
     return score.clamp(0, 100);
   }
 
-  int get recoveryScore {
-    var score = 58 + hydrationToday * 5;
+  int? get recoveryScore {
+    if (totalWorkouts == 0 && hydrationToday == 0) {
+      return null;
+    }
+    var score = hydrationToday * 12;
+    if (totalWorkouts > 0) {
+      score += 40;
+    }
     if (completedThisWeek >= weeklyTarget) {
       score -= 6;
     }

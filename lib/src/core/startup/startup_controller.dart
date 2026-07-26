@@ -20,6 +20,8 @@ class StartupController {
       ),
     );
 
+    await _dependencies.initializeLocalServices();
+
     final supabaseResult = await _dependencies.supabaseBootstrap.initialize();
     if (supabaseResult case Failure failure) {
       return StartupState.failure(failure.failure);
@@ -62,6 +64,19 @@ class StartupController {
       return const StartupState.unauthenticated();
     }
 
+    if (_dependencies.preferences.biometricEnabled) {
+      final unlocked = await _dependencies.biometricService.authenticate();
+      if (!unlocked) {
+        return const StartupState.failure(
+          AppFailure(
+            kind: AppFailureKind.permission,
+            message: 'Atlas is locked. Use biometrics or device unlock.',
+          ),
+        );
+      }
+    }
+
+    await _requestNotificationPermissionIfNeeded();
     return _loadProfile(onStateChanged);
   }
 
@@ -90,6 +105,7 @@ class StartupController {
       return StartupState.failure(failure.failure);
     }
 
+    await _requestNotificationPermissionIfNeeded();
     return _loadProfile(onStateChanged);
   }
 
@@ -120,5 +136,22 @@ class StartupController {
     return StartupState.authenticated(
       (profileResult as Success<UserProfile>).value,
     );
+  }
+
+  Future<void> _requestNotificationPermissionIfNeeded() async {
+    final preferences = _dependencies.preferences;
+    if (preferences.notificationPrompted) {
+      if (preferences.notificationEnabled) {
+        await _dependencies.notificationService.scheduleHydrationNudge();
+      }
+      return;
+    }
+
+    final granted = await _dependencies.notificationService.requestPermission();
+    await preferences.setNotificationPrompted();
+    await preferences.setNotificationEnabled(granted);
+    if (granted) {
+      await _dependencies.notificationService.scheduleHydrationNudge();
+    }
   }
 }
