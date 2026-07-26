@@ -205,6 +205,7 @@ class _PreferenceCard extends StatefulWidget {
 class _PreferenceCardState extends State<_PreferenceCard> {
   bool _notifications = false;
   bool _privacyLock = false;
+  int _hydrationIntervalMinutes = 60;
   ThemeMode _themeMode = ThemeMode.system;
 
   @override
@@ -214,6 +215,8 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     if (dependencies != null) {
       _notifications = dependencies.preferences.notificationEnabled;
       _privacyLock = dependencies.preferences.biometricEnabled;
+      _hydrationIntervalMinutes =
+          dependencies.preferences.hydrationIntervalMinutes;
       _themeMode = dependencies.themeMode.value;
     }
   }
@@ -257,6 +260,12 @@ class _PreferenceCardState extends State<_PreferenceCard> {
             onTap: _toggleNotifications,
           ),
           _PreferenceRow(
+            icon: Icons.water_drop_outlined,
+            title: 'Water interval',
+            value: '$_hydrationIntervalMinutes min',
+            onTap: _showHydrationIntervalSheet,
+          ),
+          _PreferenceRow(
             icon: Icons.fingerprint_rounded,
             title: 'Biometrics',
             value: _privacyLock ? 'On' : 'Off',
@@ -285,7 +294,9 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     await dependencies.preferences.setNotificationPrompted();
     await dependencies.preferences.setNotificationEnabled(granted);
     if (granted) {
-      await dependencies.notificationService.scheduleHydrationNudge();
+      await dependencies.notificationService.scheduleHydrationNudges(
+        intervalMinutes: dependencies.preferences.hydrationIntervalMinutes,
+      );
     }
     setState(() => _notifications = granted);
     if (mounted) {
@@ -295,6 +306,59 @@ class _PreferenceCardState extends State<_PreferenceCard> {
             granted
                 ? 'Hydration reminders are on.'
                 : 'Notifications are blocked in Android settings.',
+      );
+    }
+  }
+
+  Future<void> _showHydrationIntervalSheet() async {
+    final dependencies = AppScope.maybeRead(context);
+    if (dependencies == null) return;
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              22,
+              4,
+              22,
+              MediaQuery.paddingOf(context).bottom + 22,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionTitle('Water interval'),
+                const SizedBox(height: 8),
+                Text(
+                  'Atlas will send gentle hydration nudges between 8 AM and 10 PM.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                for (final minutes in [30, 60, 90, 120, 180])
+                  _HydrationIntervalOption(
+                    minutes: minutes,
+                    selected: minutes == _hydrationIntervalMinutes,
+                    onTap: () => Navigator.pop(context, minutes),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (selected == null) return;
+
+    await dependencies.preferences.setHydrationIntervalMinutes(selected);
+    if (dependencies.preferences.notificationEnabled) {
+      await dependencies.notificationService.scheduleHydrationNudges(
+        intervalMinutes: selected,
+      );
+    }
+    if (mounted) {
+      setState(() => _hydrationIntervalMinutes = selected);
+      showAtlasSnack(
+        context,
+        message: 'Water reminders set to every $selected minutes.',
+        icon: Icons.water_drop_outlined,
       );
     }
   }
@@ -415,6 +479,71 @@ class _AppearanceOption extends StatelessWidget {
             Expanded(
               child: Text(
                 _themeModeLabel(mode),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: selected ? AtlasColors.accent : AtlasColors.inkSoft,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HydrationIntervalOption extends StatelessWidget {
+  const _HydrationIntervalOption({
+    required this.minutes,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int minutes;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasPressable(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color:
+              selected
+                  ? AtlasColors.accent.withValues(alpha: 0.1)
+                  : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color:
+                selected
+                    ? AtlasColors.accent.withValues(alpha: 0.22)
+                    : AtlasColors.hairline,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AtlasColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.water_drop_outlined,
+                color: AtlasColors.accent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Every $minutes minutes',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),

@@ -142,7 +142,9 @@ class StartupController {
     final preferences = _dependencies.preferences;
     if (preferences.notificationPrompted) {
       if (preferences.notificationEnabled) {
-        await _dependencies.notificationService.scheduleHydrationNudge();
+        await _dependencies.notificationService.scheduleHydrationNudges(
+          intervalMinutes: preferences.hydrationIntervalMinutes,
+        );
       }
       return;
     }
@@ -151,7 +153,9 @@ class StartupController {
     await preferences.setNotificationPrompted();
     await preferences.setNotificationEnabled(granted);
     if (granted) {
-      await _dependencies.notificationService.scheduleHydrationNudge();
+      await _dependencies.notificationService.scheduleHydrationNudges(
+        intervalMinutes: preferences.hydrationIntervalMinutes,
+      );
     }
   }
 }

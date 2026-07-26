@@ -5,6 +5,8 @@ class AtlasPreferences {
 
   static const _notificationPromptedKey = 'atlas.notification_prompted';
   static const _notificationEnabledKey = 'atlas.notification_enabled';
+  static const _hydrationIntervalMinutesKey =
+      'atlas.hydration_interval_minutes';
   static const _biometricEnabledKey = 'atlas.biometric_enabled';
   static const _themeModeKey = 'atlas.theme_mode';
 
@@ -22,6 +24,13 @@ class AtlasPreferences {
 
   Future<void> setNotificationEnabled(bool value) {
     return _prefs.setBool(_notificationEnabledKey, value);
+  }
+
+  int get hydrationIntervalMinutes =>
+      _prefs.getInt(_hydrationIntervalMinutesKey) ?? 60;
+
+  Future<void> setHydrationIntervalMinutes(int value) {
+    return _prefs.setInt(_hydrationIntervalMinutesKey, value);
   }
 
   bool get biometricEnabled => _prefs.getBool(_biometricEnabledKey) ?? false;

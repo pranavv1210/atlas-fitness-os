@@ -32,32 +32,65 @@ class AtlasNotificationService {
     return await android?.areNotificationsEnabled() ?? true;
   }
 
-  Future<void> scheduleHydrationNudge() async {
-    await _plugin.cancel(1001);
+  static const _hydrationNotificationBaseId = 1000;
+  static const _hydrationScheduleDays = 7;
+  static const _hydrationStartHour = 8;
+  static const _hydrationEndHour = 22;
+
+  Future<void> scheduleHydrationNudges({required int intervalMinutes}) async {
+    await cancelHydrationNudge();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'atlas_hydration',
+        'atlas_hydration_water',
         'Hydration reminders',
         channelDescription: 'Gentle hydration nudges from Atlas.',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('atlas_water_drop'),
       ),
     );
     final now = tz.TZDateTime.now(tz.local);
-    var first = tz.TZDateTime(tz.local, now.year, now.month, now.day, 10);
-    if (first.isBefore(now)) {
-      first = first.add(const Duration(days: 1));
+    var notificationId = _hydrationNotificationBaseId;
+    for (var dayOffset = 0; dayOffset < _hydrationScheduleDays; dayOffset++) {
+      var scheduledAt = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day + dayOffset,
+        _hydrationStartHour,
+      );
+      final endOfWindow = tz.TZDateTime(
+        tz.local,
+        scheduledAt.year,
+        scheduledAt.month,
+        scheduledAt.day,
+        _hydrationEndHour,
+      );
+
+      while (!scheduledAt.isAfter(endOfWindow)) {
+        if (scheduledAt.isAfter(now)) {
+          await _plugin.zonedSchedule(
+            notificationId++,
+            'Atlas hydration',
+            'Time for a calm water check-in.',
+            scheduledAt,
+            details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
+        scheduledAt = scheduledAt.add(Duration(minutes: intervalMinutes));
+      }
     }
-    await _plugin.zonedSchedule(
-      1001,
-      'Atlas hydration',
-      'A calm water check-in for today.',
-      first,
-      details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
   }
 
-  Future<void> cancelHydrationNudge() => _plugin.cancel(1001);
+  Future<void> cancelHydrationNudge() async {
+    for (
+      var id = _hydrationNotificationBaseId;
+      id < _hydrationNotificationBaseId + 500;
+      id++
+    ) {
+      await _plugin.cancel(id);
+    }
+  }
 }
