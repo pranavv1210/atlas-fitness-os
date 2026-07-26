@@ -9,6 +9,7 @@ import '../../../core/widgets/mock_charts.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../atlas/data/atlas_data_repository.dart';
 import '../../atlas/data/atlas_models.dart';
+import '../../atlas/presentation/atlas_log_sheets.dart';
 import '../../today/presentation/today_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -33,6 +34,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return _repository?.loadSnapshot() ?? emptyAtlasSnapshot();
   }
 
+  void _refresh() {
+    setState(() => _future = _load());
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AtlasDashboardSnapshot>(
@@ -43,7 +48,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           subtitle: 'Trends from your logs',
           title: 'Progress',
           children: [
-            _ProgressHero(snapshot: data),
+            _ProgressHero(
+              snapshot: data,
+              repository: _repository,
+              onSaved: _refresh,
+            ),
             _MetricGrid(snapshot: data),
             _WorkoutFrequencyCard(snapshot: data),
           ],
@@ -54,9 +63,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
 }
 
 class _ProgressHero extends StatelessWidget {
-  const _ProgressHero({required this.snapshot});
+  const _ProgressHero({
+    required this.snapshot,
+    required this.repository,
+    required this.onSaved,
+  });
 
   final AtlasDashboardSnapshot snapshot;
+  final AtlasDataRepository? repository;
+  final VoidCallback onSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -70,13 +85,22 @@ class _ProgressHero extends StatelessWidget {
           Row(
             children: [
               const Expanded(child: SectionTitle('Weight Trend')),
-              Text(
-                weight == null
-                    ? 'Add weight'
-                    : '${weight.toStringAsFixed(1)} ${snapshot.latestWeightUnit}',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: AtlasColors.accent),
+              TextButton(
+                onPressed: () async {
+                  final saved = await showAtlasWeightLogSheet(
+                    context,
+                    repository: repository,
+                  );
+                  if (saved) onSaved();
+                },
+                child: Text(
+                  weight == null
+                      ? 'Add weight'
+                      : '${weight.toStringAsFixed(1)} ${snapshot.latestWeightUnit}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: AtlasColors.accent),
+                ),
               ),
             ],
           ),

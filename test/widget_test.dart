@@ -11,13 +11,22 @@ void main() {
     displayName: 'Pranav',
   );
 
-  testWidgets('Atlas shell shows primary navigation', (tester) async {
+  Future<void> pumpAtlasShell(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AtlasTheme.light,
         home: AtlasShell(profile: profile, onSignOut: () async {}),
       ),
     );
+  }
+
+  testWidgets('Atlas shell shows primary navigation', (tester) async {
+    await pumpAtlasShell(tester);
 
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Train'), findsOneWidget);
@@ -30,13 +39,18 @@ void main() {
     expect(find.text('Daily Focus'), findsOneWidget);
   });
 
+  testWidgets('Start in Train opens Train tab', (tester) async {
+    await pumpAtlasShell(tester);
+
+    await tester.tap(find.text('Start in Train'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('First workout'), findsOneWidget);
+    expect(find.text('Exercises'), findsOneWidget);
+  });
+
   testWidgets('Train tab shows workout logging controls', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AtlasTheme.light,
-        home: AtlasShell(profile: profile, onSignOut: () async {}),
-      ),
-    );
+    await pumpAtlasShell(tester);
 
     await tester.tap(find.byIcon(Icons.fitness_center_outlined));
     await tester.pumpAndSettle();
@@ -44,7 +58,13 @@ void main() {
     expect(find.text('First workout'), findsOneWidget);
     expect(find.text('Chest + Triceps'), findsOneWidget);
     expect(find.text('Exercises'), findsOneWidget);
-    expect(find.text('Barbell Bench Press'), findsWidgets);
+    expect(find.textContaining('Tap Add'), findsOneWidget);
     expect(find.text('Save First Workout'), findsOneWidget);
+
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose Exercise'), findsOneWidget);
+    expect(find.text('Barbell Bench Press'), findsWidgets);
   });
 }

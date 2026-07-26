@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -57,9 +58,11 @@ class AppDependencies {
   ProfileRepository? _profileRepository;
   AtlasDataRepository? _atlasDataRepository;
   AtlasPreferences? _preferences;
+  final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
 
   Future<void> initializeLocalServices() async {
     _preferences ??= AtlasPreferences(await SharedPreferences.getInstance());
+    themeMode.value = _themeModeFromString(_preferences!.themeMode);
     await notificationService.initialize();
   }
 
@@ -121,4 +124,17 @@ class AppDependencies {
     );
     _atlasDataRepository = AtlasDataRepository(client);
   }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    themeMode.value = mode;
+    await preferences.setThemeMode(mode.name);
+  }
+}
+
+ThemeMode _themeModeFromString(String value) {
+  return switch (value) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 }

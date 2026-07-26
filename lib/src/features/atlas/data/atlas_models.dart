@@ -12,6 +12,8 @@ class AtlasExercise {
     this.primaryMuscle = 'Strength',
     this.equipment = 'Gym',
     this.difficulty = 'Moderate',
+    this.imageUrl,
+    this.gifUrl,
   });
 
   final String id;
@@ -22,6 +24,8 @@ class AtlasExercise {
   final String primaryMuscle;
   final String equipment;
   final String difficulty;
+  final String? imageUrl;
+  final String? gifUrl;
 
   @override
   bool operator ==(Object other) {

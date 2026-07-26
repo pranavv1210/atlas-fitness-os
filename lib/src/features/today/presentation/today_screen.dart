@@ -12,12 +12,18 @@ import '../../../core/widgets/atlas_stat_card.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../atlas/data/atlas_data_repository.dart';
 import '../../atlas/data/atlas_models.dart';
+import '../../atlas/presentation/atlas_log_sheets.dart';
 import '../../profile/domain/models/user_profile.dart';
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({required this.profile, super.key});
+  const TodayScreen({
+    required this.profile,
+    required this.onOpenTrain,
+    super.key,
+  });
 
   final UserProfile profile;
+  final VoidCallback onOpenTrain;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -57,7 +63,7 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
           children: [
             _FocusCard(snapshot: data),
-            _MissionCard(snapshot: data),
+            _MissionCard(snapshot: data, onOpenTrain: widget.onOpenTrain),
             _MetricsGrid(snapshot: data),
             if (data.recoveryScore == null)
               const _EmptyInsightCard()
@@ -145,9 +151,10 @@ class _FocusCard extends StatelessWidget {
 }
 
 class _MissionCard extends StatelessWidget {
-  const _MissionCard({required this.snapshot});
+  const _MissionCard({required this.snapshot, required this.onOpenTrain});
 
   final AtlasDashboardSnapshot snapshot;
+  final VoidCallback onOpenTrain;
 
   @override
   Widget build(BuildContext context) {
@@ -201,12 +208,7 @@ class _MissionCard extends StatelessWidget {
                       Colors.white.withValues(alpha: 0.24),
                       Colors.white.withValues(alpha: 0.12),
                     ],
-                    onPressed:
-                        () => showAtlasSnack(
-                          context,
-                          message: 'Open Train to save your first workout.',
-                          icon: Icons.fitness_center_rounded,
-                        ),
+                    onPressed: onOpenTrain,
                   ),
                 ],
               ),
@@ -286,12 +288,7 @@ class _MissionCard extends StatelessWidget {
                     Colors.white.withValues(alpha: 0.24),
                     Colors.white.withValues(alpha: 0.12),
                   ],
-                  onPressed:
-                      () => showAtlasSnack(
-                        context,
-                        message: 'Open Train to complete today\'s workout.',
-                        icon: Icons.fitness_center_rounded,
-                      ),
+                  onPressed: onOpenTrain,
                 ),
               ],
             ),
@@ -493,7 +490,6 @@ class _QuickActionsCard extends StatelessWidget {
         'Weight',
         () => _showWeightSheet(context),
       ),
-      (Icons.mood_outlined, 'Mood', () => _showWellnessSheet(context)),
       (Icons.water_drop_outlined, 'Water', () => _saveWater(context)),
       (Icons.directions_run_rounded, 'Cardio', () => _showCardioSheet(context)),
       (
@@ -547,88 +543,14 @@ class _QuickActionsCard extends StatelessWidget {
   }
 
   Future<void> _showWeightSheet(BuildContext context) async {
-    final controller = TextEditingController();
-    final noteController = TextEditingController();
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder:
-          (context) => _ActionSheet(
-            title: 'Log Weight',
-            children: [
-              TextField(
-                controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: 'Weight kg'),
-              ),
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(labelText: 'Note'),
-              ),
-            ],
-            onSave: () async {
-              final weight = double.tryParse(controller.text);
-              if (weight == null || weight <= 0) {
-                return;
-              }
-              await repository?.saveWeight(weight, note: noteController.text);
-              onSaved();
-              if (context.mounted) {
-                Navigator.pop(context);
-                showAtlasSnack(context, message: 'Weight saved.');
-              }
-            },
-          ),
+    final saved = await showAtlasWeightLogSheet(
+      context,
+      repository: repository,
     );
-  }
-
-  Future<void> _showWellnessSheet(BuildContext context) async {
-    var mood = 3.0;
-    var energy = 3.0;
-    var stress = 3.0;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setSheetState) => _ActionSheet(
-                  title: 'Mood Check-in',
-                  children: [
-                    _SliderRow(
-                      label: 'Mood',
-                      value: mood,
-                      onChanged: (value) => setSheetState(() => mood = value),
-                    ),
-                    _SliderRow(
-                      label: 'Energy',
-                      value: energy,
-                      onChanged: (value) => setSheetState(() => energy = value),
-                    ),
-                    _SliderRow(
-                      label: 'Stress',
-                      value: stress,
-                      onChanged: (value) => setSheetState(() => stress = value),
-                    ),
-                  ],
-                  onSave: () async {
-                    await repository?.saveWellness(
-                      mood: mood.round(),
-                      energy: energy.round(),
-                      stress: stress.round(),
-                    );
-                    onSaved();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      showAtlasSnack(context, message: 'Wellness saved.');
-                    }
-                  },
-                ),
-          ),
-    );
+    if (saved) {
+      onSaved();
+      if (context.mounted) showAtlasSnack(context, message: 'Weight saved.');
+    }
   }
 
   Future<void> _saveWater(BuildContext context) async {
@@ -640,146 +562,22 @@ class _QuickActionsCard extends StatelessWidget {
   }
 
   Future<void> _showCardioSheet(BuildContext context) async {
-    await _durationSheet(
+    final saved = await showAtlasCardioLogSheet(
       context,
-      title: 'Log Cardio',
-      label: 'Activity',
-      defaultName: 'Run',
-      onSave:
-          (name, minutes) => repository?.saveCardio(
-            activityType: name,
-            durationMinutes: minutes,
-          ),
-      message: 'Cardio saved.',
+      repository: repository,
     );
+    if (saved) {
+      onSaved();
+      if (context.mounted) showAtlasSnack(context, message: 'Cardio saved.');
+    }
   }
 
   Future<void> _showSportSheet(BuildContext context) async {
-    await _durationSheet(
-      context,
-      title: 'Log Sport',
-      label: 'Sport',
-      defaultName: 'Basketball',
-      onSave:
-          (name, minutes) =>
-              repository?.saveSport(sportName: name, durationMinutes: minutes),
-      message: 'Sport saved.',
-    );
-  }
-
-  Future<void> _durationSheet(
-    BuildContext context, {
-    required String title,
-    required String label,
-    required String defaultName,
-    required Future<void>? Function(String name, int minutes) onSave,
-    required String message,
-  }) async {
-    final nameController = TextEditingController(text: defaultName);
-    final minutesController = TextEditingController(text: '30');
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder:
-          (context) => _ActionSheet(
-            title: title,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(labelText: label),
-              ),
-              TextField(
-                controller: minutesController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Minutes'),
-              ),
-            ],
-            onSave: () async {
-              final minutes = int.tryParse(minutesController.text) ?? 0;
-              if (minutes <= 0 || nameController.text.trim().isEmpty) {
-                return;
-              }
-              await onSave(nameController.text.trim(), minutes);
-              onSaved();
-              if (context.mounted) {
-                Navigator.pop(context);
-                showAtlasSnack(context, message: message);
-              }
-            },
-          ),
-    );
-  }
-}
-
-class _ActionSheet extends StatelessWidget {
-  const _ActionSheet({
-    required this.title,
-    required this.children,
-    required this.onSave,
-  });
-
-  final String title;
-  final List<Widget> children;
-  final Future<void> Function() onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        22,
-        8,
-        22,
-        MediaQuery.viewInsetsOf(context).bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionTitle(title),
-          const SizedBox(height: 16),
-          ...children,
-          const SizedBox(height: 22),
-          AtlasGradientButton(
-            label: 'Save',
-            icon: Icons.check_rounded,
-            onPressed: onSave,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SliderRow extends StatelessWidget {
-  const _SliderRow({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$label ${value.round()}',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        Slider(
-          value: value,
-          min: 1,
-          max: 5,
-          divisions: 4,
-          onChanged: onChanged,
-        ),
-      ],
-    );
+    final saved = await showAtlasSportLogSheet(context, repository: repository);
+    if (saved) {
+      onSaved();
+      if (context.mounted) showAtlasSnack(context, message: 'Sport saved.');
+    }
   }
 }
 
@@ -840,11 +638,11 @@ class _WavePainter extends CustomPainter {
 
 String _quoteOfTheDay() {
   const quotes = [
-    '✨ Small progress every day becomes extraordinary.',
-    '🔥 Discipline builds freedom.',
-    '💪 Earn your tomorrow.',
-    '🌿 Calm effort compounds.',
-    '⚡ One focused rep changes the day.',
+    '\u2728 Small progress every day becomes extraordinary.',
+    '\u{1F525} Discipline builds freedom.',
+    '\u{1F4AA} Earn your tomorrow.',
+    '\u{1F33F} Calm effort compounds.',
+    '\u26A1 One focused rep changes the day.',
   ];
   final now = DateTime.now();
   return quotes[DateTime(now.year, now.month, now.day).day % quotes.length];
@@ -854,10 +652,7 @@ AtlasDashboardSnapshot emptyAtlasSnapshot() {
   return AtlasDashboardSnapshot(
     todayWorkout: null,
     starterWorkout: fallbackCycle.first,
-    templateExercises: fallbackPlan(
-      fallbackCycle.first.name,
-      fallbackExercises,
-    ),
+    templateExercises: const [],
     exerciseLibrary: fallbackExercises,
     completedThisWeek: 0,
     weeklyTarget: 5,

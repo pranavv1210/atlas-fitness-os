@@ -6,6 +6,7 @@ class AtlasPreferences {
   static const _notificationPromptedKey = 'atlas.notification_prompted';
   static const _notificationEnabledKey = 'atlas.notification_enabled';
   static const _biometricEnabledKey = 'atlas.biometric_enabled';
+  static const _themeModeKey = 'atlas.theme_mode';
 
   final SharedPreferences _prefs;
 
@@ -27,5 +28,11 @@ class AtlasPreferences {
 
   Future<void> setBiometricEnabled(bool value) {
     return _prefs.setBool(_biometricEnabledKey, value);
+  }
+
+  String get themeMode => _prefs.getString(_themeModeKey) ?? 'system';
+
+  Future<void> setThemeMode(String value) {
+    return _prefs.setString(_themeModeKey, value);
   }
 }

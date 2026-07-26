@@ -11,12 +11,14 @@ void showAtlasSnack(
   BuildContext context, {
   required String message,
   IconData icon = Icons.check_circle_outline,
+  bool isError = false,
 }) {
   HapticFeedback.lightImpact();
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
+        duration: Duration(seconds: isError ? 3 : 2),
         content: Row(
           children: [
             Icon(icon, color: Colors.white, size: 19),

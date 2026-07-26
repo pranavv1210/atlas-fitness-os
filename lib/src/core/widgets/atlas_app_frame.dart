@@ -88,24 +88,29 @@ class _AtlasAtmosphere extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AtlasColors.background,
-            AtlasColors.cream,
-            AtlasColors.pearl,
+            isDark ? const Color(0xFF08090D) : AtlasColors.background,
+            isDark ? const Color(0xFF10131A) : AtlasColors.cream,
+            isDark ? const Color(0xFF151823) : AtlasColors.pearl,
           ],
         ),
       ),
-      child: CustomPaint(painter: _AtmospherePainter()),
+      child: CustomPaint(painter: _AtmospherePainter(isDark: isDark)),
     );
   }
 }
 
 class _AtmospherePainter extends CustomPainter {
+  const _AtmospherePainter({required this.isDark});
+
+  final bool isDark;
+
   @override
   void paint(Canvas canvas, Size size) {
     final bandPaint =
@@ -115,7 +120,7 @@ class _AtmospherePainter extends CustomPainter {
             end: Alignment.bottomRight,
             colors: [
               Colors.white.withValues(alpha: 0.52),
-              AtlasColors.accent.withValues(alpha: 0.035),
+              AtlasColors.accent.withValues(alpha: isDark ? 0.12 : 0.035),
               Colors.white.withValues(alpha: 0),
             ],
           ).createShader(Offset.zero & size);
@@ -143,7 +148,8 @@ class _AtmospherePainter extends CustomPainter {
           ..close();
     canvas.drawPath(path, bandPaint);
 
-    final grain = Paint()..color = Colors.white.withValues(alpha: 0.07);
+    final grain =
+        Paint()..color = Colors.white.withValues(alpha: isDark ? 0.035 : 0.07);
     const step = 19.0;
     for (var y = 0.0; y < size.height; y += step) {
       for (var x = 0.0; x < size.width; x += step) {
@@ -154,7 +160,9 @@ class _AtmospherePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _AtmospherePainter oldDelegate) {
+    return oldDelegate.isDark != isDark;
+  }
 }
 
 class _Entrance extends StatelessWidget {

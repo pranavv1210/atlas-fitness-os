@@ -14,11 +14,18 @@ class AtlasApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppScope(
       dependencies: dependencies,
-      child: MaterialApp(
-        title: 'Atlas',
-        debugShowCheckedModeBanner: false,
-        theme: AtlasTheme.light,
-        home: const StartupScreen(),
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: dependencies.themeMode,
+        builder: (context, themeMode, _) {
+          return MaterialApp(
+            title: 'Atlas',
+            debugShowCheckedModeBanner: false,
+            theme: AtlasTheme.light,
+            darkTheme: AtlasTheme.dark,
+            themeMode: themeMode,
+            home: const StartupScreen(),
+          );
+        },
       ),
     );
   }

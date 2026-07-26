@@ -21,23 +21,29 @@ class AtlasStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return AtlasCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 17, color: color),
           ),
-          const SizedBox(height: 14),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 5),
+          const Spacer(),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 3),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
             duration: const Duration(milliseconds: 650),
@@ -45,11 +51,20 @@ class AtlasStatCard extends StatelessWidget {
             builder: (context, value, child) {
               return Opacity(opacity: value, child: child);
             },
-            child: Text(value, style: Theme.of(context).textTheme.titleLarge),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: textTheme.titleLarge),
+            ),
           ),
           if (caption != null) ...[
-            const SizedBox(height: 4),
-            Text(caption!, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 2),
+            Text(
+              caption!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.bodyMedium,
+            ),
           ],
         ],
       ),

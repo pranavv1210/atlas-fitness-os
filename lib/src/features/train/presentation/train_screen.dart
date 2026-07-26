@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,7 +8,6 @@ import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
 import '../../../core/widgets/atlas_gradient_button.dart';
-import '../../../core/widgets/atlas_progress_bar.dart';
 import '../../../core/widgets/atlas_pressable.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../atlas/data/atlas_data_repository.dart';
@@ -39,15 +39,7 @@ class _TrainScreenState extends State<TrainScreen> {
         _repository == null
             ? emptyAtlasSnapshot()
             : await _repository!.loadSnapshot();
-    _entries
-      ..clear()
-      ..addAll([
-        for (final item in snapshot.templateExercises)
-          _EditableWorkoutEntry.fromTemplate(item),
-      ]);
-    if (_entries.isEmpty && snapshot.exerciseLibrary.isNotEmpty) {
-      _entries.add(_EditableWorkoutEntry(snapshot.exerciseLibrary.first));
-    }
+    _entries.clear();
     return snapshot;
   }
 
@@ -126,13 +118,17 @@ class _TrainScreenState extends State<TrainScreen> {
               onAdd:
                   data.exerciseLibrary.isEmpty
                       ? null
-                      : () {
-                        HapticFeedback.selectionClick();
-                        setState(
-                          () => _entries.add(
-                            _EditableWorkoutEntry(data.exerciseLibrary.first),
-                          ),
+                      : () async {
+                        final picked = await showExercisePickerSheet(
+                          context,
+                          library: data.exerciseLibrary,
+                          selected: _entries.lastOrNull?.exercise,
                         );
+                        if (picked == null) return;
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _entries.add(_EditableWorkoutEntry(picked));
+                        });
                       },
             ),
             const _CycleExplainer(),
@@ -205,7 +201,10 @@ class _WorkoutHero extends StatelessWidget {
             runSpacing: 10,
             children: [
               _HeroChip(label: '${snapshot.templateExercises.length} moves'),
-              _HeroChip(label: '$totalSets target sets'),
+              _HeroChip(
+                label:
+                    totalSets == 0 ? 'Manual build' : '$totalSets target sets',
+              ),
               _HeroChip(
                 label:
                     isFirst
@@ -306,7 +305,7 @@ class _EmptyExerciseCard extends StatelessWidget {
     return AtlasCard(
       padding: const EdgeInsets.all(22),
       child: Text(
-        'No exercises loaded yet. Check your Supabase seed data or connection.',
+        'Tap Add to choose your first exercise. Atlas will save exactly what you build.',
         style: Theme.of(context).textTheme.bodyLarge,
       ),
     );
@@ -331,14 +330,19 @@ class _ExerciseEditor extends StatelessWidget {
     final visual = exerciseVisual(entry.exercise);
     return AtlasCard(
       isGlass: true,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _AnimatedExerciseGlyph(visual: visual, index: index),
-              const SizedBox(width: 14),
+              _ExerciseMediaPreview(
+                exercise: entry.exercise,
+                visual: visual,
+                index: index,
+                size: 54,
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: AtlasPressable(
                   onTap: () => _pickExercise(context),
@@ -347,11 +351,15 @@ class _ExerciseEditor extends StatelessWidget {
                     children: [
                       Text(
                         entry.exercise.name,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 3),
                       Text(
                         '${entry.exercise.primaryMuscle} / ${entry.exercise.equipment} / ${entry.exercise.difficulty}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -359,13 +367,15 @@ class _ExerciseEditor extends StatelessWidget {
                 ),
               ),
               IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 onPressed: () => _pickExercise(context),
                 icon: const Icon(Icons.tune_rounded),
                 tooltip: 'Choose exercise',
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Row(
             children: [
               _NumberStepper(
@@ -385,14 +395,10 @@ class _ExerciseEditor extends StatelessWidget {
                   onChanged();
                 },
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
+              const SizedBox(width: 10),
               Expanded(
                 child: _InlineNumberField(
-                  label: 'Weight kg',
+                  label: 'Kg',
                   value: entry.weight,
                   onChanged: (value) {
                     entry.weight = value;
@@ -400,23 +406,7 @@ class _ExerciseEditor extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 10),
-              _NumberStepper(
-                label: 'Rest sec',
-                value: entry.restSeconds,
-                step: 15,
-                min: 15,
-                onChanged: (value) {
-                  entry.restSeconds = value;
-                  onChanged();
-                },
-              ),
             ],
-          ),
-          const SizedBox(height: 14),
-          AtlasProgressBar(
-            value: entry.completion,
-            color: visual.gradient.first,
           ),
         ],
       ),
@@ -424,13 +414,10 @@ class _ExerciseEditor extends StatelessWidget {
   }
 
   Future<void> _pickExercise(BuildContext context) async {
-    final picked = await showModalBottomSheet<AtlasExercise>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder:
-          (context) =>
-              _ExercisePickerSheet(library: library, selected: entry.exercise),
+    final picked = await showExercisePickerSheet(
+      context,
+      library: library,
+      selected: entry.exercise,
     );
     if (picked == null) return;
     HapticFeedback.selectionClick();
@@ -441,14 +428,50 @@ class _ExerciseEditor extends StatelessWidget {
   }
 }
 
-class _ExercisePickerSheet extends StatelessWidget {
+Future<AtlasExercise?> showExercisePickerSheet(
+  BuildContext context, {
+  required List<AtlasExercise> library,
+  AtlasExercise? selected,
+}) {
+  return showModalBottomSheet<AtlasExercise>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder:
+        (context) => _ExercisePickerSheet(library: library, selected: selected),
+  );
+}
+
+class _ExercisePickerSheet extends StatefulWidget {
   const _ExercisePickerSheet({required this.library, required this.selected});
 
   final List<AtlasExercise> library;
-  final AtlasExercise selected;
+  final AtlasExercise? selected;
+
+  @override
+  State<_ExercisePickerSheet> createState() => _ExercisePickerSheetState();
+}
+
+class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filtered =
+        widget.library.where((exercise) {
+          final query = _query.toLowerCase();
+          return exercise.name.toLowerCase().contains(query) ||
+              exercise.primaryMuscle.toLowerCase().contains(query) ||
+              exercise.equipment.toLowerCase().contains(query);
+        }).toList();
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -463,10 +486,25 @@ class _ExercisePickerSheet extends StatelessWidget {
           const SectionTitle('Choose Exercise'),
           const SizedBox(height: 6),
           Text(
-            'Radio selection with movement preview.',
+            'Choose movement, then log sets, reps, and weight.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _searchController,
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: 'Search exercises',
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 13,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.sizeOf(context).height * 0.68,
@@ -474,8 +512,8 @@ class _ExercisePickerSheet extends StatelessWidget {
             child: ListView.separated(
               shrinkWrap: true,
               itemBuilder: (context, index) {
-                final exercise = library[index];
-                final selectedRow = exercise == selected;
+                final exercise = filtered[index];
+                final selectedRow = exercise == widget.selected;
                 return AtlasPressable(
                   onTap: () => Navigator.pop(context, exercise),
                   child: Container(
@@ -495,7 +533,8 @@ class _ExercisePickerSheet extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        _AnimatedExerciseGlyph(
+                        _ExerciseMediaPreview(
+                          exercise: exercise,
                           visual: exerciseVisual(exercise),
                           size: 58,
                         ),
@@ -531,7 +570,7 @@ class _ExercisePickerSheet extends StatelessWidget {
                 );
               },
               separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemCount: library.length,
+              itemCount: filtered.length,
             ),
           ),
         ],
@@ -604,26 +643,90 @@ class _AnimatedExerciseGlyph extends StatelessWidget {
   }
 }
 
+class _ExerciseMediaPreview extends StatelessWidget {
+  const _ExerciseMediaPreview({
+    required this.exercise,
+    required this.visual,
+    this.index,
+    this.size = 64,
+  });
+
+  final AtlasExercise exercise;
+  final ExerciseVisual visual;
+  final int? index;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaUrl = exercise.gifUrl ?? exercise.imageUrl;
+    if (mediaUrl == null || mediaUrl.isEmpty) {
+      return _AnimatedExerciseGlyph(visual: visual, index: index, size: size);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.28),
+      child: Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: mediaUrl,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 180),
+            placeholder:
+                (_, __) => _AnimatedExerciseGlyph(
+                  visual: visual,
+                  index: index,
+                  size: size,
+                ),
+            errorWidget:
+                (_, __, ___) => _AnimatedExerciseGlyph(
+                  visual: visual,
+                  index: index,
+                  size: size,
+                ),
+          ),
+          if (index != null)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.42),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '$index',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _NumberStepper extends StatelessWidget {
   const _NumberStepper({
     required this.label,
     required this.value,
     required this.onChanged,
-    this.step = 1,
-    this.min = 1,
   });
 
   final String label;
   final int value;
-  final int step;
-  final int min;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         decoration: BoxDecoration(
           color: AtlasColors.surfaceWarm,
           borderRadius: BorderRadius.circular(18),
@@ -631,18 +734,29 @@ class _NumberStepper extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 2),
+            Text(label, style: Theme.of(context).textTheme.labelSmall),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  onPressed: () => onChanged((value - step).clamp(min, 999)),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => onChanged((value - 1).clamp(1, 999)),
                   icon: const Icon(Icons.remove_rounded),
                 ),
-                Text('$value', style: Theme.of(context).textTheme.titleMedium),
+                Text('$value', style: Theme.of(context).textTheme.titleSmall),
                 IconButton(
-                  onPressed: () => onChanged((value + step).clamp(min, 999)),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => onChanged((value + 1).clamp(1, 999)),
                   icon: const Icon(Icons.add_rounded),
                 ),
               ],
@@ -669,11 +783,14 @@ class _InlineNumberField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       initialValue: value == 0 ? '' : value.toStringAsFixed(1),
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.titleSmall,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
         filled: true,
         fillColor: AtlasColors.surfaceWarm,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       ),
       onChanged: (value) => onChanged(double.tryParse(value) ?? 0),
     );
@@ -699,25 +816,12 @@ class _EditableWorkoutEntry {
   _EditableWorkoutEntry(this.exercise)
     : sets = exercise.defaultSets,
       reps = _firstNumber(exercise.defaultReps),
-      restSeconds = 60,
       weight = 0;
-
-  factory _EditableWorkoutEntry.fromTemplate(AtlasWorkoutExercise template) {
-    return _EditableWorkoutEntry(template.exercise)
-      ..sets = template.targetSets
-      ..reps = _firstNumber(template.targetReps);
-  }
 
   AtlasExercise exercise;
   int sets;
   int reps;
-  int restSeconds;
   double weight;
-
-  double get completion {
-    final hasWeight = weight > 0 ? 0.25 : 0.0;
-    return (0.35 + sets.clamp(1, 6) / 6 * 0.4 + hasWeight).clamp(0, 1);
-  }
 }
 
 int _firstNumber(String value) {

@@ -205,6 +205,7 @@ class _PreferenceCard extends StatefulWidget {
 class _PreferenceCardState extends State<_PreferenceCard> {
   bool _notifications = false;
   bool _privacyLock = false;
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void didChangeDependencies() {
@@ -213,6 +214,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     if (dependencies != null) {
       _notifications = dependencies.preferences.notificationEnabled;
       _privacyLock = dependencies.preferences.biometricEnabled;
+      _themeMode = dependencies.themeMode.value;
     }
   }
 
@@ -235,12 +237,8 @@ class _PreferenceCardState extends State<_PreferenceCard> {
           _PreferenceRow(
             icon: Icons.palette_outlined,
             title: 'Appearance',
-            value: 'Light',
-            onTap:
-                () => showAtlasSnack(
-                  context,
-                  message: 'Light glass appearance active.',
-                ),
+            value: _themeModeLabel(_themeMode),
+            onTap: _showAppearanceSheet,
           ),
           _PreferenceRow(
             icon: Icons.cloud_done_outlined,
@@ -301,6 +299,51 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     }
   }
 
+  Future<void> _showAppearanceSheet() async {
+    final dependencies = AppScope.maybeRead(context);
+    if (dependencies == null) return;
+    final selected = await showModalBottomSheet<ThemeMode>(
+      context: context,
+      showDragHandle: true,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              22,
+              4,
+              22,
+              MediaQuery.paddingOf(context).bottom + 22,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionTitle('Appearance'),
+                const SizedBox(height: 12),
+                for (final mode in [
+                  ThemeMode.system,
+                  ThemeMode.light,
+                  ThemeMode.dark,
+                ])
+                  _AppearanceOption(
+                    mode: mode,
+                    selected: mode == _themeMode,
+                    onTap: () => Navigator.pop(context, mode),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (selected == null) return;
+    await dependencies.setThemeMode(selected);
+    if (mounted) {
+      setState(() => _themeMode = selected);
+      showAtlasSnack(
+        context,
+        message: '${_themeModeLabel(selected)} mode active.',
+      );
+    }
+  }
+
   Future<void> _togglePrivacyLock() async {
     final dependencies = AppScope.maybeRead(context);
     if (dependencies == null) return;
@@ -332,6 +375,76 @@ class _PreferenceCardState extends State<_PreferenceCard> {
       showAtlasSnack(context, message: 'Biometric lock is on.');
     }
   }
+}
+
+class _AppearanceOption extends StatelessWidget {
+  const _AppearanceOption({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ThemeMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasPressable(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color:
+              selected
+                  ? AtlasColors.accent.withValues(alpha: 0.1)
+                  : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color:
+                selected
+                    ? AtlasColors.accent.withValues(alpha: 0.22)
+                    : AtlasColors.hairline,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(_themeModeIcon(mode), color: AtlasColors.accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _themeModeLabel(mode),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: selected ? AtlasColors.accent : AtlasColors.inkSoft,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _themeModeLabel(ThemeMode mode) {
+  return switch (mode) {
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+    ThemeMode.system => 'System',
+  };
+}
+
+IconData _themeModeIcon(ThemeMode mode) {
+  return switch (mode) {
+    ThemeMode.light => Icons.light_mode_outlined,
+    ThemeMode.dark => Icons.dark_mode_outlined,
+    ThemeMode.system => Icons.brightness_auto_outlined,
+  };
 }
 
 class _PreferenceRow extends StatelessWidget {

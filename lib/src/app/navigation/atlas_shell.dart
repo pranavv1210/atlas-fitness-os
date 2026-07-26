@@ -111,7 +111,12 @@ class _AtlasShellState extends State<AtlasShell> {
   Widget _buildScreen(AtlasDestination destination) {
     switch (destination) {
       case AtlasDestination.today:
-        return TodayScreen(profile: widget.profile);
+        return TodayScreen(
+          profile: widget.profile,
+          onOpenTrain:
+              () =>
+                  setState(() => _selectedIndex = AtlasDestination.train.index),
+        );
       case AtlasDestination.train:
         return const TrainScreen();
       case AtlasDestination.progress:
@@ -137,6 +142,7 @@ class _FloatingDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(18, 0, 18, 14),
       child: ClipRRect(
@@ -145,9 +151,14 @@ class _FloatingDock extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.78),
+              color:
+                  isDark
+                      ? const Color(0xFF151821).withValues(alpha: 0.82)
+                      : Colors.white.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(34),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.58)),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.58),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.1),
@@ -191,7 +202,11 @@ class _DockItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? Colors.white : const Color(0xFF68645E);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color =
+        isSelected
+            ? Colors.white
+            : (isDark ? const Color(0xFFB7B5AE) : const Color(0xFF68645E));
     return Semantics(
       selected: isSelected,
       button: true,

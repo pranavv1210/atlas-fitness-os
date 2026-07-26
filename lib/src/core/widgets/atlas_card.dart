@@ -22,11 +22,12 @@ class AtlasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final fill =
         color ??
         (isGlass
-            ? AtlasColors.glass
-            : AtlasColors.surface.withValues(alpha: 0.92));
+            ? (isDark ? const Color(0xD91A1C24) : AtlasColors.glass)
+            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.92));
 
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -37,17 +38,21 @@ class AtlasCard extends StatelessWidget {
         border: Border.all(
           color:
               isGlass
-                  ? Colors.white.withValues(alpha: 0.42)
-                  : AtlasColors.hairline,
+                  ? Colors.white.withValues(alpha: isDark ? 0.12 : 0.42)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : AtlasColors.hairline),
         ),
         boxShadow: [
           BoxShadow(
-            color: AtlasColors.shadow.withValues(alpha: isGlass ? 0.14 : 0.09),
+            color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.09),
             blurRadius: isGlass ? 34 : 26,
             offset: const Offset(0, 18),
           ),
           BoxShadow(
-            color: Colors.white.withValues(alpha: isGlass ? 0.86 : 0.42),
+            color: Colors.white.withValues(
+              alpha: isDark ? 0.03 : (isGlass ? 0.86 : 0.42),
+            ),
             blurRadius: 10,
             offset: const Offset(-4, -5),
           ),
@@ -59,7 +64,7 @@ class AtlasCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Colors.white.withValues(alpha: 0.92),
-                    fill.withValues(alpha: 0.78),
+                    fill.withValues(alpha: isDark ? 0.88 : 0.78),
                   ],
                 )
                 : null,

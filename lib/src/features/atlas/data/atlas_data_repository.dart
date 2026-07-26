@@ -17,11 +17,7 @@ class AtlasDataRepository {
     final todayWorkout = hasStarted ? await _loadTodayWorkout() : null;
     final starterWorkout = hasStarted ? null : await _loadWorkoutDay(1);
     final library = await _loadExerciseLibrary();
-    final templateExercises = await _loadTemplateExercises(
-      (todayWorkout ?? starterWorkout)?.templateId,
-      library,
-      (todayWorkout ?? starterWorkout)?.name ?? 'Chest + Triceps',
-    );
+    const templateExercises = <AtlasWorkoutExercise>[];
     final completedThisWeek = await _countWorkouts(
       _startOfWeek(DateTime.now()),
       DateTime.now(),
@@ -114,28 +110,18 @@ class AtlasDataRepository {
     }
   }
 
-  Future<void> saveWeight(double weight, {String note = ''}) async {
+  Future<void> saveWeight(
+    double weight, {
+    String note = '',
+    DateTime? measuredOn,
+  }) async {
     await _client.from('body_weight_logs').upsert({
       'user_id': _userId,
-      'measured_on': _date(DateTime.now()),
+      'measured_on': _date(measuredOn ?? DateTime.now()),
       'weight': weight,
       'unit': 'kg',
       'note': note.isEmpty ? null : note,
     }, onConflict: 'user_id,measured_on');
-  }
-
-  Future<void> saveWellness({
-    required int mood,
-    required int energy,
-    required int stress,
-  }) async {
-    await _client.from('wellness_logs').upsert({
-      'user_id': _userId,
-      'logged_on': _date(DateTime.now()),
-      'mood': mood,
-      'energy': energy,
-      'stress': stress,
-    }, onConflict: 'user_id,logged_on');
   }
 
   Future<void> saveHydration() async {
@@ -146,6 +132,7 @@ class AtlasDataRepository {
     required String activityType,
     required int durationMinutes,
     double? distance,
+    double? calories,
   }) async {
     await _client.from('cardio_sessions').insert({
       'user_id': _userId,
@@ -155,6 +142,7 @@ class AtlasDataRepository {
       'distance': distance,
       'distance_unit': distance == null ? null : 'km',
       'intensity': 'moderate',
+      'notes': calories == null ? null : 'Calories: ${calories.round()}',
     });
   }
 
@@ -270,65 +258,40 @@ class AtlasDataRepository {
     try {
       final rows = await _client
           .from('exercises')
-          .select('id, name, movement_pattern, default_sets, default_reps')
+          .select(
+            'id, name, movement_pattern, default_sets, default_reps, image_url, gif_url, target_muscle, equipment, difficulty',
+          )
           .eq('is_active', true)
           .order('name');
-      return [
-        for (final row in rows)
-          AtlasExercise(
-            id: row['id'] as String,
-            name: row['name'] as String,
-            pattern: row['movement_pattern'] as String? ?? 'strength',
-            defaultSets: row['default_sets'] as int? ?? 3,
-            defaultReps: row['default_reps'] as String? ?? '10',
-            primaryMuscle: _primaryMuscle(row['movement_pattern'] as String?),
-            equipment: _equipment(row['name'] as String? ?? ''),
-            difficulty: 'Moderate',
-          ),
-      ];
+      return [for (final row in rows) _exerciseFromRow(row)];
     } catch (_) {
-      return fallbackExercises;
+      try {
+        final rows = await _client
+            .from('exercises')
+            .select('id, name, movement_pattern, default_sets, default_reps')
+            .eq('is_active', true)
+            .order('name');
+        return [for (final row in rows) _exerciseFromRow(row)];
+      } catch (_) {
+        return fallbackExercises;
+      }
     }
   }
 
-  Future<List<AtlasWorkoutExercise>> _loadTemplateExercises(
-    String? templateId,
-    List<AtlasExercise> library,
-    String workoutName,
-  ) async {
-    if (templateId != null) {
-      final rows = await _client
-          .from('workout_template_exercises')
-          .select(
-            'target_sets, target_reps, notes, exercises(id, name, movement_pattern, default_sets, default_reps)',
-          )
-          .eq('template_id', templateId)
-          .order('display_order');
-      return [
-        for (final row in rows)
-          AtlasWorkoutExercise(
-            exercise: _exerciseFromNested(row['exercises']),
-            targetSets: row['target_sets'] as int? ?? 3,
-            targetReps: row['target_reps'] as String? ?? '10',
-            notes: row['notes'] as String? ?? '',
-          ),
-      ];
-    }
-
-    return fallbackPlan(workoutName, library);
-  }
-
-  AtlasExercise _exerciseFromNested(Object? value) {
-    final row = value as Map<String, dynamic>? ?? {};
+  AtlasExercise _exerciseFromRow(Map<String, dynamic> row) {
+    final name = row['name'] as String? ?? 'Exercise';
+    final pattern = row['movement_pattern'] as String? ?? 'strength';
     return AtlasExercise(
-      id: row['id'] as String? ?? '',
-      name: row['name'] as String? ?? 'Exercise',
-      pattern: row['movement_pattern'] as String? ?? 'strength',
+      id: row['id'] as String? ?? name,
+      name: name,
+      pattern: pattern,
       defaultSets: row['default_sets'] as int? ?? 3,
       defaultReps: row['default_reps'] as String? ?? '10',
-      primaryMuscle: _primaryMuscle(row['movement_pattern'] as String?),
-      equipment: _equipment(row['name'] as String? ?? ''),
-      difficulty: 'Moderate',
+      primaryMuscle: row['target_muscle'] as String? ?? _primaryMuscle(pattern),
+      equipment: row['equipment'] as String? ?? _equipment(name),
+      difficulty: row['difficulty'] as String? ?? 'Moderate',
+      imageUrl: row['image_url'] as String? ?? _exerciseImageUrl(name),
+      gifUrl: row['gif_url'] as String?,
     );
   }
 
@@ -465,6 +428,8 @@ const fallbackExercises = [
     defaultReps: '8-10',
     primaryMuscle: 'Chest',
     equipment: 'Barbell',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press/0.jpg',
   ),
   AtlasExercise(
     id: 'incline',
@@ -474,6 +439,8 @@ const fallbackExercises = [
     defaultReps: '10',
     primaryMuscle: 'Chest',
     equipment: 'Dumbbells',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Bench_Press/0.jpg',
   ),
   AtlasExercise(
     id: 'fly',
@@ -483,6 +450,8 @@ const fallbackExercises = [
     defaultReps: '12-15',
     primaryMuscle: 'Chest',
     equipment: 'Cable',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/0.jpg',
   ),
   AtlasExercise(
     id: 'dips',
@@ -492,6 +461,8 @@ const fallbackExercises = [
     defaultReps: '8-12',
     primaryMuscle: 'Chest',
     equipment: 'Bodyweight',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Dip/0.jpg',
   ),
   AtlasExercise(
     id: 'pushdown',
@@ -501,6 +472,8 @@ const fallbackExercises = [
     defaultReps: '12',
     primaryMuscle: 'Triceps',
     equipment: 'Cable',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown/0.jpg',
   ),
   AtlasExercise(
     id: 'extension',
@@ -510,6 +483,8 @@ const fallbackExercises = [
     defaultReps: '12-15',
     primaryMuscle: 'Triceps',
     equipment: 'Dumbbell',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Dumbbell_Triceps_Extension/0.jpg',
   ),
   AtlasExercise(
     id: 'deadlift',
@@ -519,6 +494,8 @@ const fallbackExercises = [
     defaultReps: '5',
     primaryMuscle: 'Back',
     equipment: 'Barbell',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg',
   ),
   AtlasExercise(
     id: 'pulldown',
@@ -528,6 +505,8 @@ const fallbackExercises = [
     defaultReps: '8-12',
     primaryMuscle: 'Back',
     equipment: 'Cable',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lat_Pulldown/0.jpg',
   ),
   AtlasExercise(
     id: 'row',
@@ -537,6 +516,8 @@ const fallbackExercises = [
     defaultReps: '10-12',
     primaryMuscle: 'Back',
     equipment: 'Cable',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Row/0.jpg',
   ),
   AtlasExercise(
     id: 'curl',
@@ -546,6 +527,8 @@ const fallbackExercises = [
     defaultReps: '10-12',
     primaryMuscle: 'Biceps',
     equipment: 'Dumbbells',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Bicep_Curl/0.jpg',
   ),
   AtlasExercise(
     id: 'raise',
@@ -555,6 +538,8 @@ const fallbackExercises = [
     defaultReps: '12-15',
     primaryMuscle: 'Shoulders',
     equipment: 'Dumbbells',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Lateral_Raise/0.jpg',
   ),
   AtlasExercise(
     id: 'press',
@@ -564,6 +549,8 @@ const fallbackExercises = [
     defaultReps: '6-8',
     primaryMuscle: 'Shoulders',
     equipment: 'Barbell',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Military_Press/0.jpg',
   ),
   AtlasExercise(
     id: 'squat',
@@ -573,6 +560,8 @@ const fallbackExercises = [
     defaultReps: '6-10',
     primaryMuscle: 'Legs',
     equipment: 'Barbell',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg',
   ),
   AtlasExercise(
     id: 'leg_press',
@@ -582,6 +571,8 @@ const fallbackExercises = [
     defaultReps: '10-12',
     primaryMuscle: 'Legs',
     equipment: 'Machine',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Press/0.jpg',
   ),
   AtlasExercise(
     id: 'plank',
@@ -591,50 +582,10 @@ const fallbackExercises = [
     defaultReps: '45',
     primaryMuscle: 'Core',
     equipment: 'Bodyweight',
+    imageUrl:
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/0.jpg',
   ),
 ];
-
-List<AtlasWorkoutExercise> fallbackPlan(
-  String workoutName,
-  List<AtlasExercise> library,
-) {
-  final names = switch (workoutName) {
-    'Back + Biceps' => [
-      'Deadlift',
-      'Lat Pulldown',
-      'Seated Cable Row',
-      'Dumbbell Curl',
-    ],
-    'Arms + Abs' => [
-      'Dumbbell Curl',
-      'Rope Pushdown',
-      'Overhead Extension',
-      'Plank',
-    ],
-    'Shoulders + Legs' => [
-      'Overhead Press',
-      'Lateral Raise',
-      'Back Squat',
-      'Leg Press',
-    ],
-    _ => [
-      'Barbell Bench Press',
-      'Incline Dumbbell Press',
-      'Cable Fly',
-      'Rope Pushdown',
-    ],
-  };
-  return [
-    for (final name in names)
-      if (_findExercise(library, name) != null)
-        AtlasWorkoutExercise(
-          exercise: _findExercise(library, name)!,
-          targetSets: _findExercise(library, name)!.defaultSets,
-          targetReps: _findExercise(library, name)!.defaultReps,
-          notes: '',
-        ),
-  ];
-}
 
 String _primaryMuscle(String? pattern) {
   final value = pattern ?? '';
@@ -660,10 +611,10 @@ String _equipment(String name) {
   return 'Gym';
 }
 
-AtlasExercise? _findExercise(List<AtlasExercise> library, String name) {
-  for (final exercise in [...library, ...fallbackExercises]) {
+String? _exerciseImageUrl(String name) {
+  for (final exercise in fallbackExercises) {
     if (exercise.name == name) {
-      return exercise;
+      return exercise.imageUrl;
     }
   }
   return null;
