@@ -33,6 +33,7 @@ class AtlasNotificationService {
   }
 
   static const _hydrationNotificationBaseId = 1000;
+  static const _hydrationNotificationMaxId = 1500;
   static const _hydrationScheduleDays = 7;
   static const _hydrationStartHour = 8;
   static const _hydrationEndHour = 22;
@@ -85,11 +86,15 @@ class AtlasNotificationService {
   }
 
   Future<void> cancelHydrationNudge() async {
-    for (
-      var id = _hydrationNotificationBaseId;
-      id < _hydrationNotificationBaseId + 500;
-      id++
-    ) {
+    final pending = await _plugin.pendingNotificationRequests();
+    final hydrationIds = pending
+        .map((notification) => notification.id)
+        .where(
+          (id) =>
+              id >= _hydrationNotificationBaseId &&
+              id < _hydrationNotificationMaxId,
+        );
+    for (final id in hydrationIds) {
       await _plugin.cancel(id);
     }
   }
