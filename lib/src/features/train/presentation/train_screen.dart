@@ -131,7 +131,6 @@ class _TrainScreenState extends State<TrainScreen> {
                         });
                       },
             ),
-            const _CycleExplainer(),
           ],
         );
       },
@@ -455,6 +454,9 @@ class _ExercisePickerSheet extends StatefulWidget {
 class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
+  String? _muscleFilter;
+  String? _equipmentFilter;
+  String? _difficultyFilter;
 
   @override
   void dispose() {
@@ -467,10 +469,37 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
     final filtered =
         widget.library.where((exercise) {
           final query = _query.toLowerCase();
-          return exercise.name.toLowerCase().contains(query) ||
+          final matchesSearch =
+              exercise.name.toLowerCase().contains(query) ||
               exercise.primaryMuscle.toLowerCase().contains(query) ||
+              exercise.secondaryMuscles.any(
+                (muscle) => muscle.toLowerCase().contains(query),
+              ) ||
               exercise.equipment.toLowerCase().contains(query);
+          final matchesMuscle =
+              _muscleFilter == null ||
+              exercise.primaryMuscle == _muscleFilter ||
+              exercise.secondaryMuscles.contains(_muscleFilter);
+          final matchesEquipment =
+              _equipmentFilter == null ||
+              exercise.equipment == _equipmentFilter;
+          final matchesDifficulty =
+              _difficultyFilter == null ||
+              exercise.difficulty == _difficultyFilter;
+          return matchesSearch &&
+              matchesMuscle &&
+              matchesEquipment &&
+              matchesDifficulty;
         }).toList();
+    final muscles = _exerciseFilterValues(widget.library, (exercise) {
+      return [exercise.primaryMuscle, ...exercise.secondaryMuscles];
+    });
+    final equipment = _exerciseFilterValues(widget.library, (exercise) {
+      return [exercise.equipment];
+    });
+    final difficulties = _exerciseFilterValues(widget.library, (exercise) {
+      return [exercise.difficulty];
+    });
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -505,78 +534,168 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
             ),
           ),
           const SizedBox(height: 14),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.68,
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemBuilder: (context, index) {
-                final exercise = filtered[index];
-                final selectedRow = exercise == widget.selected;
-                return AtlasPressable(
-                  onTap: () => Navigator.pop(context, exercise),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color:
-                          selectedRow
-                              ? AtlasColors.accent.withValues(alpha: 0.08)
-                              : Colors.white.withValues(alpha: 0.68),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color:
-                            selectedRow
-                                ? AtlasColors.accent.withValues(alpha: 0.2)
-                                : AtlasColors.hairline,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        _ExerciseMediaPreview(
-                          exercise: exercise,
-                          visual: exerciseVisual(exercise),
-                          size: 58,
-                        ),
-                        const SizedBox(width: 13),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                exercise.name,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${exercise.primaryMuscle} / ${exercise.equipment}',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          selectedRow
-                              ? Icons.radio_button_checked_rounded
-                              : Icons.radio_button_off_rounded,
+          _ExerciseFilterChips(
+            label: 'Muscle',
+            values: muscles,
+            selected: _muscleFilter,
+            onSelected: (value) => setState(() => _muscleFilter = value),
+          ),
+          const SizedBox(height: 8),
+          _ExerciseFilterChips(
+            label: 'Equipment',
+            values: equipment,
+            selected: _equipmentFilter,
+            onSelected: (value) => setState(() => _equipmentFilter = value),
+          ),
+          const SizedBox(height: 8),
+          _ExerciseFilterChips(
+            label: 'Difficulty',
+            values: difficulties,
+            selected: _difficultyFilter,
+            onSelected: (value) => setState(() => _difficultyFilter = value),
+          ),
+          const SizedBox(height: 14),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.48,
+              ),
+              child: Scrollbar(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemBuilder: (context, index) {
+                    final exercise = filtered[index];
+                    final selectedRow = exercise == widget.selected;
+                    return AtlasPressable(
+                      onTap: () => Navigator.pop(context, exercise),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
                           color:
                               selectedRow
-                                  ? AtlasColors.accent
-                                  : AtlasColors.inkSoft,
+                                  ? AtlasColors.accent.withValues(alpha: 0.08)
+                                  : Colors.white.withValues(alpha: 0.68),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color:
+                                selectedRow
+                                    ? AtlasColors.accent.withValues(alpha: 0.2)
+                                    : AtlasColors.hairline,
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemCount: filtered.length,
+                        child: Row(
+                          children: [
+                            _ExerciseMediaPreview(
+                              exercise: exercise,
+                              visual: exerciseVisual(exercise),
+                              size: 58,
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    exercise.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${exercise.primaryMuscle} / ${exercise.equipment} / ${exercise.difficulty}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              selectedRow
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              color:
+                                  selectedRow
+                                      ? AtlasColors.accent
+                                      : AtlasColors.inkSoft,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemCount: filtered.length,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _ExerciseFilterChips extends StatelessWidget {
+  const _ExerciseFilterChips({
+    required this.label,
+    required this.values,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final List<String> values;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (values.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return FilterChip(
+              label: Text(label),
+              selected: selected == null,
+              onSelected: (_) => onSelected(null),
+            );
+          }
+          final value = values[index - 1];
+          return FilterChip(
+            label: Text(value),
+            selected: selected == value,
+            onSelected: (_) => onSelected(selected == value ? null : value),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: values.length + 1,
+      ),
+    );
+  }
+}
+
+List<String> _exerciseFilterValues(
+  List<AtlasExercise> exercises,
+  List<String> Function(AtlasExercise exercise) valuesFor,
+) {
+  final values = <String>{};
+  for (final exercise in exercises) {
+    for (final value in valuesFor(exercise)) {
+      if (value.trim().isNotEmpty) {
+        values.add(value.trim());
+      }
+    }
+  }
+  return values.toList()..sort();
 }
 
 class _AnimatedExerciseGlyph extends StatelessWidget {
@@ -658,7 +777,12 @@ class _ExerciseMediaPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mediaUrl = exercise.gifUrl ?? exercise.imageUrl;
+    final mediaUrl =
+        exercise.previewGif ??
+        exercise.gifUrl ??
+        exercise.thumbnail ??
+        exercise.previewImage ??
+        exercise.imageUrl;
     if (mediaUrl == null || mediaUrl.isEmpty) {
       return _AnimatedExerciseGlyph(visual: visual, index: index, size: size);
     }
@@ -793,21 +917,6 @@ class _InlineNumberField extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       ),
       onChanged: (value) => onChanged(double.tryParse(value) ?? 0),
-    );
-  }
-}
-
-class _CycleExplainer extends StatelessWidget {
-  const _CycleExplainer();
-
-  @override
-  Widget build(BuildContext context) {
-    return AtlasCard(
-      padding: const EdgeInsets.all(20),
-      child: Text(
-        'Cycle rule: your first saved workout becomes Day 1. Atlas then moves through Back + Biceps, Arms + Abs, Shoulders + Legs, Rest, and repeats.',
-        style: Theme.of(context).textTheme.bodyLarge,
-      ),
     );
   }
 }

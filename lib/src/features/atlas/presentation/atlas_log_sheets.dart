@@ -24,7 +24,6 @@ const cardioOptions = [
 
 const sportOptions = [
   'Badminton',
-  'Swimming',
   'Football',
   'Basketball',
   'Cricket',
@@ -117,7 +116,7 @@ Future<bool> showAtlasCardioLogSheet(
     context,
     title: 'Choose Cardio',
     options: cardioOptions,
-    icon: Icons.directions_run_rounded,
+    iconForOption: cardioIcon,
   );
   if (activity == null || !context.mounted) return false;
 
@@ -188,7 +187,7 @@ Future<bool> showAtlasSportLogSheet(
     context,
     title: 'Choose Sport',
     options: sportOptions,
-    icon: Icons.sports_basketball_outlined,
+    iconForOption: sportIcon,
   );
   if (sport == null || !context.mounted) return false;
 
@@ -227,7 +226,7 @@ Future<String?> showAtlasOptionPicker(
   BuildContext context, {
   required String title,
   required List<String> options,
-  required IconData icon,
+  required IconData Function(String option) iconForOption,
 }) {
   final searchController = TextEditingController();
   var query = '';
@@ -274,6 +273,7 @@ Future<String?> showAtlasOptionPicker(
                       shrinkWrap: true,
                       itemBuilder: (context, index) {
                         final option = filtered[index];
+                        final icon = iconForOption(option);
                         return AtlasPressable(
                           onTap: () => Navigator.pop(context, option),
                           child: Container(
@@ -320,6 +320,43 @@ Future<String?> showAtlasOptionPicker(
           },
         ),
   );
+}
+
+IconData cardioIcon(String activity) {
+  return switch (activity) {
+    'Walking' => Icons.directions_walk_rounded,
+    'Running' => Icons.directions_run_rounded,
+    'Cycling' => Icons.directions_bike_rounded,
+    'Indoor Cycling' => Icons.pedal_bike_rounded,
+    'Swimming' => Icons.pool_rounded,
+    'Elliptical' => Icons.fitness_center_rounded,
+    'HIIT' => Icons.bolt_rounded,
+    'Rowing' => Icons.rowing_rounded,
+    'Skipping Rope' => Icons.sports_gymnastics_rounded,
+    'Stair Climber' => Icons.stairs_rounded,
+    'Hiking' => Icons.hiking_rounded,
+    'Treadmill' => Icons.directions_run_rounded,
+    _ => Icons.directions_run_rounded,
+  };
+}
+
+IconData sportIcon(String sport) {
+  return switch (sport) {
+    'Badminton' => Icons.sports_tennis_rounded,
+    'Football' => Icons.sports_soccer_rounded,
+    'Basketball' => Icons.sports_basketball_rounded,
+    'Cricket' => Icons.sports_cricket_rounded,
+    'Pickleball' => Icons.sports_tennis_rounded,
+    'Table Tennis' => Icons.sports_tennis_rounded,
+    'Tennis' => Icons.sports_tennis_rounded,
+    'Squash' => Icons.sports_tennis_rounded,
+    'Volleyball' => Icons.sports_volleyball_rounded,
+    'Boxing' => Icons.sports_mma_rounded,
+    'Martial Arts' => Icons.sports_martial_arts_rounded,
+    'Yoga' => Icons.self_improvement_rounded,
+    'Pilates' => Icons.accessibility_new_rounded,
+    _ => Icons.sports_rounded,
+  };
 }
 
 class _AtlasLogSheet extends StatelessWidget {

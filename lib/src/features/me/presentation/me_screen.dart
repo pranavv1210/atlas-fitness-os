@@ -281,11 +281,11 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     final dependencies = AppScope.maybeRead(context);
     if (dependencies == null) return;
     if (_notifications) {
-      await dependencies.notificationService.cancelHydrationNudge();
+      await dependencies.notificationService.cancelAtlasReminders();
       await dependencies.preferences.setNotificationEnabled(false);
       setState(() => _notifications = false);
       if (mounted) {
-        showAtlasSnack(context, message: 'Hydration reminders are off.');
+        showAtlasSnack(context, message: 'Atlas reminders are off.');
       }
       return;
     }
@@ -294,8 +294,9 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     await dependencies.preferences.setNotificationPrompted();
     await dependencies.preferences.setNotificationEnabled(granted);
     if (granted) {
-      await dependencies.notificationService.scheduleHydrationNudges(
-        intervalMinutes: dependencies.preferences.hydrationIntervalMinutes,
+      await dependencies.notificationService.scheduleAtlasReminders(
+        hydrationIntervalMinutes:
+            dependencies.preferences.hydrationIntervalMinutes,
       );
     }
     setState(() => _notifications = granted);
@@ -304,7 +305,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
         context,
         message:
             granted
-                ? 'Hydration reminders are on.'
+                ? 'Atlas reminders are on.'
                 : 'Notifications are blocked in Android settings.',
       );
     }
@@ -315,6 +316,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
     if (dependencies == null) return;
     final selected = await showModalBottomSheet<int>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder:
           (context) => Padding(
@@ -322,7 +324,9 @@ class _PreferenceCardState extends State<_PreferenceCard> {
               22,
               4,
               22,
-              MediaQuery.paddingOf(context).bottom + 22,
+              MediaQuery.viewInsetsOf(context).bottom +
+                  MediaQuery.paddingOf(context).bottom +
+                  22,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -335,12 +339,29 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
-                for (final minutes in [30, 60, 90, 120, 180])
+                for (final minutes in [30, 60, 90, 120])
                   _HydrationIntervalOption(
                     minutes: minutes,
                     selected: minutes == _hydrationIntervalMinutes,
                     onTap: () => Navigator.pop(context, minutes),
                   ),
+                _HydrationIntervalOption.custom(
+                  minutes:
+                      [30, 60, 90, 120].contains(_hydrationIntervalMinutes)
+                          ? null
+                          : _hydrationIntervalMinutes,
+                  selected:
+                      ![30, 60, 90, 120].contains(_hydrationIntervalMinutes),
+                  onTap: () async {
+                    final custom = await _showCustomHydrationIntervalSheet(
+                      context,
+                      _hydrationIntervalMinutes,
+                    );
+                    if (custom != null && context.mounted) {
+                      Navigator.pop(context, custom);
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -361,6 +382,78 @@ class _PreferenceCardState extends State<_PreferenceCard> {
         icon: Icons.water_drop_outlined,
       );
     }
+  }
+
+  Future<int?> _showCustomHydrationIntervalSheet(
+    BuildContext context,
+    int currentMinutes,
+  ) async {
+    final controller = TextEditingController(
+      text:
+          [30, 60, 90, 120].contains(currentMinutes)
+              ? ''
+              : currentMinutes.toString(),
+    );
+    String? error;
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setSheetState) => Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    22,
+                    4,
+                    22,
+                    MediaQuery.viewInsetsOf(context).bottom +
+                        MediaQuery.paddingOf(context).bottom +
+                        22,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionTitle('Custom interval'),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: controller,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Minutes',
+                          helperText: 'Enter 10 to 360 minutes.',
+                          errorText: error,
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            final value = int.tryParse(controller.text.trim());
+                            if (value == null || value < 10 || value > 360) {
+                              setSheetState(() {
+                                error = 'Use a value from 10 to 360.';
+                              });
+                              return;
+                            }
+                            Navigator.pop(context, value);
+                          },
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('Save Custom'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          ),
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<void> _showAppearanceSheet() async {
@@ -500,11 +593,18 @@ class _HydrationIntervalOption extends StatelessWidget {
     required this.minutes,
     required this.selected,
     required this.onTap,
-  });
+  }) : custom = false;
 
-  final int minutes;
+  const _HydrationIntervalOption.custom({
+    required this.minutes,
+    required this.selected,
+    required this.onTap,
+  }) : custom = true;
+
+  final int? minutes;
   final bool selected;
   final VoidCallback onTap;
+  final bool custom;
 
   @override
   Widget build(BuildContext context) {
@@ -543,7 +643,11 @@ class _HydrationIntervalOption extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Every $minutes minutes',
+                custom
+                    ? minutes == null
+                        ? 'Custom'
+                        : 'Custom ($minutes min)'
+                    : 'Every $minutes minutes',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),

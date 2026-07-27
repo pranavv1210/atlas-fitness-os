@@ -14,6 +14,13 @@ class AtlasExercise {
     this.difficulty = 'Moderate',
     this.imageUrl,
     this.gifUrl,
+    this.secondaryMuscles = const [],
+    this.movementType = 'strength',
+    this.instructions = const [],
+    this.previewImage,
+    this.previewGif,
+    this.previewVideo,
+    this.thumbnail,
   });
 
   final String id;
@@ -26,6 +33,13 @@ class AtlasExercise {
   final String difficulty;
   final String? imageUrl;
   final String? gifUrl;
+  final List<String> secondaryMuscles;
+  final String movementType;
+  final List<String> instructions;
+  final String? previewImage;
+  final String? previewGif;
+  final String? previewVideo;
+  final String? thumbnail;
 
   @override
   bool operator ==(Object other) {

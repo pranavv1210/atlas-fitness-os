@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme/atlas_colors.dart';
@@ -263,7 +266,8 @@ class AtlasDataRepository {
           )
           .eq('is_active', true)
           .order('name');
-      return [for (final row in rows) _exerciseFromRow(row)];
+      final remote = [for (final row in rows) _exerciseFromRow(row)];
+      return _mergeExerciseLibraries(remote, await loadBundledExercises());
     } catch (_) {
       try {
         final rows = await _client
@@ -271,9 +275,10 @@ class AtlasDataRepository {
             .select('id, name, movement_pattern, default_sets, default_reps')
             .eq('is_active', true)
             .order('name');
-        return [for (final row in rows) _exerciseFromRow(row)];
+        final remote = [for (final row in rows) _exerciseFromRow(row)];
+        return _mergeExerciseLibraries(remote, await loadBundledExercises());
       } catch (_) {
-        return fallbackExercises;
+        return loadBundledExercises();
       }
     }
   }
@@ -292,6 +297,10 @@ class AtlasDataRepository {
       difficulty: row['difficulty'] as String? ?? 'Moderate',
       imageUrl: row['image_url'] as String? ?? _exerciseImageUrl(name),
       gifUrl: row['gif_url'] as String?,
+      previewImage: row['preview_image_url'] as String?,
+      previewGif: row['preview_gif_url'] as String?,
+      previewVideo: row['preview_video_url'] as String?,
+      thumbnail: row['thumbnail_url'] as String?,
     );
   }
 
@@ -418,6 +427,116 @@ const fallbackCycle = [
     isRestDay: true,
   ),
 ];
+
+List<AtlasExercise>? _bundledExerciseCache;
+
+Future<List<AtlasExercise>> loadBundledExercises() async {
+  final cached = _bundledExerciseCache;
+  if (cached != null) {
+    return cached;
+  }
+  try {
+    final source = await rootBundle.loadString(
+      'assets/data/free_exercise_db.json',
+    );
+    final decoded = jsonDecode(source) as List<dynamic>;
+    final exercises =
+        decoded
+            .whereType<Map<String, dynamic>>()
+            .map(_exerciseFromFreeExerciseDb)
+            .whereType<AtlasExercise>()
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+    _bundledExerciseCache = _dedupeExercises([
+      ...fallbackExercises,
+      ...exercises,
+    ]);
+  } catch (_) {
+    _bundledExerciseCache = fallbackExercises;
+  }
+  return _bundledExerciseCache!;
+}
+
+AtlasExercise? _exerciseFromFreeExerciseDb(Map<String, dynamic> row) {
+  final id = row['id'] as String?;
+  final name = row['name'] as String?;
+  if (id == null || id.isEmpty || name == null || name.isEmpty) {
+    return null;
+  }
+  final primaryMuscles = _stringList(row['primaryMuscles']);
+  final secondaryMuscles = _stringList(row['secondaryMuscles']);
+  final instructions = _stringList(row['instructions']);
+  final images = _stringList(row['images']);
+  final imageUrl =
+      images.isEmpty
+          ? null
+          : 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${images.first}';
+  final equipment = _titleCase(row['equipment'] as String? ?? 'Bodyweight');
+  final category = row['category'] as String? ?? 'strength';
+  final force = row['force'] as String?;
+  final mechanic = row['mechanic'] as String?;
+  final pattern = [
+    if (force != null) force,
+    if (mechanic != null) mechanic,
+    category,
+  ].join('_');
+
+  return AtlasExercise(
+    id: id,
+    name: name,
+    pattern: pattern,
+    defaultSets: category == 'stretching' ? 2 : 3,
+    defaultReps: category == 'stretching' ? '30 sec' : '10-12',
+    primaryMuscle:
+        primaryMuscles.isEmpty
+            ? _primaryMuscle(pattern)
+            : _titleCase(primaryMuscles.first),
+    secondaryMuscles: [
+      for (final muscle in secondaryMuscles) _titleCase(muscle),
+    ],
+    equipment: equipment,
+    difficulty: _titleCase(row['level'] as String? ?? 'Moderate'),
+    movementType: _titleCase(mechanic ?? category),
+    instructions: instructions,
+    imageUrl: imageUrl,
+    previewImage: imageUrl,
+    thumbnail: imageUrl,
+  );
+}
+
+List<AtlasExercise> _mergeExerciseLibraries(
+  List<AtlasExercise> primary,
+  List<AtlasExercise> secondary,
+) {
+  return _dedupeExercises([...primary, ...secondary])
+    ..sort((a, b) => a.name.compareTo(b.name));
+}
+
+List<AtlasExercise> _dedupeExercises(List<AtlasExercise> exercises) {
+  final byName = <String, AtlasExercise>{};
+  for (final exercise in exercises) {
+    byName.putIfAbsent(exercise.name.toLowerCase().trim(), () => exercise);
+  }
+  return byName.values.toList();
+}
+
+List<String> _stringList(Object? source) {
+  if (source is List) {
+    return [
+      for (final value in source)
+        if (value is String && value.trim().isNotEmpty) value.trim(),
+    ];
+  }
+  return const [];
+}
+
+String _titleCase(String value) {
+  return value
+      .split(RegExp(r'[\s_-]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) => part[0].toUpperCase() + part.substring(1))
+      .join(' ');
+}
 
 const fallbackExercises = [
   AtlasExercise(
