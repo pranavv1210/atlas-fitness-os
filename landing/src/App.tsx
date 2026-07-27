@@ -8,11 +8,13 @@ import {
   Droplets,
   Github,
   LockKeyhole,
+  Menu,
   Search,
   ShieldCheck,
   Sparkles,
+  X,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apkUrl, repoUrl } from './content';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -137,17 +139,20 @@ function App() {
         },
       });
 
-      gsap.to('.story-track', {
-        xPercent: -72,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: '.story',
-          start: 'top top',
-          end: '+=2600',
-          scrub: 1,
-          pin: true,
-          anticipatePin: 1,
-        },
+      const media = gsap.matchMedia();
+      media.add('(min-width: 1024px)', () => {
+        return gsap.to('.story-track', {
+          xPercent: -72,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '.story',
+            start: 'top top',
+            end: '+=2200',
+            scrub: 1,
+            pin: true,
+            anticipatePin: 1,
+          },
+        });
       });
 
       gsap.fromTo(
@@ -276,6 +281,8 @@ function App() {
           },
         );
       });
+
+      return () => media.revert();
     }, rootRef);
 
     return () => {
@@ -303,16 +310,19 @@ function App() {
 }
 
 function Header() {
+  const [isOpen, setIsOpen] = useState(false);
+  const closeMenu = () => setIsOpen(false);
+
   return (
-    <header className="nav-shell">
+    <header className={`nav-shell ${isOpen ? 'is-open' : ''}`}>
       <a className="brand" href="#top" aria-label="Atlas home">
         <img src="/brand/atlas-logo.png" alt="" />
         <span>Atlas</span>
       </a>
       <nav aria-label="Primary navigation">
-        <a href="#story">Story</a>
-        <a href="#library">Library</a>
-        <a href="#download">Download</a>
+        <a href="#story" onClick={closeMenu}>Story</a>
+        <a href="#library" onClick={closeMenu}>Library</a>
+        <a href="#download" onClick={closeMenu}>Download</a>
       </nav>
       <div className="nav-actions">
         <a className="icon-button" href={repoUrl} target="_blank" rel="noreferrer" aria-label="Open Atlas on GitHub">
@@ -321,6 +331,20 @@ function Header() {
         <a className="magnetic-button small" href={apkUrl} download>
           Download
         </a>
+        <button
+          className="menu-toggle"
+          type="button"
+          aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((value) => !value)}
+        >
+          {isOpen ? <X size={19} /> : <Menu size={19} />}
+        </button>
+      </div>
+      <div className="mobile-menu" aria-hidden={!isOpen}>
+        <a href="#story" onClick={closeMenu}>Story</a>
+        <a href="#library" onClick={closeMenu}>Library</a>
+        <a href="#download" onClick={closeMenu}>Download</a>
       </div>
     </header>
   );
