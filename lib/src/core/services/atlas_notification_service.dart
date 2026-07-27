@@ -27,7 +27,12 @@ class AtlasNotificationService {
             .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin
             >();
-    return await android?.requestNotificationsPermission() ?? true;
+    final notificationsGranted =
+        await android?.requestNotificationsPermission() ?? true;
+    if (notificationsGranted) {
+      await android?.requestExactAlarmsPermission();
+    }
+    return notificationsGranted;
   }
 
   Future<bool> notificationsEnabled() async {
@@ -64,41 +69,35 @@ class AtlasNotificationService {
       !slot.isAfter(end);
       slot = slot.add(Duration(minutes: safeInterval))
     ) {
-      await _plugin.zonedSchedule(
-        notificationId++,
+      await _scheduleDailyNotification(
         'Atlas hydration',
         'Time for a calm water check-in.',
         _nextDailyOccurrence(hour: slot.hour, minute: slot.minute),
-        _hydrationDetails,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
+        id: notificationId++,
+        details: _hydrationDetails,
       );
     }
   }
 
   Future<void> scheduleDailyReminders() async {
     await cancelDailyReminders();
-    await _plugin.zonedSchedule(
-      _dailyNotificationBaseId,
+    await _scheduleDailyNotification(
       'Atlas check-in',
       'Log today once so your trend stays accurate.',
       _nextDailyOccurrence(hour: 9),
-      _generalDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      id: _dailyNotificationBaseId,
+      details: _generalDetails,
     );
   }
 
   Future<void> scheduleWorkoutReminders() async {
     await cancelWorkoutReminders();
-    await _plugin.zonedSchedule(
-      _workoutNotificationBaseId,
+    await _scheduleDailyNotification(
       'Atlas workout',
       'Your training slot is ready when you are.',
       _nextDailyOccurrence(hour: 18),
-      _generalDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      id: _workoutNotificationBaseId,
+      details: _generalDetails,
     );
   }
 
@@ -155,6 +154,36 @@ class AtlasNotificationService {
       scheduled = scheduled.add(const Duration(days: 1));
     }
     return scheduled;
+  }
+
+  Future<void> _scheduleDailyNotification(
+    String title,
+    String body,
+    tz.TZDateTime scheduledAt, {
+    required int id,
+    required NotificationDetails details,
+  }) async {
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } catch (_) {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
   }
 
   static const _hydrationDetails = NotificationDetails(

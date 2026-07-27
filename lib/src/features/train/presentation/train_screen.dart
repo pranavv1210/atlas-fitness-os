@@ -44,6 +44,7 @@ class _TrainScreenState extends State<TrainScreen> {
   }
 
   Future<void> _saveWorkout(AtlasDashboardSnapshot snapshot) async {
+    if (_saving) return;
     final repository = _repository;
     final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
     if (repository == null || workout == null) {
@@ -62,8 +63,21 @@ class _TrainScreenState extends State<TrainScreen> {
       );
       return;
     }
-
+    if (snapshot.completedToday) {
+      showAtlasSnack(
+        context,
+        message: 'Today\'s workout is already saved.',
+        icon: Icons.check_circle_outline_rounded,
+      );
+      return;
+    }
     setState(() => _saving = true);
+    final confirmed = await _confirmSaveWorkout(workout.name, _entries.length);
+    if (!confirmed || !mounted) {
+      if (mounted) setState(() => _saving = false);
+      return;
+    }
+
     try {
       await repository.saveWorkout(
         day: workout,
@@ -80,6 +94,14 @@ class _TrainScreenState extends State<TrainScreen> {
       if (!mounted) return;
       showCompletionCelebration(context);
       setState(() => _future = _load());
+    } on AtlasWorkoutAlreadySavedException {
+      if (!mounted) return;
+      showAtlasSnack(
+        context,
+        message: 'Today\'s workout is already saved.',
+        icon: Icons.check_circle_outline_rounded,
+      );
+      setState(() => _future = _load());
     } catch (_) {
       if (!mounted) return;
       showAtlasSnack(
@@ -90,6 +112,34 @@ class _TrainScreenState extends State<TrainScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<bool> _confirmSaveWorkout(
+    String workoutName,
+    int exerciseCount,
+  ) async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Save today\'s workout?'),
+                content: Text(
+                  'Atlas will save $workoutName with $exerciseCount exercises for today. You can save only one workout per day.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Save Workout'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
   }
 
   @override
@@ -153,6 +203,7 @@ class _WorkoutHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
     final isFirst = !snapshot.hasWorkoutCycleStarted;
+    final savedToday = snapshot.completedToday;
     final totalSets = snapshot.templateExercises.fold<int>(
       0,
       (sum, item) => sum + item.targetSets,
@@ -215,14 +266,21 @@ class _WorkoutHero extends StatelessWidget {
           const SizedBox(height: 22),
           AtlasGradientButton(
             label:
-                saving
+                savedToday
+                    ? 'Workout Saved Today'
+                    : saving
                     ? 'Saving'
                     : isFirst
                     ? 'Save First Workout'
                     : 'Complete Workout',
-            icon: saving ? Icons.sync_rounded : Icons.check_rounded,
+            icon:
+                savedToday
+                    ? Icons.verified_rounded
+                    : saving
+                    ? Icons.sync_rounded
+                    : Icons.check_rounded,
             colors: const [AtlasColors.success, AtlasColors.accent],
-            onPressed: saving ? null : onSave,
+            onPressed: saving || savedToday ? null : onSave,
           ),
         ],
       ),

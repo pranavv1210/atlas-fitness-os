@@ -126,6 +126,7 @@ class AtlasDashboardSnapshot {
     required this.weeklyTarget,
     required this.totalWorkouts,
     required this.monthWorkouts,
+    required this.completedToday,
     required this.hydrationToday,
     required this.activeGoals,
     this.latestWeight,
@@ -142,6 +143,7 @@ class AtlasDashboardSnapshot {
   final int weeklyTarget;
   final int totalWorkouts;
   final int monthWorkouts;
+  final bool completedToday;
   final int hydrationToday;
   final List<AtlasGoal> activeGoals;
   final double? latestWeight;

@@ -663,6 +663,7 @@ AtlasDashboardSnapshot emptyAtlasSnapshot() {
     weeklyTarget: 5,
     totalWorkouts: 0,
     monthWorkouts: 0,
+    completedToday: false,
     hydrationToday: 0,
     activeGoals: const [],
   );

@@ -15,6 +15,7 @@ class AtlasDataRepository {
   String get _userId => _client.auth.currentUser!.id;
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
+    final completedToday = await _hasCompletedWorkoutOn(DateTime.now());
     final totalWorkouts = await _countAllWorkouts();
     final hasStarted = totalWorkouts > 0;
     final todayWorkout = hasStarted ? await _loadTodayWorkout() : null;
@@ -43,6 +44,7 @@ class AtlasDataRepository {
       weeklyTarget: 5,
       totalWorkouts: totalWorkouts,
       monthWorkouts: monthWorkouts,
+      completedToday: completedToday,
       latestWeight: latestWeight?.$1,
       latestWeightUnit: latestWeight?.$2 ?? 'kg',
       latestWeightDate: latestWeight?.$3,
@@ -56,60 +58,73 @@ class AtlasDataRepository {
     required AtlasWorkoutDay day,
     required List<AtlasWorkoutEntry> entries,
   }) async {
+    final now = DateTime.now();
+    if (await _hasCompletedWorkoutOn(now)) {
+      throw const AtlasWorkoutAlreadySavedException();
+    }
     final isFirstWorkout = await _countAllWorkouts() == 0;
     if (isFirstWorkout) {
       await _client.rpc(
         'advance_workout_cycle',
-        params: {
-          'target_user_id': _userId,
-          'new_anchor_date': _date(DateTime.now()),
-        },
+        params: {'target_user_id': _userId, 'new_anchor_date': _date(now)},
       );
     }
 
-    final session =
-        await _client
-            .from('workout_sessions')
-            .insert({
-              'user_id': _userId,
-              'workout_day_id': day.workoutDayId,
-              'template_id': day.templateId,
-              'session_date': _date(DateTime.now()),
-              'started_at': DateTime.now().toUtc().toIso8601String(),
-              'completed_at': DateTime.now().toUtc().toIso8601String(),
-              'status': 'completed',
-              'title': day.name,
-            })
-            .select('id')
-            .single();
-
-    final sessionId = session['id'] as String;
-    for (var index = 0; index < entries.length; index++) {
-      final entry = entries[index];
-      final sessionExercise =
+    String? sessionId;
+    try {
+      final session =
           await _client
-              .from('workout_session_exercises')
+              .from('workout_sessions')
               .insert({
-                'workout_session_id': sessionId,
-                'exercise_id': _uuidOrNull(entry.exercise.id),
-                'display_order': index + 1,
-                'name_snapshot': entry.exercise.name,
+                'user_id': _userId,
+                'workout_day_id': day.workoutDayId,
+                'template_id': day.templateId,
+                'session_date': _date(now),
+                'started_at': now.toUtc().toIso8601String(),
+                'completed_at': now.toUtc().toIso8601String(),
+                'status': 'completed',
+                'title': day.name,
               })
               .select('id')
               .single();
 
-      final sessionExerciseId = sessionExercise['id'] as String;
-      await _client.from('workout_sets').insert([
-        for (var set = 1; set <= entry.sets; set++)
-          {
-            'workout_session_exercise_id': sessionExerciseId,
-            'set_number': set,
-            'reps': entry.reps,
-            'weight': entry.weight,
-            'weight_unit': 'kg',
-            'is_completed': true,
-          },
-      ]);
+      sessionId = session['id'] as String;
+      for (var index = 0; index < entries.length; index++) {
+        final entry = entries[index];
+        final sessionExercise =
+            await _client
+                .from('workout_session_exercises')
+                .insert({
+                  'workout_session_id': sessionId,
+                  'exercise_id': _uuidOrNull(entry.exercise.id),
+                  'display_order': index + 1,
+                  'name_snapshot': entry.exercise.name,
+                })
+                .select('id')
+                .single();
+
+        final sessionExerciseId = sessionExercise['id'] as String;
+        await _client.from('workout_sets').insert([
+          for (var set = 1; set <= entry.sets; set++)
+            {
+              'workout_session_exercise_id': sessionExerciseId,
+              'set_number': set,
+              'reps': entry.reps,
+              'weight': entry.weight,
+              'weight_unit': 'kg',
+              'is_completed': true,
+            },
+        ]);
+      }
+    } catch (_) {
+      if (sessionId != null) {
+        await _client
+            .from('workout_sessions')
+            .delete()
+            .eq('id', sessionId)
+            .eq('user_id', _userId);
+      }
+      rethrow;
     }
   }
 
@@ -324,6 +339,17 @@ class AtlasDataRepository {
     return rows.length;
   }
 
+  Future<bool> _hasCompletedWorkoutOn(DateTime date) async {
+    final rows = await _client
+        .from('workout_sessions')
+        .select('id')
+        .eq('user_id', _userId)
+        .eq('status', 'completed')
+        .eq('session_date', _date(date))
+        .limit(1);
+    return rows.isNotEmpty;
+  }
+
   Future<(double, String, DateTime)?> _latestWeight() async {
     final rows = await _client
         .from('body_weight_logs')
@@ -376,6 +402,10 @@ class AtlasDataRepository {
   }
 }
 
+class AtlasWorkoutAlreadySavedException implements Exception {
+  const AtlasWorkoutAlreadySavedException();
+}
+
 AtlasGoalType _goalType(String? value) {
   return AtlasGoalType.values.firstWhere(
     (type) => type.name == value,
@@ -383,7 +413,12 @@ AtlasGoalType _goalType(String? value) {
   );
 }
 
-String? _uuidOrNull(String value) => value.length > 20 ? value : null;
+final _uuidPattern = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+);
+
+String? _uuidOrNull(String value) =>
+    _uuidPattern.hasMatch(value) ? value : null;
 
 String _date(DateTime value) {
   final local = value.toLocal();
