@@ -1,89 +1,186 @@
 # Atlas
 
-**Your Personal Fitness Operating System**
+**A premium personal fitness operating system for Android.**
 
-Atlas is a premium Android-only personal fitness app built for one user: Pranav.
-It is designed to feel calm, modern, fast, and polished while staying simple
-enough to build feature by feature.
+Atlas is a production-grade fitness application built to make training,
+hydration, goals, body metrics, and progress feel organized instead of
+scattered. It combines fast workout logging, a large exercise library, Google
+account separation, Supabase sync, reminders, biometric protection, and a
+premium mobile-first interface.
 
-Atlas is not a commercial fitness product. It has no social features, ads,
-subscriptions, badges, XP systems, or public sharing. Its job is to make daily
-fitness logging, consistency, recovery, hydration, body metrics, and goals feel
-effortless.
+Atlas is designed for people who want the structure of a serious fitness app
+without the noise of social feeds, ads, gamified clutter, or generic health
+dashboards.
 
-## Current State
+## Product Status
 
-This repository contains the initial Flutter foundation and a premium mock-data
-prototype:
+Atlas is a functional Android app with a separate React marketing website.
 
-- Android-only Flutter project scaffold
-- Premium Atlas app shell with realistic mock UI
-- Main navigation: Today, Train, Progress, Goals, Me
-- Feature-first source structure
-- Theme and design token foundation
-- Supabase bootstrap configured by Dart defines
-- Product and architecture docs in `docs/`
-- Animated progress rings, charts, cards, and tab transitions
+- Flutter Android app with production release APK support
+- Google Sign-In authentication
+- Supabase-backed user data and sync
+- Workout logging with sets, reps, weight, and exercise selection
+- Workout templates and 5-day workout cycle
+- Expanded exercise library with 2,069 unique exercises
+- Exercise search across names, muscles, equipment, difficulty, patterns, and
+  instructions
+- Simple muscle filters for Chest, Back, Legs, Shoulders, Arms, Abs, Glutes,
+  Triceps, Biceps, and Cardio
+- Weight tracking, hydration tracking, goals, progress, and profile screens
+- Notification scheduling for reminders and hydration intervals
+- Biometric lock support
+- Light and dark mode
+- Premium React landing page in `landing/`
 
-No workout, wellness, hydration, sync, or persistence business logic has been
-implemented yet. The current app is intentionally presentation-only.
+## Repository Structure
 
-## Tech Direction
-
-- **App:** Flutter
-- **Platform:** Android only
-- **Backend:** Supabase
-- **Data posture:** Online-first with offline-friendly behavior planned
-- **Architecture:** Feature-first, with UI, state, and data separated as
-  features mature
-
-## Running Locally
-
-```powershell
-flutter pub get
-flutter run
+```text
+atlas-fitness-os/
+  android/        Android platform project
+  assets/         Bundled app assets and exercise data
+  config/         Local runtime configuration templates
+  docs/           Product, architecture, backend, and roadmap documentation
+  landing/        Standalone React + Vite marketing website
+  lib/            Flutter application source
+  supabase/       Database migrations, seed data, and storage placeholders
+  test/           Flutter tests
 ```
 
-To enable Supabase initialization:
+The landing website is isolated in `landing/` and does not modify or depend on
+Flutter mobile code.
 
-```powershell
-flutter run `
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co `
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key `
-  --dart-define=GOOGLE_WEB_CLIENT_ID=your-google-web-client-id
-```
+## Mobile App
 
-For local development, this repo also supports an ignored local Dart define
-file:
+### Core Experience
 
-```powershell
-flutter run --dart-define-from-file=config/env/atlas.local.json
-```
-
-Optional single-owner restriction:
-
-```powershell
---dart-define=ATLAS_OWNER_EMAIL=your-email@example.com
-```
-
-No secrets are hardcoded in the repository. Supabase and Google credentials are
-read from Dart defines at runtime/build time.
-
-## Startup Flow
-
-Atlas now starts through the infrastructure flow:
+Atlas opens with a splash/auth flow, restores the user session, loads the
+profile, then enters the main app shell:
 
 ```text
 Splash
 Initialize services
 Check authentication
-Restore session
-Load initial profile
-Atlas shell
+Restore session or Google login
+Load profile
+Atlas app shell
 ```
 
-If no session exists, Atlas shows Google Sign-In. Logout is available from the
-`Me` screen.
+The primary tabs are:
+
+- **Today**: daily focus, training status, hydration, weight, and quick actions
+- **Train**: workout cycle, exercise picker, logging, and saved workouts
+- **Progress**: body and training progress views
+- **Goals**: goal creation and tracking
+- **Me**: profile, preferences, sync, biometric lock, and logout
+
+### Exercise Library
+
+Atlas ships with an expanded local exercise library:
+
+- `2,069` unique exercises
+- `2,049` exercises with instructions
+- `870` exercises with images
+- Searchable by exercise name, muscle, equipment, difficulty, movement pattern,
+  movement type, and instruction text
+- Simple user-friendly muscle filters
+
+The bundled exercise data is available offline and is merged safely with
+Supabase exercise records at runtime.
+
+## Landing Website
+
+The marketing site lives in `landing/` and is built with:
+
+- React
+- Vite
+- TypeScript
+- Inter
+- Lenis smooth scrolling
+- GSAP + ScrollTrigger
+- Lucide React icons
+
+It includes a premium product story, animated hero, phone mockup, exercise
+library showcase, workout logging sequence, progress section, comparison,
+download CTA, GitHub link, SEO metadata, and APK download route.
+
+### Run Landing Locally
+
+```powershell
+cd landing
+npm install
+npm run dev
+```
+
+### Build Landing
+
+```powershell
+cd landing
+npm run build
+```
+
+For Vercel:
+
+- Root directory: `landing`
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+## Running The Flutter App
+
+Install dependencies:
+
+```powershell
+flutter pub get
+```
+
+Run with local Dart defines:
+
+```powershell
+flutter run --dart-define-from-file=config/env/atlas.local.json
+```
+
+Build release APK:
+
+```powershell
+flutter build apk --release --dart-define-from-file=config/env/atlas.local.json
+```
+
+Release output:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```
+
+## Configuration
+
+Atlas reads runtime secrets through Dart defines. Do not hardcode credentials.
+
+Required values:
+
+```powershell
+--dart-define=SUPABASE_URL=https://your-project.supabase.co
+--dart-define=SUPABASE_ANON_KEY=your-anon-key
+--dart-define=GOOGLE_WEB_CLIENT_ID=your-google-web-client-id
+```
+
+Optional owner restriction:
+
+```powershell
+--dart-define=ATLAS_OWNER_EMAIL=your-email@example.com
+```
+
+## Quality Checks
+
+Recommended validation before shipping:
+
+```powershell
+flutter analyze
+flutter test
+flutter build apk --release --dart-define-from-file=config/env/atlas.local.json
+cd landing
+npm run build
+npm audit --audit-level=high
+```
 
 ## Documentation
 
@@ -101,3 +198,8 @@ If no session exists, Atlas shows Google Sign-In. Logout is available from the
 - [Notification Engine](docs/NOTIFICATION_ENGINE.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Data Flow](docs/DATA_FLOW.md)
+
+## License
+
+This project is maintained as the Atlas fitness application repository. Verify
+third-party dataset and media licenses before redistributing exercise media.
