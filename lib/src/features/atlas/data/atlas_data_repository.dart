@@ -447,14 +447,60 @@ Future<List<AtlasExercise>> loadBundledExercises() async {
             .whereType<AtlasExercise>()
             .toList()
           ..sort((a, b) => a.name.compareTo(b.name));
+    final expansion = await _loadExerciseExpansion();
     _bundledExerciseCache = _dedupeExercises([
       ...fallbackExercises,
       ...exercises,
+      ...expansion,
     ]);
   } catch (_) {
     _bundledExerciseCache = fallbackExercises;
   }
   return _bundledExerciseCache!;
+}
+
+Future<List<AtlasExercise>> _loadExerciseExpansion() async {
+  try {
+    final source = await rootBundle.loadString(
+      'assets/data/exercise_expansion_metadata.json',
+    );
+    final decoded = jsonDecode(source) as List<dynamic>;
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(_exerciseFromExpansion)
+        .whereType<AtlasExercise>()
+        .toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+AtlasExercise? _exerciseFromExpansion(Map<String, dynamic> row) {
+  final id = row['id'] as String?;
+  final name = row['name'] as String?;
+  if (id == null || id.isEmpty || name == null || name.isEmpty) {
+    return null;
+  }
+
+  return AtlasExercise(
+    id: id,
+    name: name,
+    pattern: row['pattern'] as String? ?? 'strength',
+    defaultSets: row['defaultSets'] as int? ?? 3,
+    defaultReps: row['defaultReps'] as String? ?? '10-12',
+    primaryMuscle: row['primaryMuscle'] as String? ?? 'Strength',
+    secondaryMuscles: _stringList(row['secondaryMuscles']),
+    equipment: row['equipment'] as String? ?? 'Bodyweight',
+    difficulty: row['difficulty'] as String? ?? 'Intermediate',
+    movementType: row['movementType'] as String? ?? 'Strength',
+    instructions: _stringList(row['instructions']),
+    imageUrl: row['imageUrl'] as String?,
+    gifUrl: row['gifUrl'] as String?,
+    previewImage: row['previewImage'] as String?,
+    previewGif: row['previewGif'] as String?,
+    previewVideo: row['previewVideo'] as String?,
+    thumbnail: row['thumbnail'] as String?,
+  );
 }
 
 AtlasExercise? _exerciseFromFreeExerciseDb(Map<String, dynamic> row) {
@@ -513,11 +559,28 @@ List<AtlasExercise> _mergeExerciseLibraries(
 }
 
 List<AtlasExercise> _dedupeExercises(List<AtlasExercise> exercises) {
-  final byName = <String, AtlasExercise>{};
+  final byExerciseKey = <String, AtlasExercise>{};
   for (final exercise in exercises) {
-    byName.putIfAbsent(exercise.name.toLowerCase().trim(), () => exercise);
+    byExerciseKey.putIfAbsent(_exerciseDedupeKey(exercise), () => exercise);
   }
-  return byName.values.toList();
+  return byExerciseKey.values.toList();
+}
+
+String _exerciseDedupeKey(AtlasExercise exercise) {
+  return [
+    exercise.name,
+    exercise.primaryMuscle,
+    exercise.equipment,
+    exercise.pattern,
+  ].map(_normalizeExerciseKeyPart).join('|');
+}
+
+String _normalizeExerciseKeyPart(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'\s+'), ' ');
 }
 
 List<String> _stringList(Object? source) {

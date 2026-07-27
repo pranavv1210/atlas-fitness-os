@@ -475,7 +475,13 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
               exercise.secondaryMuscles.any(
                 (muscle) => muscle.toLowerCase().contains(query),
               ) ||
-              exercise.equipment.toLowerCase().contains(query);
+              exercise.equipment.toLowerCase().contains(query) ||
+              exercise.difficulty.toLowerCase().contains(query) ||
+              exercise.pattern.toLowerCase().contains(query) ||
+              exercise.movementType.toLowerCase().contains(query) ||
+              exercise.instructions.any(
+                (instruction) => instruction.toLowerCase().contains(query),
+              );
           final matchesMuscle =
               _muscleFilter == null ||
               exercise.primaryMuscle == _muscleFilter ||

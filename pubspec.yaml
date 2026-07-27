@@ -67,6 +67,7 @@ flutter:
   assets:
     - logo.png
     - assets/data/free_exercise_db.json
+    - assets/data/exercise_expansion_metadata.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
