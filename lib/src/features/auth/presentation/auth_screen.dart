@@ -44,7 +44,7 @@ class AuthScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Sign in with Google to restore your secure Atlas session.',
+                  'Login with Google so each person keeps separate workouts, goals, and progress.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 if (failure != null) ...[
@@ -61,7 +61,7 @@ class AuthScreen extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                           : const Icon(Icons.login_rounded),
-                  label: Text(isBusy ? 'Signing In' : 'Continue with Google'),
+                  label: Text(isBusy ? 'Signing In' : 'Login with Google'),
                 ),
                 const SizedBox(height: 12),
                 Text(

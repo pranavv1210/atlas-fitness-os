@@ -56,8 +56,13 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (context, snapshot) {
         final data = snapshot.data ?? emptyAtlasSnapshot();
         return AtlasAppFrame(
-          subtitle: '${_greeting(DateTime.now())} $firstName',
-          title: 'Today',
+          subtitle: '',
+          title: '${_greeting(DateTime.now())} $firstName',
+          titleStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontSize: 31,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
+          ),
           trailing: _StatusPill(
             text: '${data.completedThisWeek}/${data.weeklyTarget} week',
           ),

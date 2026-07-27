@@ -455,8 +455,6 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _muscleFilter;
-  String? _equipmentFilter;
-  String? _difficultyFilter;
 
   @override
   void dispose() {
@@ -468,44 +466,28 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   Widget build(BuildContext context) {
     final filtered =
         widget.library.where((exercise) {
-          final query = _query.toLowerCase();
-          final matchesSearch =
-              exercise.name.toLowerCase().contains(query) ||
-              exercise.primaryMuscle.toLowerCase().contains(query) ||
-              exercise.secondaryMuscles.any(
-                (muscle) => muscle.toLowerCase().contains(query),
-              ) ||
-              exercise.equipment.toLowerCase().contains(query) ||
-              exercise.difficulty.toLowerCase().contains(query) ||
-              exercise.pattern.toLowerCase().contains(query) ||
-              exercise.movementType.toLowerCase().contains(query) ||
-              exercise.instructions.any(
-                (instruction) => instruction.toLowerCase().contains(query),
-              );
-          final matchesMuscle =
-              _muscleFilter == null ||
-              exercise.primaryMuscle == _muscleFilter ||
-              exercise.secondaryMuscles.contains(_muscleFilter);
-          final matchesEquipment =
-              _equipmentFilter == null ||
-              exercise.equipment == _equipmentFilter;
-          final matchesDifficulty =
-              _difficultyFilter == null ||
-              exercise.difficulty == _difficultyFilter;
-          return matchesSearch &&
-              matchesMuscle &&
-              matchesEquipment &&
-              matchesDifficulty;
-        }).toList();
-    final muscles = _exerciseFilterValues(widget.library, (exercise) {
-      return [exercise.primaryMuscle, ...exercise.secondaryMuscles];
-    });
-    final equipment = _exerciseFilterValues(widget.library, (exercise) {
-      return [exercise.equipment];
-    });
-    final difficulties = _exerciseFilterValues(widget.library, (exercise) {
-      return [exercise.difficulty];
-    });
+            final query = _query.toLowerCase();
+            final matchesSearch =
+                exercise.name.toLowerCase().contains(query) ||
+                exercise.primaryMuscle.toLowerCase().contains(query) ||
+                exercise.secondaryMuscles.any(
+                  (muscle) => muscle.toLowerCase().contains(query),
+                ) ||
+                exercise.equipment.toLowerCase().contains(query) ||
+                exercise.difficulty.toLowerCase().contains(query) ||
+                exercise.pattern.toLowerCase().contains(query) ||
+                exercise.movementType.toLowerCase().contains(query) ||
+                exercise.instructions.any(
+                  (instruction) => instruction.toLowerCase().contains(query),
+                );
+            final matchesMuscle =
+                _muscleFilter == null ||
+                _exerciseMatchesSimpleMuscle(exercise, _muscleFilter!);
+            return matchesSearch && matchesMuscle;
+          }).toList()
+          ..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -540,25 +522,9 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
             ),
           ),
           const SizedBox(height: 14),
-          _ExerciseFilterChips(
-            label: 'Muscle',
-            values: muscles,
+          _SimpleMuscleFilterChips(
             selected: _muscleFilter,
             onSelected: (value) => setState(() => _muscleFilter = value),
-          ),
-          const SizedBox(height: 8),
-          _ExerciseFilterChips(
-            label: 'Equipment',
-            values: equipment,
-            selected: _equipmentFilter,
-            onSelected: (value) => setState(() => _equipmentFilter = value),
-          ),
-          const SizedBox(height: 8),
-          _ExerciseFilterChips(
-            label: 'Difficulty',
-            values: difficulties,
-            selected: _difficultyFilter,
-            onSelected: (value) => setState(() => _difficultyFilter = value),
           ),
           const SizedBox(height: 14),
           Flexible(
@@ -645,63 +611,91 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   }
 }
 
-class _ExerciseFilterChips extends StatelessWidget {
-  const _ExerciseFilterChips({
-    required this.label,
-    required this.values,
+class _SimpleMuscleFilterChips extends StatelessWidget {
+  const _SimpleMuscleFilterChips({
     required this.selected,
     required this.onSelected,
   });
 
-  final String label;
-  final List<String> values;
   final String? selected;
   final ValueChanged<String?> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    if (values.isEmpty) {
-      return const SizedBox.shrink();
-    }
     return SizedBox(
-      height: 38,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return FilterChip(
-              label: Text(label),
-              selected: selected == null,
-              onSelected: (_) => onSelected(null),
-            );
-          }
-          final value = values[index - 1];
-          return FilterChip(
+          final value = _simpleMuscleFilters[index];
+          final isAll = value == _allExerciseFilter;
+          final isSelected = isAll ? selected == null : selected == value;
+          return ChoiceChip(
             label: Text(value),
-            selected: selected == value,
-            onSelected: (_) => onSelected(selected == value ? null : value),
+            selected: isSelected,
+            onSelected: (_) => onSelected(isAll ? null : value),
+            avatar:
+                isSelected ? const Icon(Icons.check_rounded, size: 18) : null,
           );
         },
         separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemCount: values.length + 1,
+        itemCount: _simpleMuscleFilters.length,
       ),
     );
   }
 }
 
-List<String> _exerciseFilterValues(
-  List<AtlasExercise> exercises,
-  List<String> Function(AtlasExercise exercise) valuesFor,
-) {
-  final values = <String>{};
-  for (final exercise in exercises) {
-    for (final value in valuesFor(exercise)) {
-      if (value.trim().isNotEmpty) {
-        values.add(value.trim());
-      }
-    }
+const _allExerciseFilter = 'All';
+const _simpleMuscleFilters = [
+  _allExerciseFilter,
+  'Chest',
+  'Triceps',
+  'Back',
+  'Biceps',
+  'Legs',
+  'Shoulders',
+  'Arms',
+  'Abs',
+  'Glutes',
+  'Cardio',
+];
+
+const _simpleMuscleAliases = <String, List<String>>{
+  'Chest': ['chest', 'pectoral'],
+  'Triceps': ['tricep'],
+  'Back': ['back', 'lat', 'lats', 'lower back', 'upper back'],
+  'Biceps': ['bicep'],
+  'Legs': [
+    'leg',
+    'legs',
+    'quad',
+    'quadriceps',
+    'hamstring',
+    'calf',
+    'calves',
+    'adductor',
+    'abductor',
+  ],
+  'Shoulders': ['shoulder', 'deltoid', 'delt'],
+  'Arms': ['arm', 'forearm', 'bicep', 'tricep'],
+  'Abs': ['ab', 'abs', 'abdominal', 'waist', 'core', 'oblique'],
+  'Glutes': ['glute'],
+  'Cardio': ['cardio', 'aerobic'],
+};
+
+bool _exerciseMatchesSimpleMuscle(AtlasExercise exercise, String filter) {
+  final aliases = _simpleMuscleAliases[filter];
+  if (aliases == null) {
+    return false;
   }
-  return values.toList()..sort();
+  final searchable =
+      [
+        exercise.primaryMuscle,
+        ...exercise.secondaryMuscles,
+        exercise.pattern,
+        exercise.movementType,
+      ].join(' ').toLowerCase();
+  return aliases.any(searchable.contains);
 }
 
 class _AnimatedExerciseGlyph extends StatelessWidget {

@@ -561,18 +561,12 @@ List<AtlasExercise> _mergeExerciseLibraries(
 List<AtlasExercise> _dedupeExercises(List<AtlasExercise> exercises) {
   final byExerciseKey = <String, AtlasExercise>{};
   for (final exercise in exercises) {
-    byExerciseKey.putIfAbsent(_exerciseDedupeKey(exercise), () => exercise);
+    byExerciseKey.putIfAbsent(
+      _normalizeExerciseKeyPart(exercise.name),
+      () => exercise,
+    );
   }
   return byExerciseKey.values.toList();
-}
-
-String _exerciseDedupeKey(AtlasExercise exercise) {
-  return [
-    exercise.name,
-    exercise.primaryMuscle,
-    exercise.equipment,
-    exercise.pattern,
-  ].map(_normalizeExerciseKeyPart).join('|');
 }
 
 String _normalizeExerciseKeyPart(String value) {

@@ -10,6 +10,7 @@ class AtlasAppFrame extends StatelessWidget {
     required this.subtitle,
     required this.children,
     this.trailing,
+    this.titleStyle,
     super.key,
   });
 
@@ -17,6 +18,7 @@ class AtlasAppFrame extends StatelessWidget {
   final String subtitle;
   final List<Widget> children;
   final Widget? trailing;
+  final TextStyle? titleStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -37,20 +39,24 @@ class AtlasAppFrame extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              subtitle,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.copyWith(
-                                color: AtlasColors.inkMuted,
-                                fontWeight: FontWeight.w500,
+                            if (subtitle.isNotEmpty) ...[
+                              Text(
+                                subtitle,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.copyWith(
+                                  color: AtlasColors.inkMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
+                              const SizedBox(height: 6),
+                            ],
                             Text(
                               title,
-                              style: Theme.of(context).textTheme.displayMedium
-                                  ?.copyWith(fontSize: 52, height: 0.98),
+                              style:
+                                  titleStyle ??
+                                  Theme.of(context).textTheme.displayMedium
+                                      ?.copyWith(fontSize: 52, height: 0.98),
                             ),
                           ],
                         ),
