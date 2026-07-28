@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -77,6 +78,9 @@ class AtlasNotificationService {
         details: _hydrationDetails,
       );
     }
+    debugPrint(
+      'Atlas notifications: scheduled ${notificationId - _hydrationNotificationBaseId} hydration reminders every $safeInterval minutes.',
+    );
   }
 
   Future<void> scheduleDailyReminders() async {
@@ -128,6 +132,17 @@ class AtlasNotificationService {
 
   Future<void> cancelWorkoutReminders() async {
     await _cancelRange(_workoutNotificationBaseId, _workoutNotificationMaxId);
+  }
+
+  Future<int> pendingHydrationReminderCount() async {
+    final pending = await _plugin.pendingNotificationRequests();
+    return pending
+        .where(
+          (notification) =>
+              notification.id >= _hydrationNotificationBaseId &&
+              notification.id < _hydrationNotificationMaxId,
+        )
+        .length;
   }
 
   Future<void> _cancelRange(int startInclusive, int endExclusive) async {
@@ -191,8 +206,8 @@ class AtlasNotificationService {
       'atlas_hydration_water',
       'Hydration reminders',
       channelDescription: 'Gentle hydration nudges from Atlas.',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
       playSound: true,
       sound: RawResourceAndroidNotificationSound('atlas_water_drop'),
     ),

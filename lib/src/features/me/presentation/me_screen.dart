@@ -299,13 +299,18 @@ class _PreferenceCardState extends State<_PreferenceCard> {
             dependencies.preferences.hydrationIntervalMinutes,
       );
     }
+    final hydrationReminderCount =
+        granted
+            ? await dependencies.notificationService
+                .pendingHydrationReminderCount()
+            : 0;
     setState(() => _notifications = granted);
     if (mounted) {
       showAtlasSnack(
         context,
         message:
             granted
-                ? 'Atlas reminders are on.'
+                ? 'Atlas reminders are on: $hydrationReminderCount water reminders scheduled.'
                 : 'Notifications are blocked in Android settings.',
       );
     }
@@ -388,12 +393,17 @@ class _PreferenceCardState extends State<_PreferenceCard> {
         hydrationIntervalMinutes: selected,
       );
     }
+    final hydrationReminderCount =
+        notificationsEnabled
+            ? await dependencies.notificationService
+                .pendingHydrationReminderCount()
+            : 0;
     if (mounted) {
       showAtlasSnack(
         context,
         message:
             notificationsEnabled
-                ? 'Water reminders set to every $selected minutes.'
+                ? 'Water reminders set: $hydrationReminderCount scheduled.'
                 : 'Notifications are blocked in Android settings.',
         icon: Icons.water_drop_outlined,
       );

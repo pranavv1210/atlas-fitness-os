@@ -96,6 +96,79 @@ class AtlasWorkoutEntry {
   final double weight;
 }
 
+class AtlasWorkoutSetLog {
+  const AtlasWorkoutSetLog({
+    required this.setNumber,
+    required this.reps,
+    required this.weight,
+    required this.weightUnit,
+  });
+
+  final int setNumber;
+  final int reps;
+  final double weight;
+  final String weightUnit;
+
+  double get volume => reps * weight;
+}
+
+class AtlasWorkoutExerciseLog {
+  const AtlasWorkoutExerciseLog({
+    required this.name,
+    required this.displayOrder,
+    required this.sets,
+    this.exercise,
+    this.notes,
+  });
+
+  final String name;
+  final int displayOrder;
+  final List<AtlasWorkoutSetLog> sets;
+  final AtlasExercise? exercise;
+  final String? notes;
+
+  int get totalSets => sets.length;
+  int get totalReps => sets.fold(0, (sum, set) => sum + set.reps);
+  double get totalVolume => sets.fold(0, (sum, set) => sum + set.volume);
+}
+
+class AtlasWorkoutReport {
+  const AtlasWorkoutReport({
+    required this.id,
+    required this.date,
+    required this.title,
+    required this.status,
+    required this.exercises,
+    this.startedAt,
+    this.completedAt,
+    this.notes,
+  });
+
+  final String id;
+  final DateTime date;
+  final String title;
+  final String status;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final List<AtlasWorkoutExerciseLog> exercises;
+  final String? notes;
+
+  int get totalExercises => exercises.length;
+  int get totalSets => exercises.fold(0, (sum, item) => sum + item.totalSets);
+  int get totalReps => exercises.fold(0, (sum, item) => sum + item.totalReps);
+  double get totalVolume =>
+      exercises.fold(0, (sum, item) => sum + item.totalVolume);
+
+  Duration? get duration {
+    final start = startedAt;
+    final end = completedAt;
+    if (start == null || end == null || end.isBefore(start)) {
+      return null;
+    }
+    return end.difference(start);
+  }
+}
+
 class AtlasGoal {
   const AtlasGoal({
     required this.id,

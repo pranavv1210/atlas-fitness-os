@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app/theme/atlas_colors.dart';
 import '../../../core/di/app_scope.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../core/widgets/atlas_app_frame.dart';
 import '../../../core/widgets/atlas_card.dart';
 import '../../../core/widgets/atlas_feedback.dart';
@@ -24,13 +25,16 @@ class TrainScreen extends StatefulWidget {
 class _TrainScreenState extends State<TrainScreen> {
   Future<AtlasDashboardSnapshot>? _future;
   AtlasDataRepository? _repository;
+  AppDependencies? _dependencies;
+  List<_CustomWorkoutPlanDay> _customPlan = _defaultCustomPlan();
   final List<_EditableWorkoutEntry> _entries = [];
   bool _saving = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _repository = AppScope.maybeRead(context)?.atlasDataRepository;
+    _dependencies = AppScope.maybeRead(context);
+    _repository = _dependencies?.atlasDataRepository;
     _future ??= _load();
   }
 
@@ -39,8 +43,25 @@ class _TrainScreenState extends State<TrainScreen> {
         _repository == null
             ? emptyAtlasSnapshot()
             : await _repository!.loadSnapshot();
+    _customPlan = _loadCustomWorkoutPlan(
+      _dependencies?.preferences.customWorkoutPlan ?? const [],
+      snapshot.exerciseLibrary,
+    );
+    final effectiveSnapshot = _applyCustomWorkoutPlan(snapshot, _customPlan);
     _entries.clear();
-    return snapshot;
+    final workout =
+        effectiveSnapshot.todayWorkout ?? effectiveSnapshot.starterWorkout;
+    final plannedDay =
+        workout == null ? null : _customPlan[workout.dayNumber.clamp(1, 5) - 1];
+    if (plannedDay != null &&
+        !plannedDay.isRestDay &&
+        !effectiveSnapshot.completedToday) {
+      _entries.addAll([
+        for (final exercise in plannedDay.exercises)
+          _EditableWorkoutEntry(exercise),
+      ]);
+    }
+    return effectiveSnapshot;
   }
 
   Future<void> _saveWorkout(AtlasDashboardSnapshot snapshot) async {
@@ -160,6 +181,7 @@ class _TrainScreenState extends State<TrainScreen> {
               snapshot: data,
               saving: _saving,
               onSave: () => _saveWorkout(data),
+              onEditPlan: () => _showPlanEditor(data.exerciseLibrary),
             ),
             _ExerciseLogger(
               library: data.exerciseLibrary,
@@ -186,6 +208,24 @@ class _TrainScreenState extends State<TrainScreen> {
       },
     );
   }
+
+  Future<void> _showPlanEditor(List<AtlasExercise> library) async {
+    final saved = await _showWorkoutPlanEditorSheet(
+      context,
+      library: library,
+      initialPlan: _customPlan,
+    );
+    if (saved == null) return;
+    await _dependencies?.preferences.setCustomWorkoutPlan([
+      for (final day in saved) day.toJson(),
+    ]);
+    if (!mounted) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _customPlan = saved;
+      _future = _load();
+    });
+  }
 }
 
 class _WorkoutHero extends StatelessWidget {
@@ -193,11 +233,13 @@ class _WorkoutHero extends StatelessWidget {
     required this.snapshot,
     required this.saving,
     required this.onSave,
+    required this.onEditPlan,
   });
 
   final AtlasDashboardSnapshot snapshot;
   final bool saving;
   final VoidCallback onSave;
+  final VoidCallback onEditPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -264,23 +306,35 @@ class _WorkoutHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          AtlasGradientButton(
-            label:
-                savedToday
-                    ? 'Workout Saved Today'
-                    : saving
-                    ? 'Saving'
-                    : isFirst
-                    ? 'Save First Workout'
-                    : 'Complete Workout',
-            icon:
-                savedToday
-                    ? Icons.verified_rounded
-                    : saving
-                    ? Icons.sync_rounded
-                    : Icons.check_rounded,
-            colors: const [AtlasColors.success, AtlasColors.accent],
-            onPressed: saving || savedToday ? null : onSave,
+          Row(
+            children: [
+              Expanded(
+                child: AtlasGradientButton(
+                  label:
+                      savedToday
+                          ? 'Workout Saved Today'
+                          : saving
+                          ? 'Saving'
+                          : isFirst
+                          ? 'Save First Workout'
+                          : 'Complete Workout',
+                  icon:
+                      savedToday
+                          ? Icons.verified_rounded
+                          : saving
+                          ? Icons.sync_rounded
+                          : Icons.check_rounded,
+                  colors: const [AtlasColors.success, AtlasColors.accent],
+                  onPressed: saving || savedToday ? null : onSave,
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filledTonal(
+                onPressed: onEditPlan,
+                icon: const Icon(Icons.edit_calendar_rounded),
+                tooltip: 'Edit workout plan',
+              ),
+            ],
           ),
         ],
       ),
@@ -369,6 +423,286 @@ class _EmptyExerciseCard extends StatelessWidget {
   }
 }
 
+Future<List<_CustomWorkoutPlanDay>?> _showWorkoutPlanEditorSheet(
+  BuildContext context, {
+  required List<AtlasExercise> library,
+  required List<_CustomWorkoutPlanDay> initialPlan,
+}) {
+  return showModalBottomSheet<List<_CustomWorkoutPlanDay>>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder:
+        (context) =>
+            _WorkoutPlanEditorSheet(library: library, initialPlan: initialPlan),
+  );
+}
+
+class _WorkoutPlanEditorSheet extends StatefulWidget {
+  const _WorkoutPlanEditorSheet({
+    required this.library,
+    required this.initialPlan,
+  });
+
+  final List<AtlasExercise> library;
+  final List<_CustomWorkoutPlanDay> initialPlan;
+
+  @override
+  State<_WorkoutPlanEditorSheet> createState() =>
+      _WorkoutPlanEditorSheetState();
+}
+
+class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
+  late final List<_CustomWorkoutPlanDay> _plan;
+  int _selectedDay = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _plan = [for (final day in widget.initialPlan) day.copy()];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final day = _plan[_selectedDay];
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom +
+            MediaQuery.paddingOf(context).bottom +
+            20,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: SectionTitle('Workout Plan')),
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(context, _plan),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Save'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 42,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _plan.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  return ChoiceChip(
+                    label: Text('Day ${index + 1}'),
+                    selected: _selectedDay == index,
+                    onSelected: (_) => setState(() => _selectedDay = index),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              key: ValueKey('plan-name-${day.dayNumber}'),
+              initialValue: day.name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Workout day name',
+                prefixIcon: Icon(Icons.edit_rounded),
+              ),
+              onChanged: (value) => day.name = value.trim(),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: day.isRestDay,
+              onChanged:
+                  (value) => setState(() {
+                    day.isRestDay = value;
+                    if (value) day.exercises.clear();
+                  }),
+              title: Text(
+                'Rest day',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Exercises',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: day.isRestDay ? null : _addExercise,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child:
+                  day.isRestDay
+                      ? const _PlanEmptyState(
+                        message: 'This day is marked as recovery.',
+                      )
+                      : day.exercises.isEmpty
+                      ? const _PlanEmptyState(
+                        message: 'Add exercises for this day.',
+                      )
+                      : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: day.exercises.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final exercise = day.exercises[index];
+                          return _PlanExerciseTile(
+                            exercise: exercise,
+                            canMoveUp: index > 0,
+                            canMoveDown: index < day.exercises.length - 1,
+                            onMoveUp: () => _moveExercise(index, -1),
+                            onMoveDown: () => _moveExercise(index, 1),
+                            onDelete:
+                                () => setState(() {
+                                  day.exercises.removeAt(index);
+                                }),
+                          );
+                        },
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addExercise() async {
+    final picked = await showExercisePickerSheet(
+      context,
+      library: widget.library,
+      selected: _plan[_selectedDay].exercises.lastOrNull,
+    );
+    if (picked == null) return;
+    setState(() => _plan[_selectedDay].exercises.add(picked));
+  }
+
+  void _moveExercise(int index, int direction) {
+    final day = _plan[_selectedDay];
+    final target = index + direction;
+    if (target < 0 || target >= day.exercises.length) return;
+    setState(() {
+      final exercise = day.exercises.removeAt(index);
+      day.exercises.insert(target, exercise);
+    });
+  }
+}
+
+class _PlanExerciseTile extends StatelessWidget {
+  const _PlanExerciseTile({
+    required this.exercise,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveUp,
+    required this.onMoveDown,
+    required this.onDelete,
+  });
+
+  final AtlasExercise exercise;
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Row(
+        children: [
+          _ExerciseMediaPreview(
+            exercise: exercise,
+            visual: exerciseVisual(exercise),
+            size: 52,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  exercise.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${exercise.primaryMuscle} / ${exercise.equipment}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: canMoveUp ? onMoveUp : null,
+            icon: const Icon(Icons.keyboard_arrow_up_rounded),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: canMoveDown ? onMoveDown : null,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanEmptyState extends StatelessWidget {
+  const _PlanEmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return AtlasCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          const Icon(Icons.event_available_rounded, color: AtlasColors.inkSoft),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExerciseEditor extends StatelessWidget {
   const _ExerciseEditor({
     required this.index,
@@ -432,39 +766,8 @@ class _ExerciseEditor extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _NumberStepper(
-                label: 'Sets',
-                value: entry.sets,
-                onChanged: (value) {
-                  entry.sets = value;
-                  onChanged();
-                },
-              ),
-              const SizedBox(width: 10),
-              _NumberStepper(
-                label: 'Reps',
-                value: entry.reps,
-                onChanged: (value) {
-                  entry.reps = value;
-                  onChanged();
-                },
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _InlineNumberField(
-                  label: 'Kg',
-                  value: entry.weight,
-                  onChanged: (value) {
-                    entry.weight = value;
-                    onChanged();
-                  },
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: 14),
+          _SetInputPanel(entry: entry, onChanged: onChanged),
         ],
       ),
     );
@@ -513,6 +816,7 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _muscleFilter;
+  bool _includeExercisesWithoutImages = false;
 
   @override
   void dispose() {
@@ -525,19 +829,12 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
     final filtered =
         widget.library.where((exercise) {
             final query = _query.toLowerCase();
+            if (!_includeExercisesWithoutImages &&
+                !_exerciseHasMedia(exercise)) {
+              return false;
+            }
             final matchesSearch =
-                exercise.name.toLowerCase().contains(query) ||
-                exercise.primaryMuscle.toLowerCase().contains(query) ||
-                exercise.secondaryMuscles.any(
-                  (muscle) => muscle.toLowerCase().contains(query),
-                ) ||
-                exercise.equipment.toLowerCase().contains(query) ||
-                exercise.difficulty.toLowerCase().contains(query) ||
-                exercise.pattern.toLowerCase().contains(query) ||
-                exercise.movementType.toLowerCase().contains(query) ||
-                exercise.instructions.any(
-                  (instruction) => instruction.toLowerCase().contains(query),
-                );
+                query.isEmpty || _exerciseSearchText(exercise).contains(query);
             final matchesMuscle =
                 _muscleFilter == null ||
                 _exerciseMatchesSimpleMuscle(exercise, _muscleFilter!);
@@ -584,7 +881,23 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
             selected: _muscleFilter,
             onSelected: (value) => setState(() => _muscleFilter = value),
           ),
-          const SizedBox(height: 14),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: _includeExercisesWithoutImages,
+            onChanged:
+                (value) =>
+                    setState(() => _includeExercisesWithoutImages = value),
+            title: Text(
+              'Include exercises without images',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            subtitle: Text(
+              'Advanced library view',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 10),
           Flexible(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -596,6 +909,7 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                   itemBuilder: (context, index) {
                     final exercise = filtered[index];
                     final selectedRow = exercise == widget.selected;
+                    final hasMedia = _exerciseHasMedia(exercise);
                     return AtlasPressable(
                       onTap: () => Navigator.pop(context, exercise),
                       child: Container(
@@ -618,9 +932,9 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                             _ExerciseMediaPreview(
                               exercise: exercise,
                               visual: exerciseVisual(exercise),
-                              size: 58,
+                              size: 70,
                             ),
-                            const SizedBox(width: 13),
+                            const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,12 +947,24 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                                         Theme.of(context).textTheme.titleMedium,
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    '${exercise.primaryMuscle} / ${exercise.equipment} / ${exercise.difficulty}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      _ExerciseMetaChip(
+                                        label: exercise.primaryMuscle,
+                                      ),
+                                      _ExerciseMetaChip(
+                                        label: exercise.equipment,
+                                      ),
+                                      _ExerciseMetaChip(
+                                        label: exercise.difficulty,
+                                      ),
+                                      if (!hasMedia)
+                                        const _ExerciseMetaChip(
+                                          label: 'No image',
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -703,6 +1029,33 @@ class _SimpleMuscleFilterChips extends StatelessWidget {
   }
 }
 
+class _ExerciseMetaChip extends StatelessWidget {
+  const _ExerciseMetaChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AtlasColors.surfaceWarm,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AtlasColors.inkMuted,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 const _allExerciseFilter = 'All';
 const _simpleMuscleFilters = [
   _allExerciseFilter,
@@ -718,42 +1071,98 @@ const _simpleMuscleFilters = [
   'Cardio',
 ];
 
-const _simpleMuscleAliases = <String, List<String>>{
-  'Chest': ['chest', 'pectoral'],
-  'Triceps': ['tricep'],
-  'Back': ['back', 'lat', 'lats', 'lower back', 'upper back'],
-  'Biceps': ['bicep'],
-  'Legs': [
-    'leg',
-    'legs',
-    'quad',
-    'quadriceps',
-    'hamstring',
-    'calf',
-    'calves',
-    'adductor',
-    'abductor',
-  ],
-  'Shoulders': ['shoulder', 'deltoid', 'delt'],
-  'Arms': ['arm', 'forearm', 'bicep', 'tricep'],
-  'Abs': ['ab', 'abs', 'abdominal', 'waist', 'core', 'oblique'],
-  'Glutes': ['glute'],
-  'Cardio': ['cardio', 'aerobic'],
-};
-
 bool _exerciseMatchesSimpleMuscle(AtlasExercise exercise, String filter) {
-  final aliases = _simpleMuscleAliases[filter];
-  if (aliases == null) {
-    return false;
+  final groups = {
+    _simpleMuscleGroup(exercise.primaryMuscle),
+    for (final muscle in exercise.secondaryMuscles) _simpleMuscleGroup(muscle),
+  }..removeWhere((value) => value.isEmpty);
+  if (filter == 'Arms') {
+    return groups.any((group) {
+      return group == 'Biceps' || group == 'Triceps' || group == 'Forearms';
+    });
   }
-  final searchable =
-      [
-        exercise.primaryMuscle,
-        ...exercise.secondaryMuscles,
-        exercise.pattern,
-        exercise.movementType,
-      ].join(' ').toLowerCase();
-  return aliases.any(searchable.contains);
+  return groups.contains(filter);
+}
+
+String _exerciseSearchText(AtlasExercise exercise) {
+  return [
+    exercise.name,
+    exercise.primaryMuscle,
+    ...exercise.secondaryMuscles,
+    exercise.equipment,
+    exercise.difficulty,
+    exercise.pattern,
+    exercise.movementType,
+    ..._exerciseAliases(exercise),
+    ...exercise.instructions,
+  ].join(' ').toLowerCase();
+}
+
+List<String> _exerciseAliases(AtlasExercise exercise) {
+  final name = exercise.name.toLowerCase();
+  return [
+    if (name.contains('dumbbell')) 'db',
+    if (name.contains('barbell')) 'bb',
+    if (name.contains('pulldown')) 'pull down cable pulldown lat pulldown',
+    if (name.contains('bench')) 'flat bench press',
+    if (name.contains('pushdown')) 'triceps pressdown cable pushdown',
+    if (name.contains('row')) 'pull back rowing',
+  ];
+}
+
+String _simpleMuscleGroup(String value) {
+  final normalized = value.toLowerCase().replaceAll(RegExp(r'[^a-z]+'), ' ');
+  if (normalized.contains('chest') || normalized.contains('pectoral')) {
+    return 'Chest';
+  }
+  if (normalized.contains('tricep')) return 'Triceps';
+  if (normalized.contains('bicep')) return 'Biceps';
+  if (normalized.contains('forearm')) return 'Forearms';
+  if (normalized.contains('lat') ||
+      normalized.contains('back') ||
+      normalized.contains('trap') ||
+      normalized.contains('rhomboid')) {
+    return 'Back';
+  }
+  if (normalized.contains('shoulder') || normalized.contains('deltoid')) {
+    return 'Shoulders';
+  }
+  if (normalized.contains('ab') ||
+      normalized.contains('core') ||
+      normalized.contains('oblique') ||
+      normalized.contains('waist')) {
+    return 'Abs';
+  }
+  if (normalized.contains('glute')) return 'Glutes';
+  if (normalized.contains('quad') ||
+      normalized.contains('hamstring') ||
+      normalized.contains('calf') ||
+      normalized.contains('calve') ||
+      normalized.contains('leg') ||
+      normalized.contains('adductor') ||
+      normalized.contains('abductor')) {
+    return 'Legs';
+  }
+  if (normalized.contains('cardio') || normalized.contains('aerobic')) {
+    return 'Cardio';
+  }
+  return '';
+}
+
+bool _exerciseHasMedia(AtlasExercise exercise) =>
+    _exerciseMediaUrl(exercise) != null;
+
+String? _exerciseMediaUrl(AtlasExercise exercise) {
+  final mediaUrl =
+      exercise.previewGif ??
+      exercise.gifUrl ??
+      exercise.thumbnail ??
+      exercise.previewImage ??
+      exercise.imageUrl;
+  if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+    return null;
+  }
+  return mediaUrl;
 }
 
 class _AnimatedExerciseGlyph extends StatelessWidget {
@@ -835,12 +1244,7 @@ class _ExerciseMediaPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mediaUrl =
-        exercise.previewGif ??
-        exercise.gifUrl ??
-        exercise.thumbnail ??
-        exercise.previewImage ??
-        exercise.imageUrl;
+    final mediaUrl = _exerciseMediaUrl(exercise);
     if (mediaUrl == null || mediaUrl.isEmpty) {
       return _AnimatedExerciseGlyph(visual: visual, index: index, size: size);
     }
@@ -893,14 +1297,87 @@ class _ExerciseMediaPreview extends StatelessWidget {
   }
 }
 
-class _NumberStepper extends StatelessWidget {
-  const _NumberStepper({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
+class _SetInputPanel extends StatelessWidget {
+  const _SetInputPanel({required this.entry, required this.onChanged});
 
-  final String label;
+  final _EditableWorkoutEntry entry;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Sets',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Reps',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Kg',
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _CompactStepper(
+                value: entry.sets,
+                onChanged: (value) {
+                  entry.sets = value;
+                  onChanged();
+                },
+              ),
+              const SizedBox(width: 10),
+              _CompactStepper(
+                value: entry.reps,
+                onChanged: (value) {
+                  entry.reps = value;
+                  onChanged();
+                },
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InlineNumberField(
+                  label: '',
+                  value: entry.weight,
+                  onChanged: (value) {
+                    entry.weight = value;
+                    onChanged();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactStepper extends StatelessWidget {
+  const _CompactStepper({required this.value, required this.onChanged});
+
   final int value;
   final ValueChanged<int> onChanged;
 
@@ -908,40 +1385,29 @@ class _NumberStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        height: 50,
         decoration: BoxDecoration(
-          color: AtlasColors.surfaceWarm,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AtlasColors.hairline),
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  onPressed: () => onChanged((value - 1).clamp(1, 999)),
-                  icon: const Icon(Icons.remove_rounded),
-                ),
-                Text('$value', style: Theme.of(context).textTheme.titleSmall),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  onPressed: () => onChanged((value + 1).clamp(1, 999)),
-                  icon: const Icon(Icons.add_rounded),
-                ),
-              ],
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+              padding: EdgeInsets.zero,
+              onPressed: () => onChanged((value - 1).clamp(1, 999)),
+              icon: const Icon(Icons.remove_rounded),
+            ),
+            Text('$value', style: Theme.of(context).textTheme.titleMedium),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+              padding: EdgeInsets.zero,
+              onPressed: () => onChanged((value + 1).clamp(1, 999)),
+              icon: const Icon(Icons.add_rounded),
             ),
           ],
         ),
@@ -950,7 +1416,7 @@ class _NumberStepper extends StatelessWidget {
   }
 }
 
-class _InlineNumberField extends StatelessWidget {
+class _InlineNumberField extends StatefulWidget {
   const _InlineNumberField({
     required this.label,
     required this.value,
@@ -962,21 +1428,65 @@ class _InlineNumberField extends StatelessWidget {
   final ValueChanged<double> onChanged;
 
   @override
+  State<_InlineNumberField> createState() => _InlineNumberFieldState();
+}
+
+class _InlineNumberFieldState extends State<_InlineNumberField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _formatWeight(widget.value));
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineNumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && !_controller.selection.isValid) {
+      _controller.text = _formatWeight(widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextFormField(
-      initialValue: value == 0 ? '' : value.toStringAsFixed(1),
+      controller: _controller,
       textAlign: TextAlign.center,
-      style: Theme.of(context).textTheme.titleSmall,
+      style: Theme.of(context).textTheme.titleMedium,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
-        labelText: label,
+        hintText: widget.label.isEmpty ? '0' : null,
+        labelText: widget.label.isEmpty ? null : widget.label,
         filled: true,
-        fillColor: AtlasColors.surfaceWarm,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        fillColor: Theme.of(context).colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
       ),
-      onChanged: (value) => onChanged(double.tryParse(value) ?? 0),
+      onTap: () {
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      },
+      onChanged:
+          (value) => widget.onChanged(double.tryParse(value.trim()) ?? 0),
     );
   }
+}
+
+String _formatWeight(double value) {
+  if (value == 0) {
+    return '';
+  }
+  return value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(1);
 }
 
 class _EditableWorkoutEntry {
@@ -991,7 +1501,138 @@ class _EditableWorkoutEntry {
   double weight;
 }
 
+class _CustomWorkoutPlanDay {
+  _CustomWorkoutPlanDay({
+    required this.dayNumber,
+    required this.name,
+    required this.isRestDay,
+    required this.exercises,
+  });
+
+  final int dayNumber;
+  String name;
+  bool isRestDay;
+  final List<AtlasExercise> exercises;
+
+  _CustomWorkoutPlanDay copy() {
+    return _CustomWorkoutPlanDay(
+      dayNumber: dayNumber,
+      name: name,
+      isRestDay: isRestDay,
+      exercises: [...exercises],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'dayNumber': dayNumber,
+      'name': name,
+      'isRestDay': isRestDay,
+      'exerciseIds': [for (final exercise in exercises) exercise.id],
+    };
+  }
+}
+
+List<_CustomWorkoutPlanDay> _defaultCustomPlan() {
+  return [
+    for (final day in fallbackCycle)
+      _CustomWorkoutPlanDay(
+        dayNumber: day.dayNumber,
+        name: day.name,
+        isRestDay: day.isRestDay,
+        exercises: [],
+      ),
+  ];
+}
+
+List<_CustomWorkoutPlanDay> _loadCustomWorkoutPlan(
+  List<Map<String, dynamic>> rawPlan,
+  List<AtlasExercise> library,
+) {
+  if (rawPlan.isEmpty) {
+    return _defaultCustomPlan();
+  }
+  final byId = {for (final exercise in library) exercise.id: exercise};
+  final defaults = _defaultCustomPlan();
+  final loaded = <_CustomWorkoutPlanDay>[];
+  for (var index = 0; index < 5; index++) {
+    final raw = rawPlan.firstWhere(
+      (item) => item['dayNumber'] == index + 1,
+      orElse: () => const {},
+    );
+    final exerciseIds = raw['exerciseIds'];
+    loaded.add(
+      _CustomWorkoutPlanDay(
+        dayNumber: index + 1,
+        name: raw['name'] as String? ?? defaults[index].name,
+        isRestDay: raw['isRestDay'] as bool? ?? defaults[index].isRestDay,
+        exercises: [
+          if (exerciseIds is List)
+            for (final id in exerciseIds)
+              if (id is String && byId[id] != null) byId[id]!,
+        ],
+      ),
+    );
+  }
+  return loaded;
+}
+
+AtlasDashboardSnapshot _applyCustomWorkoutPlan(
+  AtlasDashboardSnapshot snapshot,
+  List<_CustomWorkoutPlanDay> plan,
+) {
+  AtlasWorkoutDay? mapDay(AtlasWorkoutDay? source) {
+    if (source == null) return null;
+    final index = source.dayNumber.clamp(1, 5) - 1;
+    final custom = plan[index];
+    return AtlasWorkoutDay(
+      dayNumber: source.dayNumber,
+      name: custom.name.isEmpty ? source.name : custom.name,
+      focus:
+          custom.isRestDay
+              ? 'Recovery, mobility, hydration, and readiness'
+              : 'Custom workout plan',
+      isRestDay: custom.isRestDay,
+      workoutDayId: source.workoutDayId,
+      templateId: source.templateId,
+    );
+  }
+
+  final workout = mapDay(snapshot.todayWorkout ?? snapshot.starterWorkout);
+  final plannedExercises =
+      workout == null
+          ? const <AtlasWorkoutExercise>[]
+          : [
+            for (final exercise
+                in plan[workout.dayNumber.clamp(1, 5) - 1].exercises)
+              AtlasWorkoutExercise(
+                exercise: exercise,
+                targetSets: exercise.defaultSets,
+                targetReps: exercise.defaultReps,
+                notes: '',
+              ),
+          ];
+
+  return AtlasDashboardSnapshot(
+    todayWorkout: snapshot.todayWorkout == null ? null : workout,
+    starterWorkout: snapshot.starterWorkout == null ? null : workout,
+    templateExercises: plannedExercises,
+    exerciseLibrary: snapshot.exerciseLibrary,
+    completedThisWeek: snapshot.completedThisWeek,
+    weeklyTarget: snapshot.weeklyTarget,
+    totalWorkouts: snapshot.totalWorkouts,
+    monthWorkouts: snapshot.monthWorkouts,
+    completedToday: snapshot.completedToday,
+    hydrationToday: snapshot.hydrationToday,
+    activeGoals: snapshot.activeGoals,
+    latestWeight: snapshot.latestWeight,
+    latestWeightUnit: snapshot.latestWeightUnit,
+    latestWeightDate: snapshot.latestWeightDate,
+    lastWorkoutTitle: snapshot.lastWorkoutTitle,
+  );
+}
+
 int _firstNumber(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
-  return int.tryParse(match?.group(0) ?? '') ?? 10;
+  return int.tryParse(match?.group(0) ?? '') ?? 15;
 }

@@ -229,6 +229,96 @@ class AtlasDataRepository {
     ];
   }
 
+  Future<List<DateTime>> loadWorkoutHistoryDates({int limit = 120}) async {
+    final rows = await _client
+        .from('workout_sessions')
+        .select('session_date')
+        .eq('user_id', _userId)
+        .eq('status', 'completed')
+        .order('session_date', ascending: false)
+        .limit(limit);
+    final dates = <String, DateTime>{};
+    for (final row in rows) {
+      final value = row['session_date'] as String?;
+      if (value == null) continue;
+      dates.putIfAbsent(value, () => DateTime.parse(value));
+    }
+    return dates.values.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  Future<AtlasWorkoutReport?> loadWorkoutReport(DateTime date) async {
+    final sessions = await _client
+        .from('workout_sessions')
+        .select(
+          'id, session_date, started_at, completed_at, status, title, notes',
+        )
+        .eq('user_id', _userId)
+        .eq('status', 'completed')
+        .eq('session_date', _date(date))
+        .order('completed_at', ascending: false)
+        .limit(1);
+    if (sessions.isEmpty) {
+      return null;
+    }
+
+    final session = sessions.first;
+    final sessionId = session['id'] as String;
+    final exerciseRows = await _client
+        .from('workout_session_exercises')
+        .select(
+          'id, exercise_id, display_order, name_snapshot, notes, workout_sets(set_number, reps, weight, weight_unit)',
+        )
+        .eq('workout_session_id', sessionId)
+        .order('display_order');
+    final library = await _loadExerciseLibrary();
+    final byId = {for (final exercise in library) exercise.id: exercise};
+    final byName = {
+      for (final exercise in library)
+        _normalizeExerciseKeyPart(exercise.name): exercise,
+    };
+
+    final exercises = <AtlasWorkoutExerciseLog>[];
+    for (final row in exerciseRows) {
+      final rawSets = row['workout_sets'] as List<dynamic>? ?? const [];
+      final sets =
+          rawSets.whereType<Map<String, dynamic>>().map((set) {
+              return AtlasWorkoutSetLog(
+                setNumber: set['set_number'] as int? ?? 1,
+                reps: set['reps'] as int? ?? 0,
+                weight: (set['weight'] as num?)?.toDouble() ?? 0,
+                weightUnit: set['weight_unit'] as String? ?? 'kg',
+              );
+            }).toList()
+            ..sort((a, b) => a.setNumber.compareTo(b.setNumber));
+      final name = row['name_snapshot'] as String? ?? 'Exercise';
+      final exerciseId = row['exercise_id'] as String?;
+      final exercise =
+          (exerciseId == null ? null : byId[exerciseId]) ??
+          byName[_normalizeExerciseKeyPart(name)];
+      exercises.add(
+        AtlasWorkoutExerciseLog(
+          name: _cleanExerciseName(name),
+          displayOrder: row['display_order'] as int? ?? exercises.length + 1,
+          sets: sets,
+          exercise: exercise,
+          notes: row['notes'] as String?,
+        ),
+      );
+    }
+
+    return AtlasWorkoutReport(
+      id: sessionId,
+      date: DateTime.parse(session['session_date'] as String),
+      title: session['title'] as String? ?? 'Workout',
+      status: session['status'] as String? ?? 'completed',
+      startedAt: _parseDateTime(session['started_at']),
+      completedAt: _parseDateTime(session['completed_at']),
+      notes: session['notes'] as String?,
+      exercises:
+          exercises..sort((a, b) => a.displayOrder.compareTo(b.displayOrder)),
+    );
+  }
+
   Future<AtlasWorkoutDay?> _loadTodayWorkout() async {
     final rows = await _client.rpc('get_today_workout', params: {});
     if (rows is List && rows.isNotEmpty) {
@@ -303,13 +393,19 @@ class AtlasDataRepository {
     final pattern = row['movement_pattern'] as String? ?? 'strength';
     return AtlasExercise(
       id: row['id'] as String? ?? name,
-      name: name,
+      name: _cleanExerciseName(name),
       pattern: pattern,
       defaultSets: row['default_sets'] as int? ?? 3,
-      defaultReps: row['default_reps'] as String? ?? '10',
-      primaryMuscle: row['target_muscle'] as String? ?? _primaryMuscle(pattern),
-      equipment: row['equipment'] as String? ?? _equipment(name),
-      difficulty: row['difficulty'] as String? ?? 'Moderate',
+      defaultReps: row['default_reps'] as String? ?? '15',
+      primaryMuscle: _normalizeMuscle(
+        row['target_muscle'] as String? ?? _primaryMuscle(pattern),
+      ),
+      equipment: _normalizeEquipment(
+        row['equipment'] as String? ?? _equipment(name),
+      ),
+      difficulty: _normalizeDifficulty(
+        row['difficulty'] as String? ?? 'Moderate',
+      ),
       imageUrl: row['image_url'] as String? ?? _exerciseImageUrl(name),
       gifUrl: row['gif_url'] as String?,
       previewImage: row['preview_image_url'] as String?,
@@ -400,6 +496,13 @@ class AtlasDataRepository {
     }
     return ((current / target) * 100).clamp(0, 100);
   }
+}
+
+DateTime? _parseDateTime(Object? value) {
+  if (value is! String || value.isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(value)?.toLocal();
 }
 
 class AtlasWorkoutAlreadySavedException implements Exception {
@@ -519,15 +622,24 @@ AtlasExercise? _exerciseFromExpansion(Map<String, dynamic> row) {
 
   return AtlasExercise(
     id: id,
-    name: name,
+    name: _cleanExerciseName(name),
     pattern: row['pattern'] as String? ?? 'strength',
     defaultSets: row['defaultSets'] as int? ?? 3,
-    defaultReps: row['defaultReps'] as String? ?? '10-12',
-    primaryMuscle: row['primaryMuscle'] as String? ?? 'Strength',
-    secondaryMuscles: _stringList(row['secondaryMuscles']),
-    equipment: row['equipment'] as String? ?? 'Bodyweight',
-    difficulty: row['difficulty'] as String? ?? 'Intermediate',
-    movementType: row['movementType'] as String? ?? 'Strength',
+    defaultReps: row['defaultReps'] as String? ?? '15',
+    primaryMuscle: _normalizeMuscle(
+      row['primaryMuscle'] as String? ?? 'Strength',
+    ),
+    secondaryMuscles: [
+      for (final muscle in _stringList(row['secondaryMuscles']))
+        _normalizeMuscle(muscle),
+    ],
+    equipment: _normalizeEquipment(row['equipment'] as String? ?? 'Bodyweight'),
+    difficulty: _normalizeDifficulty(
+      row['difficulty'] as String? ?? 'Intermediate',
+    ),
+    movementType: _normalizeMovementType(
+      row['movementType'] as String? ?? 'Strength',
+    ),
     instructions: _stringList(row['instructions']),
     imageUrl: row['imageUrl'] as String?,
     gifUrl: row['gifUrl'] as String?,
@@ -564,20 +676,20 @@ AtlasExercise? _exerciseFromFreeExerciseDb(Map<String, dynamic> row) {
 
   return AtlasExercise(
     id: id,
-    name: name,
+    name: _cleanExerciseName(name),
     pattern: pattern,
     defaultSets: category == 'stretching' ? 2 : 3,
-    defaultReps: category == 'stretching' ? '30 sec' : '10-12',
+    defaultReps: category == 'stretching' ? '30 sec' : '15',
     primaryMuscle:
         primaryMuscles.isEmpty
             ? _primaryMuscle(pattern)
-            : _titleCase(primaryMuscles.first),
+            : _normalizeMuscle(primaryMuscles.first),
     secondaryMuscles: [
-      for (final muscle in secondaryMuscles) _titleCase(muscle),
+      for (final muscle in secondaryMuscles) _normalizeMuscle(muscle),
     ],
-    equipment: equipment,
-    difficulty: _titleCase(row['level'] as String? ?? 'Moderate'),
-    movementType: _titleCase(mechanic ?? category),
+    equipment: _normalizeEquipment(equipment),
+    difficulty: _normalizeDifficulty(row['level'] as String? ?? 'Moderate'),
+    movementType: _normalizeMovementType(mechanic ?? category),
     instructions: instructions,
     imageUrl: imageUrl,
     previewImage: imageUrl,
@@ -623,11 +735,101 @@ List<String> _stringList(Object? source) {
 }
 
 String _titleCase(String value) {
-  return value
-      .split(RegExp(r'[\s_-]+'))
-      .where((part) => part.isNotEmpty)
-      .map((part) => part[0].toUpperCase() + part.substring(1))
-      .join(' ');
+  final lowerWords = {'of', 'to', 'and', 'with', 'on', 'in', 'the'};
+  final words =
+      value.split(RegExp(r'[\s_-]+')).where((part) => part.isNotEmpty).toList();
+  return [
+    for (var index = 0; index < words.length; index++)
+      _titleCaseWord(
+        words[index],
+        lowerWords: index == 0 ? const {} : lowerWords,
+      ),
+  ].join(' ');
+}
+
+String _titleCaseWord(String value, {Set<String> lowerWords = const {}}) {
+  final lower = value.toLowerCase();
+  if (lowerWords.contains(lower)) {
+    return lower;
+  }
+  if (lower == 'db') return 'DB';
+  if (lower == 'bb') return 'BB';
+  return lower.isEmpty ? lower : lower[0].toUpperCase() + lower.substring(1);
+}
+
+String _cleanExerciseName(String value) {
+  final cleaned =
+      value
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .replaceAll('3/4 sit-up', '3/4 Sit-Up')
+          .trim();
+  return _titleCase(cleaned);
+}
+
+String _normalizeMuscle(String value) {
+  final normalized = _normalizeExerciseKeyPart(value);
+  return switch (normalized) {
+    'ab' || 'abs' || 'abdominal' || 'abdominals' || 'waist' || 'wai t' => 'Abs',
+    'core' || 'oblique' || 'obliques' => 'Abs',
+    'pectorals' || 'pectoral' || 'chest' || 'che t' => 'Chest',
+    'lat' || 'lats' || 'rhomboid' || 'trapezius' || 'upper back' => 'Back',
+    'lower back' || 'back' => 'Back',
+    'bicep' || 'biceps' => 'Biceps',
+    'tricep' || 'triceps' => 'Triceps',
+    'forearm' || 'forearms' => 'Forearms',
+    'shoulder' ||
+    'shoulders' ||
+    'deltoid' ||
+    'deltoids' ||
+    'houlder' => 'Shoulders',
+    'quad' || 'quads' || 'quadricep' || 'quadriceps' => 'Legs',
+    'ham tring' || 'hamstring' || 'hamstrings' => 'Legs',
+    'calve' || 'calves' || 'calf' => 'Legs',
+    'glute' || 'glutes' => 'Glutes',
+    'upper leg' || 'upper legs' || 'lower leg' || 'lower legs' => 'Legs',
+    'cardiova cular y tem' || 'cardiovascular system' || 'cardio' => 'Cardio',
+    _ => _titleCase(value),
+  };
+}
+
+String _normalizeEquipment(String value) {
+  final normalized = _normalizeExerciseKeyPart(value);
+  return switch (normalized) {
+    'body weight' || 'bodyweight' || 'body only' || 'body only' => 'Bodyweight',
+    'dumbbells' || 'dumbbell' => 'Dumbbell',
+    'barbells' || 'barbell' => 'Barbell',
+    'cables' || 'cable' => 'Cable',
+    'machine' || 'machines' => 'Machine',
+    'band' || 'bands' || 'resistance band' => 'Band',
+    'kettlebell' || 'kettlebells' => 'Kettlebell',
+    'medicine ball' || 'med ball' => 'Medicine Ball',
+    'bosu ball' || 'bo u ball' => 'Bosu Ball',
+    'assisted' || 'a i ted' => 'Assisted',
+    _ => _titleCase(value),
+  };
+}
+
+String _normalizeDifficulty(String value) {
+  final normalized = _normalizeExerciseKeyPart(value);
+  return switch (normalized) {
+    'easy' || 'beginner' => 'Beginner',
+    'medium' || 'moderate' || 'intermediate' => 'Intermediate',
+    'hard' || 'advanced' || 'expert' => 'Advanced',
+    _ => _titleCase(value),
+  };
+}
+
+String _normalizeMovementType(String value) {
+  final normalized = _normalizeExerciseKeyPart(value);
+  return switch (normalized) {
+    'che t' => 'Chest',
+    'wai t' => 'Abs',
+    'upper arm' || 'upper arms' => 'Arms',
+    'lower arm' || 'lower arms' => 'Arms',
+    'upper leg' || 'upper legs' => 'Legs',
+    'lower leg' || 'lower legs' => 'Legs',
+    _ => _titleCase(value),
+  };
 }
 
 const fallbackExercises = [

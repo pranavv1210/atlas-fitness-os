@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AtlasPreferences {
@@ -9,6 +11,7 @@ class AtlasPreferences {
       'atlas.hydration_interval_minutes';
   static const _biometricEnabledKey = 'atlas.biometric_enabled';
   static const _themeModeKey = 'atlas.theme_mode';
+  static const _customWorkoutPlanKey = 'atlas.custom_workout_plan';
 
   final SharedPreferences _prefs;
 
@@ -43,5 +46,32 @@ class AtlasPreferences {
 
   Future<void> setThemeMode(String value) {
     return _prefs.setString(_themeModeKey, value);
+  }
+
+  List<Map<String, dynamic>> get customWorkoutPlan {
+    final raw = _prefs.getString(_customWorkoutPlanKey);
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const [];
+      }
+      return [
+        for (final item in decoded)
+          if (item is Map)
+            {
+              for (final entry in item.entries)
+                if (entry.key is String) entry.key as String: entry.value,
+            },
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> setCustomWorkoutPlan(List<Map<String, dynamic>> value) {
+    return _prefs.setString(_customWorkoutPlanKey, jsonEncode(value));
   }
 }
