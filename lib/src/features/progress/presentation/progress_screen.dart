@@ -65,7 +65,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               onSaved: _refresh,
             ),
             _MetricGrid(snapshot: data),
-            _WorkoutFrequencyCard(snapshot: data),
+            _WorkoutVolumeCard(repository: _repository, snapshot: data),
             _WorkoutHistorySection(
               repository: _repository,
               historyFuture: _historyFuture!,
@@ -448,43 +448,59 @@ class _MetricGrid extends StatelessWidget {
   }
 }
 
-class _WorkoutFrequencyCard extends StatelessWidget {
-  const _WorkoutFrequencyCard({required this.snapshot});
+class _WorkoutVolumeCard extends StatelessWidget {
+  const _WorkoutVolumeCard({required this.repository, required this.snapshot});
 
+  final AtlasDataRepository? repository;
   final AtlasDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    final completed = snapshot.completedThisWeek;
     return AtlasCard(
       isGlass: true,
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionTitle('Workout Frequency'),
+          const SectionTitle('Weekly Volume'),
           const SizedBox(height: 8),
           Text(
-            '$completed of ${snapshot.weeklyTarget} workouts completed this week.',
+            '${snapshot.completedThisWeek} of ${snapshot.weeklyTarget} workouts completed this week.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 22),
-          if (completed == 0)
-            const _EmptyChartMessage(
-              icon: Icons.fitness_center_rounded,
-              message:
-                  'Workout frequency appears after your first saved session.',
-            )
-          else
-            MockBarChart(
-              values: [
-                for (var index = 0; index < 7; index++)
-                  index < completed ? 1.0 : 0.0,
-              ],
-              labels: const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-              color: AtlasColors.success,
-              semanticLabel: 'Workout frequency chart',
-            ),
+          FutureBuilder<List<double>>(
+            future: repository?.loadWeeklyWorkoutVolumes(),
+            builder: (context, snapshot) {
+              final rawValues = snapshot.data ?? const <double>[];
+              final maxValue = rawValues.fold<double>(
+                0,
+                (max, value) => value > max ? value : max,
+              );
+              if (maxValue <= 0) {
+                return const _EmptyChartMessage(
+                  icon: Icons.fitness_center_rounded,
+                  message: 'Volume appears after a saved session with weights.',
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MockBarChart(
+                    values: [for (final value in rawValues) value / maxValue],
+                    labels: const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+                    color: AtlasColors.success,
+                    semanticLabel: 'Weekly workout volume chart',
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Peak day: ${maxValue.toStringAsFixed(0)} kg lifted.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );

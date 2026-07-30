@@ -666,5 +666,6 @@ AtlasDashboardSnapshot emptyAtlasSnapshot() {
     completedToday: false,
     hydrationToday: 0,
     activeGoals: const [],
+    todayReport: null,
   );
 }

@@ -206,6 +206,7 @@ class AtlasDashboardSnapshot {
     this.latestWeightUnit = 'kg',
     this.latestWeightDate,
     this.lastWorkoutTitle,
+    this.todayReport,
   });
 
   final AtlasWorkoutDay? todayWorkout;
@@ -223,6 +224,7 @@ class AtlasDashboardSnapshot {
   final String latestWeightUnit;
   final DateTime? latestWeightDate;
   final String? lastWorkoutTitle;
+  final AtlasWorkoutReport? todayReport;
 
   bool get hasWorkoutCycleStarted => totalWorkouts > 0;
 

@@ -34,6 +34,8 @@ class AtlasDataRepository {
     final hydrationToday = await _hydrationToday();
     final activeGoals = await loadGoals();
     final lastWorkoutTitle = await _lastWorkoutTitle();
+    final todayReport =
+        completedToday ? await loadWorkoutReport(DateTime.now()) : null;
 
     return AtlasDashboardSnapshot(
       todayWorkout: todayWorkout,
@@ -51,6 +53,7 @@ class AtlasDataRepository {
       hydrationToday: hydrationToday,
       activeGoals: activeGoals,
       lastWorkoutTitle: lastWorkoutTitle,
+      todayReport: todayReport,
     );
   }
 
@@ -319,6 +322,16 @@ class AtlasDataRepository {
     );
   }
 
+  Future<List<double>> loadWeeklyWorkoutVolumes() async {
+    final start = _startOfWeek(DateTime.now());
+    final volumes = <double>[];
+    for (var index = 0; index < 7; index++) {
+      final report = await loadWorkoutReport(start.add(Duration(days: index)));
+      volumes.add(report?.totalVolume ?? 0);
+    }
+    return volumes;
+  }
+
   Future<AtlasWorkoutDay?> _loadTodayWorkout() async {
     final rows = await _client.rpc('get_today_workout', params: {});
     if (rows is List && rows.isNotEmpty) {
@@ -397,7 +410,8 @@ class AtlasDataRepository {
       pattern: pattern,
       defaultSets: row['default_sets'] as int? ?? 3,
       defaultReps: row['default_reps'] as String? ?? '15',
-      primaryMuscle: _normalizeMuscle(
+      primaryMuscle: _canonicalPrimaryMuscle(
+        name,
         row['target_muscle'] as String? ?? _primaryMuscle(pattern),
       ),
       equipment: _normalizeEquipment(
@@ -626,7 +640,8 @@ AtlasExercise? _exerciseFromExpansion(Map<String, dynamic> row) {
     pattern: row['pattern'] as String? ?? 'strength',
     defaultSets: row['defaultSets'] as int? ?? 3,
     defaultReps: row['defaultReps'] as String? ?? '15',
-    primaryMuscle: _normalizeMuscle(
+    primaryMuscle: _canonicalPrimaryMuscle(
+      name,
       row['primaryMuscle'] as String? ?? 'Strength',
     ),
     secondaryMuscles: [
@@ -680,10 +695,10 @@ AtlasExercise? _exerciseFromFreeExerciseDb(Map<String, dynamic> row) {
     pattern: pattern,
     defaultSets: category == 'stretching' ? 2 : 3,
     defaultReps: category == 'stretching' ? '30 sec' : '15',
-    primaryMuscle:
-        primaryMuscles.isEmpty
-            ? _primaryMuscle(pattern)
-            : _normalizeMuscle(primaryMuscles.first),
+    primaryMuscle: _canonicalPrimaryMuscle(
+      name,
+      primaryMuscles.isEmpty ? _primaryMuscle(pattern) : primaryMuscles.first,
+    ),
     secondaryMuscles: [
       for (final muscle in secondaryMuscles) _normalizeMuscle(muscle),
     ],
@@ -790,6 +805,108 @@ String _normalizeMuscle(String value) {
     'cardiova cular y tem' || 'cardiovascular system' || 'cardio' => 'Cardio',
     _ => _titleCase(value),
   };
+}
+
+String _canonicalPrimaryMuscle(String exerciseName, String metadataMuscle) {
+  final name = _normalizeExerciseKeyPart(exerciseName);
+  if (_containsAny(name, const [
+    'squat',
+    'leg press',
+    'leg extension',
+    'leg curl',
+    'lunge',
+    'step up',
+    'calf',
+    'hamstring',
+    'quad',
+    'thigh',
+  ])) {
+    return 'Legs';
+  }
+
+  if (_containsAny(name, const [
+    'hip thrust',
+    'glute bridge',
+    'kickback',
+    'glute',
+    'abductor',
+  ])) {
+    return 'Glutes';
+  }
+  if (_containsAny(name, const [
+    'bench press',
+    'chest press',
+    'chest fly',
+    'cable crossover',
+    'push up',
+    'pushup',
+    'pec deck',
+    'dip',
+  ])) {
+    return 'Chest';
+  }
+  if (_containsAny(name, const [
+    'pulldown',
+    'pull up',
+    'pullup',
+    'chin up',
+    'row',
+    'deadlift',
+    'lat ',
+    'back extension',
+  ])) {
+    return 'Back';
+  }
+  if (_containsAny(name, const ['bicep', 'curl', 'preacher', 'hammer curl'])) {
+    return 'Biceps';
+  }
+  if (_containsAny(name, const [
+    'tricep',
+    'pushdown',
+    'pressdown',
+    'skullcrusher',
+    'skull crusher',
+  ])) {
+    return 'Triceps';
+  }
+  if (_containsAny(name, const [
+    'shoulder',
+    'lateral raise',
+    'front raise',
+    'rear delt',
+    'overhead press',
+    'military press',
+    'arnold press',
+  ])) {
+    return 'Shoulders';
+  }
+  if (_containsAny(name, const [
+    'sit up',
+    'crunch',
+    'plank',
+    'leg raise',
+    'russian twist',
+    'ab ',
+    'abs ',
+    'oblique',
+  ])) {
+    return 'Abs';
+  }
+  if (_containsAny(name, const [
+    'run',
+    'walk',
+    'bike',
+    'cycling',
+    'sprint',
+    'jump rope',
+  ])) {
+    return 'Cardio';
+  }
+  return _normalizeMuscle(metadataMuscle);
+}
+
+bool _containsAny(String value, List<String> terms) {
+  return terms.any(value.contains);
 }
 
 String _normalizeEquipment(String value) {

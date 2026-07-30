@@ -61,7 +61,10 @@ void main() {
     expect(find.textContaining('Tap Add'), findsOneWidget);
     expect(find.text('Save First Workout'), findsOneWidget);
 
-    await tester.tap(find.text('Add'));
+    await tester.ensureVisible(find.text('Add Exercise'));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -140));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Exercise'));
     await tester.pumpAndSettle();
 
     expect(find.text('Choose Exercise'), findsOneWidget);

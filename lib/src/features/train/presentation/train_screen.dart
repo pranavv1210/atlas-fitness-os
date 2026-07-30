@@ -139,26 +139,94 @@ class _TrainScreenState extends State<TrainScreen> {
     String workoutName,
     int exerciseCount,
   ) async {
-    return await showDialog<bool>(
+    return await showGeneralDialog<bool>(
           context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('Save today\'s workout?'),
-                content: Text(
-                  'Atlas will save $workoutName with $exerciseCount exercises for today. You can save only one workout per day.',
+          barrierDismissible: true,
+          barrierLabel: 'Cancel save',
+          barrierColor: Colors.black.withValues(alpha: 0.28),
+          transitionDuration: const Duration(milliseconds: 240),
+          pageBuilder:
+              (context, animation, secondaryAnimation) => Center(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: MediaQuery.sizeOf(context).width - 42,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surface.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.52),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AtlasColors.ink.withValues(alpha: 0.14),
+                          blurRadius: 34,
+                          offset: const Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: AtlasColors.successSoft,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(
+                            Icons.verified_rounded,
+                            color: AtlasColors.success,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Save today\'s workout?',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Atlas will lock $workoutName with $exerciseCount exercises for today and add it to Workout History.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () => Navigator.pop(context, true),
+                                icon: const Icon(Icons.check_rounded),
+                                label: const Text('Save Workout'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pop(context, true),
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Save Workout'),
-                  ),
-                ],
               ),
+          transitionBuilder:
+              (context, animation, secondaryAnimation, child) =>
+                  ScaleTransition(
+                    scale: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutBack,
+                    ),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
         ) ??
         false;
   }
@@ -186,9 +254,10 @@ class _TrainScreenState extends State<TrainScreen> {
             _ExerciseLogger(
               library: data.exerciseLibrary,
               entries: _entries,
+              completedReport: data.todayReport,
               onChanged: () => setState(() {}),
               onAdd:
-                  data.exerciseLibrary.isEmpty
+                  data.completedToday || data.exerciseLibrary.isEmpty
                       ? null
                       : () async {
                         final picked = await showExercisePickerSheet(
@@ -246,6 +315,7 @@ class _WorkoutHero extends StatelessWidget {
     final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
     final isFirst = !snapshot.hasWorkoutCycleStarted;
     final savedToday = snapshot.completedToday;
+    final report = snapshot.todayReport;
     final totalSets = snapshot.templateExercises.fold<int>(
       0,
       (sum, item) => sum + item.targetSets,
@@ -253,26 +323,30 @@ class _WorkoutHero extends StatelessWidget {
 
     return AtlasCard(
       isGlass: true,
-      radius: 34,
-      padding: const EdgeInsets.all(24),
+      radius: 30,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const _AnimatedExerciseGlyph(size: 74),
-              const SizedBox(width: 18),
+              const _AnimatedExerciseGlyph(size: 58),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isFirst ? 'First workout' : 'Today\'s workout',
+                      savedToday
+                          ? 'Completed today'
+                          : isFirst
+                          ? 'First workout'
+                          : 'Today\'s workout',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      workout?.name ?? 'Choose your workout',
+                      report?.title ?? workout?.name ?? 'Choose your workout',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],
@@ -280,32 +354,45 @@ class _WorkoutHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
-            isFirst
+            savedToday
+                ? 'Saved, locked, and available in Workout History.'
+                : isFirst
                 ? 'Save this session to anchor Atlas. Tomorrow continues with Back + Biceps, then the 5-day cycle repeats.'
                 : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              _HeroChip(label: '${snapshot.templateExercises.length} moves'),
               _HeroChip(
                 label:
-                    totalSets == 0 ? 'Manual build' : '$totalSets target sets',
+                    savedToday
+                        ? '${report?.totalExercises ?? 0} exercises'
+                        : '${snapshot.templateExercises.length} moves',
               ),
               _HeroChip(
                 label:
-                    isFirst
+                    savedToday
+                        ? '${report?.totalSets ?? 0} sets'
+                        : totalSets == 0
+                        ? 'Manual build'
+                        : '$totalSets target sets',
+              ),
+              _HeroChip(
+                label:
+                    savedToday
+                        ? _durationLabel(report?.duration)
+                        : isFirst
                         ? 'Cycle not started'
                         : 'Day ${workout?.dayNumber ?? 1}',
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -325,7 +412,12 @@ class _WorkoutHero extends StatelessWidget {
                           ? Icons.sync_rounded
                           : Icons.check_rounded,
                   colors: const [AtlasColors.success, AtlasColors.accent],
-                  onPressed: saving || savedToday ? null : onSave,
+                  onPressed:
+                      savedToday && report != null
+                          ? () => _showWorkoutReportSheet(context, report)
+                          : saving
+                          ? null
+                          : onSave,
                 ),
               ),
               const SizedBox(width: 10),
@@ -365,12 +457,14 @@ class _ExerciseLogger extends StatelessWidget {
   const _ExerciseLogger({
     required this.library,
     required this.entries,
+    required this.completedReport,
     required this.onChanged,
     required this.onAdd,
   });
 
   final List<AtlasExercise> library;
   final List<_EditableWorkoutEntry> entries;
+  final AtlasWorkoutReport? completedReport;
   final VoidCallback onChanged;
   final VoidCallback? onAdd;
 
@@ -379,20 +473,18 @@ class _ExerciseLogger extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const SectionTitle('Exercises'),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
+        Row(children: [const SectionTitle('Exercises')]),
         const SizedBox(height: 12),
-        if (entries.isEmpty)
-          const _EmptyExerciseCard()
+        if (completedReport != null)
+          _CompletedWorkoutExerciseList(report: completedReport!)
+        else if (entries.isEmpty)
+          Column(
+            children: [
+              const _EmptyExerciseCard(),
+              const SizedBox(height: 12),
+              _BottomAddExerciseButton(onPressed: onAdd),
+            ],
+          )
         else
           for (var index = 0; index < entries.length; index++) ...[
             _ExerciseEditor(
@@ -400,10 +492,36 @@ class _ExerciseLogger extends StatelessWidget {
               entry: entries[index],
               library: library,
               onChanged: onChanged,
+              onDelete: () {
+                entries.removeAt(index);
+                onChanged();
+              },
             ),
             if (index != entries.length - 1) const SizedBox(height: 14),
+            if (index == entries.length - 1) ...[
+              const SizedBox(height: 12),
+              _BottomAddExerciseButton(onPressed: onAdd),
+            ],
           ],
       ],
+    );
+  }
+}
+
+class _BottomAddExerciseButton extends StatelessWidget {
+  const _BottomAddExerciseButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add Exercise'),
+      ),
     );
   }
 }
@@ -703,18 +821,239 @@ class _PlanEmptyState extends StatelessWidget {
   }
 }
 
+class _CompletedWorkoutExerciseList extends StatelessWidget {
+  const _CompletedWorkoutExerciseList({required this.report});
+
+  final AtlasWorkoutReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final exercise in report.exercises) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AtlasColors.hairline),
+            ),
+            child: Row(
+              children: [
+                _ReportExerciseMedia(exercise: exercise, size: 56),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        exercise.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${exercise.totalSets} sets / ${exercise.totalReps} reps / ${exercise.totalVolume.toStringAsFixed(0)} kg',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AtlasColors.inkSoft,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _showWorkoutReportSheet(context, report),
+            icon: const Icon(Icons.receipt_long_rounded),
+            label: const Text('Review Workout Report'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> _showWorkoutReportSheet(
+  BuildContext context,
+  AtlasWorkoutReport report,
+) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => _WorkoutReportSheet(report: report),
+  );
+}
+
+class _WorkoutReportSheet extends StatelessWidget {
+  const _WorkoutReportSheet({required this.report});
+
+  final AtlasWorkoutReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        MediaQuery.paddingOf(context).bottom + 22,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(report.title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              '${_longDateLabel(report.date)} / ${_durationLabel(report.duration)}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _HeroChip(label: '${report.totalExercises} exercises'),
+                _HeroChip(label: '${report.totalSets} sets'),
+                _HeroChip(label: '${report.totalReps} reps'),
+                _HeroChip(
+                  label: '${report.totalVolume.toStringAsFixed(0)} kg volume',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: report.exercises.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder:
+                    (context, index) =>
+                        _WorkoutReportExerciseTile(report.exercises[index]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutReportExerciseTile extends StatelessWidget {
+  const _WorkoutReportExerciseTile(this.exercise);
+
+  final AtlasWorkoutExerciseLog exercise;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReportExerciseMedia(exercise: exercise, size: 58),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  exercise.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  exercise.sets
+                      .map(
+                        (set) =>
+                            'Set ${set.setNumber}: ${set.reps} reps x ${_weightLabel(set)}',
+                      )
+                      .join('\n'),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportExerciseMedia extends StatelessWidget {
+  const _ReportExerciseMedia({required this.exercise, required this.size});
+
+  final AtlasWorkoutExerciseLog exercise;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final atlasExercise = exercise.exercise;
+    final mediaUrl =
+        atlasExercise == null ? null : _exerciseMediaUrl(atlasExercise);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.28),
+      child:
+          mediaUrl == null
+              ? Container(
+                width: size,
+                height: size,
+                color: AtlasColors.accentSoft,
+                child: const Icon(Icons.fitness_center_rounded),
+              )
+              : CachedNetworkImage(
+                imageUrl: mediaUrl,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+              ),
+    );
+  }
+}
+
+String _weightLabel(AtlasWorkoutSetLog set) {
+  if (set.weight == 0) return 'bodyweight';
+  final value =
+      set.weight == set.weight.roundToDouble()
+          ? set.weight.round().toString()
+          : set.weight.toStringAsFixed(1);
+  return '$value ${set.weightUnit}';
+}
+
 class _ExerciseEditor extends StatelessWidget {
   const _ExerciseEditor({
     required this.index,
     required this.entry,
     required this.library,
     required this.onChanged,
+    required this.onDelete,
   });
 
   final int index;
   final _EditableWorkoutEntry entry;
   final List<AtlasExercise> library;
   final VoidCallback onChanged;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -763,6 +1102,14 @@ class _ExerciseEditor extends StatelessWidget {
                 onPressed: () => _pickExercise(context),
                 icon: const Icon(Icons.tune_rounded),
                 tooltip: 'Choose exercise',
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+                color: AtlasColors.inkSoft,
+                tooltip: 'Remove exercise',
               ),
             ],
           ),
@@ -844,152 +1191,221 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
             (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
 
-    return Padding(
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       padding: EdgeInsets.fromLTRB(
         20,
         4,
         20,
-        MediaQuery.paddingOf(context).bottom + 22,
+        bottomInset + MediaQuery.paddingOf(context).bottom + 18,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Choose Exercise'),
-          const SizedBox(height: 6),
-          Text(
-            'Choose movement, then log sets, reps, and weight.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _searchController,
-            onChanged: (value) => setState(() => _query = value),
-            decoration: InputDecoration(
-              hintText: 'Search exercises',
-              prefixIcon: const Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 13,
-              ),
+      child: SizedBox(
+        height:
+            MediaQuery.sizeOf(context).height * (bottomInset > 0 ? 0.56 : 0.76),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionTitle('Choose Exercise'),
+            const SizedBox(height: 6),
+            Text(
+              'Choose movement, then log sets, reps, and weight.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-          const SizedBox(height: 14),
-          _SimpleMuscleFilterChips(
-            selected: _muscleFilter,
-            onSelected: (value) => setState(() => _muscleFilter = value),
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            value: _includeExercisesWithoutImages,
-            onChanged:
-                (value) =>
-                    setState(() => _includeExercisesWithoutImages = value),
-            title: Text(
-              'Include exercises without images',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            subtitle: Text(
-              'Advanced library view',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Flexible(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.48,
-              ),
-              child: Scrollbar(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemBuilder: (context, index) {
-                    final exercise = filtered[index];
-                    final selectedRow = exercise == widget.selected;
-                    final hasMedia = _exerciseHasMedia(exercise);
-                    return AtlasPressable(
-                      onTap: () => Navigator.pop(context, exercise),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color:
-                              selectedRow
-                                  ? AtlasColors.accent.withValues(alpha: 0.08)
-                                  : Colors.white.withValues(alpha: 0.68),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color:
-                                selectedRow
-                                    ? AtlasColors.accent.withValues(alpha: 0.2)
-                                    : AtlasColors.hairline,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _ExerciseMediaPreview(
-                              exercise: exercise,
-                              visual: exerciseVisual(exercise),
-                              size: 70,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    exercise.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: [
-                                      _ExerciseMetaChip(
-                                        label: exercise.primaryMuscle,
-                                      ),
-                                      _ExerciseMetaChip(
-                                        label: exercise.equipment,
-                                      ),
-                                      _ExerciseMetaChip(
-                                        label: exercise.difficulty,
-                                      ),
-                                      if (!hasMedia)
-                                        const _ExerciseMetaChip(
-                                          label: 'No image',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              selectedRow
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              color:
-                                  selectedRow
-                                      ? AtlasColors.accent
-                                      : AtlasColors.inkSoft,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemCount: filtered.length,
+            const SizedBox(height: 14),
+            TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                hintText: 'Search exercises',
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 13,
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            _SimpleMuscleFilterChips(
+              selected: _muscleFilter,
+              onSelected: (value) => setState(() => _muscleFilter = value),
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _includeExercisesWithoutImages,
+              onChanged:
+                  (value) =>
+                      setState(() => _includeExercisesWithoutImages = value),
+              title: Text(
+                'Include exercises without images',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              subtitle: Text(
+                'Advanced library view',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child:
+                  filtered.isEmpty
+                      ? _ExerciseSearchEmptyState(
+                        hasQueryOrFilter:
+                            _query.trim().isNotEmpty || _muscleFilter != null,
+                      )
+                      : Scrollbar(
+                        child: ListView.separated(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          itemBuilder: (context, index) {
+                            final exercise = filtered[index];
+                            final selectedRow = exercise == widget.selected;
+                            final hasMedia = _exerciseHasMedia(exercise);
+                            return AtlasPressable(
+                              onTap: () => Navigator.pop(context, exercise),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color:
+                                      selectedRow
+                                          ? AtlasColors.accent.withValues(
+                                            alpha: 0.08,
+                                          )
+                                          : Colors.white.withValues(
+                                            alpha: 0.68,
+                                          ),
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color:
+                                        selectedRow
+                                            ? AtlasColors.accent.withValues(
+                                              alpha: 0.2,
+                                            )
+                                            : AtlasColors.hairline,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _ExerciseMediaPreview(
+                                      exercise: exercise,
+                                      visual: exerciseVisual(exercise),
+                                      size: 70,
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            exercise.name,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                Theme.of(
+                                                  context,
+                                                ).textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: [
+                                              _ExerciseMetaChip(
+                                                label: exercise.primaryMuscle,
+                                              ),
+                                              _ExerciseMetaChip(
+                                                label: exercise.equipment,
+                                              ),
+                                              _ExerciseMetaChip(
+                                                label: exercise.difficulty,
+                                              ),
+                                              if (!hasMedia)
+                                                const _ExerciseMetaChip(
+                                                  label: 'No image',
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      selectedRow
+                                          ? Icons.radio_button_checked_rounded
+                                          : Icons.radio_button_off_rounded,
+                                      color:
+                                          selectedRow
+                                              ? AtlasColors.accent
+                                              : AtlasColors.inkSoft,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 10),
+                          itemCount: filtered.length,
+                        ),
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExerciseSearchEmptyState extends StatelessWidget {
+  const _ExerciseSearchEmptyState({required this.hasQueryOrFilter});
+
+  final bool hasQueryOrFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: AtlasColors.hairline),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: AtlasColors.accentSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                color: AtlasColors.accent,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No exercises found',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hasQueryOrFilter
+                  ? 'Try another name or clear your filters.'
+                  : 'Turn on advanced library view to include exercises without images.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1072,16 +1488,13 @@ const _simpleMuscleFilters = [
 ];
 
 bool _exerciseMatchesSimpleMuscle(AtlasExercise exercise, String filter) {
-  final groups = {
-    _simpleMuscleGroup(exercise.primaryMuscle),
-    for (final muscle in exercise.secondaryMuscles) _simpleMuscleGroup(muscle),
-  }..removeWhere((value) => value.isEmpty);
+  final primaryGroup = _simpleMuscleGroup(exercise.primaryMuscle);
   if (filter == 'Arms') {
-    return groups.any((group) {
-      return group == 'Biceps' || group == 'Triceps' || group == 'Forearms';
-    });
+    return primaryGroup == 'Biceps' ||
+        primaryGroup == 'Triceps' ||
+        primaryGroup == 'Forearms';
   }
-  return groups.contains(filter);
+  return primaryGroup == filter;
 }
 
 String _exerciseSearchText(AtlasExercise exercise) {
@@ -1489,6 +1902,40 @@ String _formatWeight(double value) {
       : value.toStringAsFixed(1);
 }
 
+String _durationLabel(Duration? duration) {
+  if (duration == null || duration.inSeconds <= 0) {
+    return 'Saved session';
+  }
+  if (duration.inMinutes < 1) {
+    return '${duration.inSeconds}s';
+  }
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60);
+  if (hours == 0) {
+    return '${minutes}m';
+  }
+  return '${hours}h ${minutes}m';
+}
+
+String _longDateLabel(DateTime date) {
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+}
+
 class _EditableWorkoutEntry {
   _EditableWorkoutEntry(this.exercise)
     : sets = exercise.defaultSets,
@@ -1629,6 +2076,7 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
     latestWeightUnit: snapshot.latestWeightUnit,
     latestWeightDate: snapshot.latestWeightDate,
     lastWorkoutTitle: snapshot.lastWorkoutTitle,
+    todayReport: snapshot.todayReport,
   );
 }
 

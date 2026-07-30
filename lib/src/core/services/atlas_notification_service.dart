@@ -33,6 +33,10 @@ class AtlasNotificationService {
     if (notificationsGranted) {
       await android?.requestExactAlarmsPermission();
     }
+    final exactAllowed = await android?.canScheduleExactNotifications() ?? true;
+    debugPrint(
+      'Atlas notifications: permission=$notificationsGranted exactAllowed=$exactAllowed',
+    );
     return notificationsGranted;
   }
 
@@ -143,6 +147,15 @@ class AtlasNotificationService {
               notification.id < _hydrationNotificationMaxId,
         )
         .length;
+  }
+
+  Future<void> showHydrationTestNotification() async {
+    await _plugin.show(
+      990,
+      'Atlas hydration test',
+      'Water reminders are able to appear on this phone.',
+      _hydrationDetails,
+    );
   }
 
   Future<void> _cancelRange(int startInclusive, int endExclusive) async {
