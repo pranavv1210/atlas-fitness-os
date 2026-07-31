@@ -24,7 +24,9 @@ serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const openAiKey = Deno.env.get("OPENAI_API_KEY");
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const huggingFaceKey = Deno.env.get("HUGGINGFACE_API_KEY") ??
+    Deno.env.get("HF_TOKEN");
   if (!supabaseUrl || !supabaseAnonKey) {
     return json(
       {
@@ -62,59 +64,146 @@ serve(async (request) => {
   }
 
   const context = await buildAtlasContext(supabase, message, body.screen);
-  if (!openAiKey) {
-    return json(localCoachReply(message, context));
+  if (geminiKey) {
+    const geminiReply = await callGemini({
+      apiKey: geminiKey,
+      message,
+      screen: body.screen,
+      history: body.history,
+      context,
+    });
+    if (geminiReply) return json(geminiReply);
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("OPENAI_MODEL") ?? "gpt-4.1-mini",
-      instructions: agentInstructions,
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify({
-                userQuestion: message,
-                currentScreen: body.screen ?? "Atlas",
-                recentConversation: sanitizeHistory(body.history),
-                atlasContext: context,
-              }),
-            },
-          ],
+  if (huggingFaceKey) {
+    const huggingFaceReply = await callHuggingFace({
+      apiKey: huggingFaceKey,
+      message,
+      screen: body.screen,
+      history: body.history,
+      context,
+    });
+    if (huggingFaceReply) return json(huggingFaceReply);
+  }
+
+  return json(localCoachReply(message, context));
+});
+
+async function callGemini({
+  apiKey,
+  message,
+  screen,
+  history,
+  context,
+}: {
+  apiKey: string;
+  message: string;
+  screen?: string;
+  history?: AgentRequest["history"];
+  context: Awaited<ReturnType<typeof buildAtlasContext>>;
+}) {
+  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash";
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: agentInstructions }],
         },
-      ],
-      text: { format: { type: "json_object" } },
-    }),
-  });
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: JSON.stringify({
+                  userQuestion: message,
+                  currentScreen: screen ?? "Atlas",
+                  recentConversation: sanitizeHistory(history),
+                  atlasContext: context,
+                }),
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.35,
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
 
   if (!response.ok) {
-    const detail = await response.text();
-    console.error("OpenAI response failed", response.status, detail);
-    return json(localCoachReply(message, context));
+    console.error("Gemini response failed", response.status, await response.text());
+    return null;
   }
-
   const payload = await response.json();
-  const text = extractOutputText(payload);
-  try {
-    const parsed = JSON.parse(text);
-    return json(normalizeAgentReply(parsed, context));
-  } catch (_) {
-    return json({
-      message: text || "Atlas Agent could not format the response.",
-      mode: "Coach",
-      suggestions: defaultSuggestions(body.screen),
-      contextUsed: context.contextUsed,
-    });
+  const text =
+    payload?.candidates?.[0]?.content?.parts
+      ?.map((part: Record<string, unknown>) => part.text)
+      ?.filter((part: unknown) => typeof part === "string")
+      ?.join("\n") ?? "";
+  return parseAgentText(text, context, screen);
+}
+
+async function callHuggingFace({
+  apiKey,
+  message,
+  screen,
+  history,
+  context,
+}: {
+  apiKey: string;
+  message: string;
+  screen?: string;
+  history?: AgentRequest["history"];
+  context: Awaited<ReturnType<typeof buildAtlasContext>>;
+}) {
+  const model = Deno.env.get("HUGGINGFACE_MODEL") ??
+    "openai/gpt-oss-120b:fastest";
+  const response = await fetch(
+    "https://router.huggingface.co/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: agentInstructions },
+          {
+            role: "user",
+            content: JSON.stringify({
+              userQuestion: message,
+              currentScreen: screen ?? "Atlas",
+              recentConversation: sanitizeHistory(history),
+              atlasContext: context,
+            }),
+          },
+        ],
+        temperature: 0.35,
+        max_tokens: 900,
+        response_format: { type: "json_object" },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    console.error(
+      "Hugging Face response failed",
+      response.status,
+      await response.text(),
+    );
+    return null;
   }
-});
+  const payload = await response.json();
+  const text = payload?.choices?.[0]?.message?.content ?? "";
+  return parseAgentText(text, context, screen);
+}
 
 async function buildAtlasContext(supabase: ReturnType<typeof createClient>, message: string, screen?: string) {
   const today = new Date().toISOString().slice(0, 10);
@@ -295,20 +384,6 @@ function sanitizeHistory(history?: AgentRequest["history"]) {
   }));
 }
 
-function extractOutputText(payload: Record<string, unknown>) {
-  if (typeof payload.output_text === "string") return payload.output_text;
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  for (const item of output) {
-    const content = (item as Record<string, unknown>).content;
-    if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      const text = (part as Record<string, unknown>).text;
-      if (typeof text === "string") return text;
-    }
-  }
-  return "";
-}
-
 function normalizeAgentReply(reply: Record<string, unknown>, context: { contextUsed: string[] }) {
   const suggestions = Array.isArray(reply.suggestions)
     ? reply.suggestions.filter((item) => typeof item === "string").slice(0, 4)
@@ -324,6 +399,24 @@ function normalizeAgentReply(reply: Record<string, unknown>, context: { contextU
       ? reply.contextUsed.filter((item) => typeof item === "string")
       : context.contextUsed,
   };
+}
+
+function parseAgentText(
+  text: string,
+  context: { contextUsed: string[] },
+  screen?: string,
+) {
+  try {
+    const parsed = JSON.parse(text);
+    return normalizeAgentReply(parsed, context);
+  } catch (_) {
+    return {
+      message: text || "Atlas Agent could not format the response.",
+      mode: "Coach",
+      suggestions: defaultSuggestions(screen),
+      contextUsed: context.contextUsed,
+    };
+  }
 }
 
 function localCoachReply(message: string, context: Awaited<ReturnType<typeof buildAtlasContext>>) {

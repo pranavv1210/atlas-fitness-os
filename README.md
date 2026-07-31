@@ -90,9 +90,9 @@ The agent can read the signed-in user's Atlas context through Supabase:
 - hydration count for today
 - relevant exercise library records
 
-The Flutter app calls the `atlas-agent` Supabase Edge Function. The OpenAI API
-key must stay server-side as a Supabase secret and must never be added to the
-Flutter app.
+The Flutter app calls the `atlas-agent` Supabase Edge Function. AI provider keys
+must stay server-side as Supabase secrets and must never be added to the Flutter
+app.
 
 Deploy the function:
 
@@ -100,20 +100,33 @@ Deploy the function:
 supabase functions deploy atlas-agent
 ```
 
-Set the AI secret:
+Set the primary Gemini secret:
 
 ```powershell
-supabase secrets set OPENAI_API_KEY=your-openai-api-key
+supabase secrets set GEMINI_API_KEY=your-gemini-api-key
 ```
 
-Optional model override:
+Optional Gemini model override:
 
 ```powershell
-supabase secrets set OPENAI_MODEL=gpt-4.1-mini
+supabase secrets set GEMINI_MODEL=gemini-2.0-flash
 ```
 
-If `OPENAI_API_KEY` is not configured, the function returns a safe local coach
-fallback so the UI remains usable, but real AI coaching requires the secret.
+Optional Hugging Face fallback:
+
+```powershell
+supabase secrets set HUGGINGFACE_API_KEY=your-hugging-face-token
+supabase secrets set HUGGINGFACE_MODEL=openai/gpt-oss-120b:fastest
+```
+
+Provider priority:
+
+```text
+Gemini -> Hugging Face -> local Atlas coach fallback
+```
+
+If no provider key is configured, the function returns a safe local coach
+fallback so the UI remains usable.
 
 ### Exercise Library
 
