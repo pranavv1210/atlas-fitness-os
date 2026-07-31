@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import '../theme/atlas_colors.dart';
 import '../../features/goals/presentation/goals_screen.dart';
 import '../../features/me/presentation/me_screen.dart';
+import '../../features/agent/presentation/atlas_agent_overlay.dart';
 import '../../features/profile/domain/models/user_profile.dart';
 import '../../features/progress/presentation/progress_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
 import '../../features/train/presentation/train_screen.dart';
+import '../../core/di/app_scope.dart';
 import 'atlas_destination.dart';
 
 class AtlasShell extends StatefulWidget {
@@ -52,6 +54,7 @@ class _AtlasShellState extends State<AtlasShell> {
   @override
   Widget build(BuildContext context) {
     final destinations = AtlasDestination.values;
+    final dependencies = AppScope.maybeRead(context);
 
     return PopScope(
       canPop: false,
@@ -66,33 +69,42 @@ class _AtlasShellState extends State<AtlasShell> {
       },
       child: Scaffold(
         extendBody: true,
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 360),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            final offset = Tween<Offset>(
-              begin: const Offset(0.03, 0.015),
-              end: Offset.zero,
-            ).animate(curved);
+        body: Stack(
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 360),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final curved = CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                );
+                final offset = Tween<Offset>(
+                  begin: const Offset(0.03, 0.015),
+                  end: Offset.zero,
+                ).animate(curved);
 
-            return FadeTransition(
-              opacity: curved,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
-                child: SlideTransition(position: offset, child: child),
+                return FadeTransition(
+                  opacity: curved,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+                    child: SlideTransition(position: offset, child: child),
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(_selectedIndex),
+                child: _buildScreen(destinations[_selectedIndex]),
               ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey(_selectedIndex),
-            child: _buildScreen(destinations[_selectedIndex]),
-          ),
+            ),
+            if (dependencies != null)
+              AtlasAgentLauncher(
+                service: dependencies.atlasAgentService,
+                screen: destinations[_selectedIndex].label,
+              ),
+          ],
         ),
         bottomNavigationBar: _FloatingDock(
           destinations: destinations,

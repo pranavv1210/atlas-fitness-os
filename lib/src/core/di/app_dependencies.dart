@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/atlas/data/atlas_data_repository.dart';
+import '../../features/agent/data/atlas_agent_service.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/datasources/google_auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/supabase_auth_repository.dart';
@@ -57,6 +58,7 @@ class AppDependencies {
   AuthRepository? _authRepository;
   ProfileRepository? _profileRepository;
   AtlasDataRepository? _atlasDataRepository;
+  AtlasAgentService? _atlasAgentService;
   AtlasPreferences? _preferences;
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
 
@@ -106,10 +108,21 @@ class AppDependencies {
     return repository;
   }
 
+  AtlasAgentService get atlasAgentService {
+    final service = _atlasAgentService;
+    if (service == null) {
+      throw StateError(
+        'AtlasAgentService requested before Supabase is configured',
+      );
+    }
+    return service;
+  }
+
   void registerSupabaseClient(SupabaseClient client) {
     if (_authRepository != null &&
         _profileRepository != null &&
-        _atlasDataRepository != null) {
+        _atlasDataRepository != null &&
+        _atlasAgentService != null) {
       return;
     }
 
@@ -123,6 +136,7 @@ class AppDependencies {
       localCache: const NoopProfileLocalCache(),
     );
     _atlasDataRepository = AtlasDataRepository(client);
+    _atlasAgentService = AtlasAgentService(client);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

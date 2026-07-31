@@ -19,6 +19,7 @@ Atlas is a functional Android app with a separate React marketing website.
 - Flutter Android app with production release APK support
 - Google Sign-In authentication
 - Supabase-backed user data and sync
+- Atlas AI Agent overlay backed by Supabase Edge Functions
 - Workout logging with sets, reps, weight, and exercise selection
 - Workout templates and 5-day workout cycle
 - Expanded exercise library with 2,069 unique exercises
@@ -72,6 +73,47 @@ The primary tabs are:
 - **Progress**: body and training progress views
 - **Goals**: goal creation and tracking
 - **Me**: profile, preferences, sync, biometric lock, and logout
+
+### Atlas AI Agent
+
+Atlas includes a floating AI companion overlay inside the app shell. It is
+designed to feel like a personal trainer, gym buddy, and log analyst rather than
+a separate chatbot screen.
+
+The agent can read the signed-in user's Atlas context through Supabase:
+
+- today's workout and current cycle
+- recent workout logs, exercises, sets, reps, and weight
+- workout streak and recent training dates
+- active goals
+- body weight logs
+- hydration count for today
+- relevant exercise library records
+
+The Flutter app calls the `atlas-agent` Supabase Edge Function. The OpenAI API
+key must stay server-side as a Supabase secret and must never be added to the
+Flutter app.
+
+Deploy the function:
+
+```powershell
+supabase functions deploy atlas-agent
+```
+
+Set the AI secret:
+
+```powershell
+supabase secrets set OPENAI_API_KEY=your-openai-api-key
+```
+
+Optional model override:
+
+```powershell
+supabase secrets set OPENAI_MODEL=gpt-4.1-mini
+```
+
+If `OPENAI_API_KEY` is not configured, the function returns a safe local coach
+fallback so the UI remains usable, but real AI coaching requires the secret.
 
 ### Exercise Library
 

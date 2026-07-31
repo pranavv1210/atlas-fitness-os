@@ -12,6 +12,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Bot,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -47,6 +48,7 @@ const storyFrames = [
 ];
 
 const features = [
+  ['Atlas AI Agent', 'A gym-buddy overlay that reads workouts, goals, history, hydration, and progress.'],
   ['Workout logging', 'Sets, reps, weight, and notes stay fast enough for the gym floor.'],
   ['Exercise search', 'Find movements by name, muscle, equipment, difficulty, pattern, or instruction text.'],
   ['Simple filters', 'Chest, back, legs, arms, abs, shoulders, glutes, cardio. Clear and usable.'],
@@ -296,6 +298,7 @@ function App() {
     <div ref={rootRef} className="site">
       <Header />
       <Hero />
+      <AgentShowcase />
       <Story />
       <Transformation />
       <Library />
@@ -321,6 +324,7 @@ function Header() {
       </a>
       <nav aria-label="Primary navigation">
         <a href="#story" onClick={closeMenu}>Story</a>
+        <a href="#agent" onClick={closeMenu}>Agent</a>
         <a href="#library" onClick={closeMenu}>Library</a>
         <a href="#download" onClick={closeMenu}>Download</a>
       </nav>
@@ -343,10 +347,44 @@ function Header() {
       </div>
       <div className="mobile-menu" aria-hidden={!isOpen}>
         <a href="#story" onClick={closeMenu}>Story</a>
+        <a href="#agent" onClick={closeMenu}>Agent</a>
         <a href="#library" onClick={closeMenu}>Library</a>
         <a href="#download" onClick={closeMenu}>Download</a>
       </div>
     </header>
+  );
+}
+
+function AgentShowcase() {
+  return (
+    <section className="agent-section" id="agent">
+      <div className="agent-copy reveal">
+        <p className="kicker">Atlas AI Agent</p>
+        <h2>A trainer, gym buddy, and log analyst inside the app.</h2>
+        <p>
+          Atlas Agent reads your workout history, goals, hydration, body weight,
+          current cycle, and exercise library to give personal guidance while
+          you train.
+        </p>
+      </div>
+      <div className="agent-stage" aria-label="Atlas Agent preview">
+        <div className="agent-orb">
+          <Bot size={34} />
+        </div>
+        <div className="agent-chat-card agent-card-one">
+          <span>You</span>
+          <strong>What should I train today?</strong>
+        </div>
+        <div className="agent-chat-card agent-card-two">
+          <span>Atlas Agent</span>
+          <strong>Continue Day 4. Keep shoulders controlled and legs moderate.</strong>
+        </div>
+        <div className="agent-chat-card agent-card-three">
+          <span>Reads</span>
+          <strong>Logs, goals, streak, hydration, weight, exercises</strong>
+        </div>
+      </div>
+    </section>
   );
 }
 
