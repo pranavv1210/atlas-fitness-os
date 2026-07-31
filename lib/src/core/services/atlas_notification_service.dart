@@ -62,6 +62,7 @@ class AtlasNotificationService {
 
   Future<void> scheduleHydrationNudges({required int intervalMinutes}) async {
     await cancelHydrationNudge();
+    await _plugin.cancel(991);
     final safeInterval = intervalMinutes.clamp(
       _minHydrationIntervalMinutes,
       _maxHydrationIntervalMinutes,
@@ -84,6 +85,13 @@ class AtlasNotificationService {
     }
     debugPrint(
       'Atlas notifications: scheduled ${notificationId - _hydrationNotificationBaseId} hydration reminders every $safeInterval minutes.',
+    );
+    await _scheduleOneShotNotification(
+      'Atlas hydration check',
+      'This confirms scheduled hydration reminders are working.',
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 15)),
+      id: 991,
+      details: _hydrationDetails,
     );
   }
 
@@ -115,6 +123,7 @@ class AtlasNotificationService {
     await scheduleHydrationNudges(intervalMinutes: hydrationIntervalMinutes);
     await scheduleDailyReminders();
     await scheduleWorkoutReminders();
+    await scheduleMissedWorkoutCheck();
   }
 
   Future<void> cancelAtlasReminders() async {
@@ -155,6 +164,16 @@ class AtlasNotificationService {
       'Atlas hydration test',
       'Water reminders are able to appear on this phone.',
       _hydrationDetails,
+    );
+  }
+
+  Future<void> scheduleMissedWorkoutCheck() async {
+    await _scheduleDailyNotification(
+      'Atlas workout check',
+      'If you skipped today, open Atlas and decide whether to train or rest.',
+      _nextDailyOccurrence(hour: 20),
+      id: _workoutNotificationBaseId + 1,
+      details: _generalDetails,
     );
   }
 
@@ -214,9 +233,37 @@ class AtlasNotificationService {
     }
   }
 
+  Future<void> _scheduleOneShotNotification(
+    String title,
+    String body,
+    tz.TZDateTime scheduledAt, {
+    required int id,
+    required NotificationDetails details,
+  }) async {
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    } catch (_) {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
   static const _hydrationDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'atlas_hydration_water',
+      'atlas_hydration_water_v2',
       'Hydration reminders',
       channelDescription: 'Gentle hydration nudges from Atlas.',
       importance: Importance.high,

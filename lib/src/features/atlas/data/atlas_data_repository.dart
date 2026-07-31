@@ -13,6 +13,7 @@ class AtlasDataRepository {
   final SupabaseClient _client;
 
   String get _userId => _client.auth.currentUser!.id;
+  String get currentUserId => _userId;
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
     final completedToday = await _hasCompletedWorkoutOn(DateTime.now());
@@ -36,6 +37,7 @@ class AtlasDataRepository {
     final lastWorkoutTitle = await _lastWorkoutTitle();
     final todayReport =
         completedToday ? await loadWorkoutReport(DateTime.now()) : null;
+    final currentStreak = await _currentWorkoutStreak();
 
     return AtlasDashboardSnapshot(
       todayWorkout: todayWorkout,
@@ -47,6 +49,8 @@ class AtlasDataRepository {
       totalWorkouts: totalWorkouts,
       monthWorkouts: monthWorkouts,
       completedToday: completedToday,
+      cycleStarted: hasStarted,
+      currentStreak: currentStreak,
       latestWeight: latestWeight?.$1,
       latestWeightUnit: latestWeight?.$2 ?? 'kg',
       latestWeightDate: latestWeight?.$3,
@@ -447,6 +451,37 @@ class AtlasDataRepository {
         .eq('user_id', _userId)
         .eq('status', 'completed');
     return rows.length;
+  }
+
+  Future<int> _currentWorkoutStreak() async {
+    final rows = await _client
+        .from('workout_sessions')
+        .select('session_date')
+        .eq('user_id', _userId)
+        .eq('status', 'completed')
+        .order('session_date', ascending: false)
+        .limit(90);
+    final dates = <String>{};
+    for (final row in rows) {
+      final value = row['session_date'] as String?;
+      if (value != null && value.isNotEmpty) {
+        dates.add(value);
+      }
+    }
+    if (dates.isEmpty) return 0;
+
+    final today = DateTime.now();
+    var cursor = DateTime(today.year, today.month, today.day);
+    if (!dates.contains(_date(cursor))) {
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+
+    var streak = 0;
+    while (dates.contains(_date(cursor))) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
   }
 
   Future<bool> _hasCompletedWorkoutOn(DateTime date) async {

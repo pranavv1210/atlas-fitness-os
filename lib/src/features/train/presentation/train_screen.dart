@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,11 +53,17 @@ class _TrainScreenState extends State<TrainScreen> {
     _entries.clear();
     final workout =
         effectiveSnapshot.todayWorkout ?? effectiveSnapshot.starterWorkout;
+    if (effectiveSnapshot.completedToday) {
+      await _clearDraft();
+      return effectiveSnapshot;
+    }
+    final restored = _restoreDraft(workout, effectiveSnapshot.exerciseLibrary);
+    if (restored) {
+      return effectiveSnapshot;
+    }
     final plannedDay =
         workout == null ? null : _customPlan[workout.dayNumber.clamp(1, 5) - 1];
-    if (plannedDay != null &&
-        !plannedDay.isRestDay &&
-        !effectiveSnapshot.completedToday) {
+    if (plannedDay != null && !plannedDay.isRestDay) {
       _entries.addAll([
         for (final exercise in plannedDay.exercises)
           _EditableWorkoutEntry(exercise),
@@ -113,6 +121,7 @@ class _TrainScreenState extends State<TrainScreen> {
         ],
       );
       if (!mounted) return;
+      unawaited(_clearDraft());
       showCompletionCelebration(context);
       setState(() => _future = _load());
     } on AtlasWorkoutAlreadySavedException {
@@ -255,7 +264,7 @@ class _TrainScreenState extends State<TrainScreen> {
               library: data.exerciseLibrary,
               entries: _entries,
               completedReport: data.todayReport,
-              onChanged: () => setState(() {}),
+              onChanged: () => _handleEntriesChanged(data),
               onAdd:
                   data.completedToday || data.exerciseLibrary.isEmpty
                       ? null
@@ -270,6 +279,7 @@ class _TrainScreenState extends State<TrainScreen> {
                         setState(() {
                           _entries.add(_EditableWorkoutEntry(picked));
                         });
+                        await _saveDraft(data);
                       },
             ),
           ],
@@ -294,6 +304,74 @@ class _TrainScreenState extends State<TrainScreen> {
       _customPlan = saved;
       _future = _load();
     });
+  }
+
+  void _handleEntriesChanged(AtlasDashboardSnapshot snapshot) {
+    setState(() {});
+    _saveDraft(snapshot);
+  }
+
+  bool _restoreDraft(AtlasWorkoutDay? workout, List<AtlasExercise> library) {
+    final userId = _repository?.currentUserId;
+    final draft =
+        userId == null
+            ? null
+            : _dependencies?.preferences.workoutDraftFor(userId);
+    if (draft == null || workout == null) return false;
+    if (draft['dayNumber'] != workout.dayNumber) return false;
+    final rawEntries = draft['entries'];
+    if (rawEntries is! List) return false;
+    final byId = {for (final exercise in library) exercise.id: exercise};
+    final restored = <_EditableWorkoutEntry>[];
+    for (final rawEntry in rawEntries) {
+      if (rawEntry is! Map) continue;
+      final exerciseId = rawEntry['exerciseId'];
+      if (exerciseId is! String) continue;
+      final exercise = byId[exerciseId];
+      if (exercise == null) continue;
+      restored.add(
+        _EditableWorkoutEntry.fromDraft(
+          exercise,
+          sets: rawEntry['sets'],
+          reps: rawEntry['reps'],
+          weight: rawEntry['weight'],
+        ),
+      );
+    }
+    if (restored.isEmpty) return false;
+    _entries.addAll(restored);
+    return true;
+  }
+
+  Future<void> _saveDraft(AtlasDashboardSnapshot snapshot) async {
+    final userId = _repository?.currentUserId;
+    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final preferences = _dependencies?.preferences;
+    if (userId == null || preferences == null || workout == null) return;
+    if (snapshot.completedToday || _entries.isEmpty) {
+      await preferences.clearWorkoutDraft(userId);
+      return;
+    }
+    await preferences.setWorkoutDraft(userId, {
+      'dayNumber': workout.dayNumber,
+      'workoutName': workout.name,
+      'savedAt': DateTime.now().toIso8601String(),
+      'entries': [
+        for (final entry in _entries)
+          {
+            'exerciseId': entry.exercise.id,
+            'sets': entry.sets,
+            'reps': entry.reps,
+            'weight': entry.weight,
+          },
+      ],
+    });
+  }
+
+  Future<void> _clearDraft() async {
+    final userId = _repository?.currentUserId;
+    if (userId == null) return;
+    await _dependencies?.preferences.clearWorkoutDraft(userId);
   }
 }
 
@@ -1942,6 +2020,21 @@ class _EditableWorkoutEntry {
       reps = _firstNumber(exercise.defaultReps),
       weight = 0;
 
+  _EditableWorkoutEntry.fromDraft(
+    this.exercise, {
+    required Object? sets,
+    required Object? reps,
+    required Object? weight,
+  }) : sets =
+           sets is num
+               ? sets.round().clamp(1, 99).toInt()
+               : exercise.defaultSets,
+       reps =
+           reps is num
+               ? reps.round().clamp(1, 999).toInt()
+               : _firstNumber(exercise.defaultReps),
+       weight = weight is num ? weight.toDouble().clamp(0, 9999).toDouble() : 0;
+
   AtlasExercise exercise;
   int sets;
   int reps;
@@ -2070,6 +2163,8 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
     totalWorkouts: snapshot.totalWorkouts,
     monthWorkouts: snapshot.monthWorkouts,
     completedToday: snapshot.completedToday,
+    cycleStarted: snapshot.cycleStarted,
+    currentStreak: snapshot.currentStreak,
     hydrationToday: snapshot.hydrationToday,
     activeGoals: snapshot.activeGoals,
     latestWeight: snapshot.latestWeight,

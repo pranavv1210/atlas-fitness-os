@@ -200,6 +200,8 @@ class AtlasDashboardSnapshot {
     required this.totalWorkouts,
     required this.monthWorkouts,
     required this.completedToday,
+    required this.cycleStarted,
+    required this.currentStreak,
     required this.hydrationToday,
     required this.activeGoals,
     this.latestWeight,
@@ -218,6 +220,8 @@ class AtlasDashboardSnapshot {
   final int totalWorkouts;
   final int monthWorkouts;
   final bool completedToday;
+  final bool cycleStarted;
+  final int currentStreak;
   final int hydrationToday;
   final List<AtlasGoal> activeGoals;
   final double? latestWeight;
@@ -226,7 +230,7 @@ class AtlasDashboardSnapshot {
   final String? lastWorkoutTitle;
   final AtlasWorkoutReport? todayReport;
 
-  bool get hasWorkoutCycleStarted => totalWorkouts > 0;
+  bool get hasWorkoutCycleStarted => cycleStarted || totalWorkouts > 0;
 
   int? get fitnessScore {
     if (totalWorkouts == 0 &&

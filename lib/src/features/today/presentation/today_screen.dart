@@ -364,13 +364,15 @@ class _MetricsGrid extends StatelessWidget {
           color: AtlasColors.accent,
         ),
         AtlasStatCard(
-          label: 'Weekly Progress',
-          value: '${snapshot.completedThisWeek} / ${snapshot.weeklyTarget}',
+          label: 'Workout Streak',
+          value: '${snapshot.currentStreak}',
           caption:
-              snapshot.completedThisWeek == 0
-                  ? 'no workouts yet'
-                  : 'workouts complete',
-          icon: Icons.calendar_month_rounded,
+              snapshot.currentStreak == 1
+                  ? 'day active'
+                  : snapshot.currentStreak == 0
+                  ? 'start today'
+                  : 'days active',
+          icon: Icons.local_fire_department_rounded,
           color: AtlasColors.success,
         ),
         AtlasStatCard(
@@ -664,6 +666,8 @@ AtlasDashboardSnapshot emptyAtlasSnapshot() {
     totalWorkouts: 0,
     monthWorkouts: 0,
     completedToday: false,
+    cycleStarted: false,
+    currentStreak: 0,
     hydrationToday: 0,
     activeGoals: const [],
     todayReport: null,
