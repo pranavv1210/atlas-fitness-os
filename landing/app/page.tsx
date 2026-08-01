@@ -43,7 +43,7 @@ export default function Home() {
               <a className="icon-link" href={repoUrl} target="_blank" rel="noreferrer" aria-label="Open Atlas GitHub repository">
                 <Github size={18} />
               </a>
-              <a className="mini-cta" href={apkUrl} download>Download</a>
+              <a className="mini-cta" href={apkUrl} download><span className="mini-cta-label">Download</span><Download className="mini-cta-icon" size={15} /></a>
               <MobileMenu />
             </div>
           </nav>
