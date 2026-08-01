@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'export',
+  distDir: 'dist',
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
