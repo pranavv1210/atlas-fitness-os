@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { GlassButton } from './glass-button';
-import { HeroPhoneClient } from './hero-phone-client';
+import { SafePhoneVisual } from './safe-phone-visual';
 
 const repoUrl = 'https://github.com/pranavv1210/atlas-fitness-os';
 const apkUrl = '/downloads/atlas-release.apk';
@@ -231,7 +231,7 @@ export function PhoneStory() {
             }
             transition={{ type: 'spring', stiffness: 70, damping: 18 }}
           >
-            <HeroPhoneClient />
+            <SafePhoneVisual />
             <div className="phone-glass-shell">
               <div className="phone-notch" />
               <motion.div

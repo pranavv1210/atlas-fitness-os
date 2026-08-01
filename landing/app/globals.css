@@ -403,6 +403,54 @@ a {
   box-shadow: 0 44px 110px rgba(18, 18, 18, 0.24);
 }
 
+.css-phone-visual {
+  position: absolute;
+  inset: 6% 22%;
+  z-index: 0;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 48px;
+  background:
+    linear-gradient(122deg, rgba(255, 255, 255, 0.16), transparent 36%),
+    linear-gradient(145deg, #101219 0%, #20283a 48%, #f8fafc 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -30px 80px rgba(37, 99, 255, 0.14),
+    0 44px 110px rgba(18, 18, 18, 0.26);
+  transform: rotateY(-8deg) rotateX(2deg);
+  transform-style: preserve-3d;
+}
+
+.css-phone-visual span {
+  position: absolute;
+  left: 50%;
+  top: 1rem;
+  width: 74px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  transform: translateX(-50%);
+}
+
+.css-phone-visual i,
+.css-phone-visual b {
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.css-phone-visual i {
+  top: 18%;
+  height: 26%;
+}
+
+.css-phone-visual b {
+  bottom: 13%;
+  height: 34%;
+}
+
 .phone-glass-shell {
   position: absolute;
   left: 50%;
