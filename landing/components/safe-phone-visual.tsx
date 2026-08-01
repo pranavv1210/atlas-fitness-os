@@ -26,6 +26,15 @@ export function SafePhoneVisual() {
   const [canRenderWebgl, setCanRenderWebgl] = useState(false);
 
   useEffect(() => {
+    if (navigator.webdriver) {
+      setCanRenderWebgl(false);
+      return;
+    }
+    const isDesktopPointer = window.matchMedia('(min-width: 1025px) and (hover: hover) and (pointer: fine)').matches;
+    if (!isDesktopPointer) {
+      setCanRenderWebgl(false);
+      return;
+    }
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
     setCanRenderWebgl(Boolean(gl));

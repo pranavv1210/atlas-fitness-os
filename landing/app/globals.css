@@ -37,6 +37,7 @@ body::-webkit-scrollbar {
 body {
   margin: 0;
   min-width: 320px;
+  width: 100%;
   overflow-x: hidden;
   background:
     radial-gradient(circle at 74% 4%, rgba(37, 99, 255, 0.16), transparent 34rem),
@@ -44,6 +45,10 @@ body {
     radial-gradient(circle at 80% 86%, rgba(139, 122, 230, 0.12), transparent 32rem),
     linear-gradient(180deg, #fffdf9 0%, #faf8f4 48%, #f2f1ec 100%);
   color: var(--ink);
+}
+
+main {
+  overflow: clip;
 }
 
 a {
@@ -75,6 +80,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.66);
   border-radius: 999px;
   padding: 0.45rem;
@@ -86,6 +92,7 @@ a {
 .brand-mark {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 0.58rem;
   padding-left: 0.25rem;
   color: var(--ink);
@@ -119,7 +126,53 @@ a {
 .nav-actions {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 0.45rem;
+}
+
+.mobile-menu {
+  position: relative;
+  display: none;
+}
+
+.menu-toggle {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+  box-shadow: 0 16px 46px rgba(18, 18, 18, 0.1);
+}
+
+.mobile-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: min(260px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 30px 90px rgba(18, 18, 18, 0.16);
+  backdrop-filter: blur(28px);
+}
+
+.mobile-menu-panel a {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  border-bottom: 1px solid rgba(18, 18, 18, 0.06);
+  padding: 0 1.1rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.mobile-menu-panel a:last-child {
+  border-bottom: 0;
 }
 
 .icon-link,
@@ -204,6 +257,106 @@ a {
   text-align: center;
 }
 
+.opening-layout {
+  display: grid;
+  width: min(1220px, 100%);
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+.opening-visual {
+  position: relative;
+  display: none;
+  width: min(420px, 80vw);
+  aspect-ratio: 0.82;
+  perspective: 1000px;
+}
+
+.hero-device {
+  position: absolute;
+  inset: 0 17%;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 44px;
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.2), transparent 32%),
+    linear-gradient(145deg, #111827, #2563ff 55%, #f8fafc 115%);
+  box-shadow: 0 34px 95px rgba(18, 18, 18, 0.24);
+  transform: rotateX(4deg) rotateY(-9deg);
+}
+
+.hero-device-notch {
+  position: absolute;
+  left: 50%;
+  top: 0.85rem;
+  width: 68px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  transform: translateX(-50%);
+}
+
+.hero-device-screen {
+  position: absolute;
+  inset: 3.2rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 30px;
+  padding: 1.1rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
+  backdrop-filter: blur(18px);
+}
+
+.hero-device-screen span,
+.hero-device-screen i {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.hero-device-screen strong {
+  font-size: clamp(1.7rem, 8vw, 2.5rem);
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  line-height: 0.9;
+}
+
+.hero-device-screen b {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+  font-size: 0.86rem;
+}
+
+.hero-float {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 18px;
+  padding: 0.72rem 0.86rem;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 18px 58px rgba(18, 18, 18, 0.14);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 900;
+  backdrop-filter: blur(22px);
+}
+
+.hero-float-a {
+  top: 9%;
+  right: 2%;
+}
+
+.hero-float-b {
+  left: 2%;
+  bottom: 17%;
+}
+
 .eyebrow,
 .section-kicker {
   display: inline-flex;
@@ -232,6 +385,7 @@ a {
   font-weight: 950;
   letter-spacing: -0.066em;
   line-height: 0.83;
+  overflow-wrap: break-word;
 }
 
 .hero-subtitle {
@@ -257,6 +411,14 @@ a {
   justify-content: center;
   gap: 0.55rem;
   margin-top: 1.45rem;
+}
+
+.scroll-cue {
+  display: inline-flex;
+  margin-top: 1.35rem;
+  color: var(--deep);
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .hero-metrics span,
@@ -878,6 +1040,25 @@ a {
 }
 
 @media (max-width: 1024px) {
+  .mobile-menu {
+    display: block;
+  }
+
+  .opening-frame {
+    min-height: auto;
+    padding: 7rem 1.25rem 3.5rem;
+  }
+
+  .opening-layout {
+    gap: 2rem;
+  }
+
+  .opening-visual {
+    display: block;
+    width: min(360px, 74vw);
+    max-width: 80vw;
+  }
+
   .story-grid {
     grid-template-columns: 1fr;
   }
@@ -915,13 +1096,153 @@ a {
   }
 }
 
+@media (min-width: 1025px) {
+  .opening-frame {
+    min-height: 100svh;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .opening-layout {
+    grid-template-columns: minmax(0, 0.95fr) minmax(380px, 0.72fr);
+    text-align: left;
+  }
+
+  .opening-copy {
+    order: 1;
+    text-align: left;
+  }
+
+  .opening-visual {
+    order: 2;
+    display: block;
+  }
+
+  .hero-title,
+  .hero-subtitle {
+    margin-left: 0;
+  }
+
+  .hero-actions,
+  .hero-metrics {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-nav {
+    gap: 0.5rem;
+  }
+
+  .opening-frame {
+    min-height: auto;
+    padding: 6.4rem 1.25rem 3rem;
+  }
+
+  .opening-layout {
+    gap: 1.8rem;
+  }
+
+  .opening-visual {
+    display: block;
+    width: min(320px, 78vw);
+    max-width: 80vw;
+  }
+
+  .hero-title {
+    max-width: 11ch;
+    font-size: clamp(3rem, 13vw, 5.8rem);
+    line-height: 0.88;
+  }
+
+  .hero-subtitle {
+    max-width: 31rem;
+    font-size: clamp(0.98rem, 3.7vw, 1.14rem);
+    line-height: 1.62;
+  }
+
+  .hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .hero-metrics span {
+    display: grid;
+    min-height: 44px;
+    place-items: center;
+    text-align: center;
+  }
+
+  .story-grid {
+    gap: 1.2rem;
+  }
+
+  .story-phone-pin {
+    height: 54svh;
+    min-height: 430px;
+  }
+
+  .phone-scene {
+    width: min(390px, 100%);
+    height: min(510px, 54svh);
+  }
+
+  .hero-phone-canvas {
+    inset: -2% 2%;
+    opacity: 0.86;
+    filter: drop-shadow(0 24px 62px rgba(18, 18, 18, 0.22));
+  }
+
+  .css-phone-visual {
+    inset: 7% 19%;
+    border-radius: 38px;
+  }
+
+  .phone-glass-shell {
+    width: min(240px, 68vw);
+  }
+
+  .story-chapter {
+    min-height: auto;
+    padding: 3.25rem 0;
+  }
+
+  .story-chapter h2 {
+    max-width: 12ch;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: clamp(2.45rem, 10.5vw, 4.9rem);
+    line-height: 0.92;
+  }
+
+  .story-chapter p {
+    max-width: 32rem;
+    font-size: clamp(0.98rem, 3.6vw, 1.12rem);
+  }
+
+  .metrics-band {
+    padding-top: 2.2rem;
+  }
+
+  .download-section {
+    min-height: auto;
+    padding: 3.5rem 1rem;
+  }
+}
+
 @media (max-width: 640px) {
   .site-header {
     top: 0.7rem;
     width: calc(100% - 16px);
   }
 
-  .brand-mark span {
+  .site-nav {
+    padding: 0.38rem;
+  }
+
+  .brand-mark span,
+  .nav-actions > .icon-link {
     display: none;
   }
 
@@ -931,13 +1252,26 @@ a {
   }
 
   .opening-frame {
-    min-height: 92svh;
-    padding-top: 7rem;
+    padding: 6.25rem 1rem 2.6rem;
+    overflow: hidden;
+  }
+
+  .opening-layout,
+  .opening-copy {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .hero-device {
+    inset: 0 22%;
+    transform: none;
   }
 
   .hero-title {
-    font-size: clamp(3.35rem, 17vw, 5.2rem);
+    max-width: min(100%, 9.5ch);
+    font-size: clamp(2.75rem, 14.4vw, 4.65rem);
     letter-spacing: -0.058em;
+    overflow-wrap: normal;
   }
 
   .hero-actions,
@@ -953,15 +1287,17 @@ a {
   .phone-story {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
+    padding-bottom: 3rem;
   }
 
   .story-phone-pin {
-    height: 62svh;
-    top: 4.75rem;
+    height: 50svh;
+    min-height: 392px;
+    top: 4.7rem;
   }
 
   .phone-scene {
-    height: 60svh;
+    height: min(450px, 50svh);
   }
 
   .phone-glass-shell {
@@ -1012,13 +1348,12 @@ a {
   }
 
   .signal-2 {
-    bottom: 11%;
-    left: 2%;
+    display: none;
   }
 
   .story-chapter {
-    min-height: 56svh;
-    padding: 2rem 0;
+    min-height: auto;
+    padding: 2.7rem 0;
   }
 
   .story-chapter h2 {
@@ -1027,11 +1362,129 @@ a {
 
   .metrics-band {
     grid-template-columns: 1fr;
+    width: min(100% - 24px, 420px);
+    gap: 0.75rem;
+  }
+
+  .metric-tile {
+    min-height: 118px;
+    border-radius: 24px;
+  }
+
+  .download-card {
+    border-radius: 32px;
+    padding: 2rem 1rem;
   }
 
   .site-footer {
     flex-direction: column;
     text-align: center;
+  }
+}
+
+@media (max-width: 430px) {
+  .brand-mark {
+    gap: 0.4rem;
+  }
+
+  .brand-mark span {
+    display: none;
+  }
+
+  .opening-visual {
+    width: min(260px, 78vw);
+  }
+
+  .hero-float {
+    font-size: 0.68rem;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .hero-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .story-phone-pin {
+    min-height: 368px;
+  }
+
+  .phone-glass-shell {
+    width: min(222px, 68vw);
+    border-radius: 31px;
+  }
+
+  .phone-notch {
+    width: 58px;
+    height: 16px;
+  }
+
+  .phone-screen-content {
+    padding-top: 2.35rem;
+  }
+
+  .phone-ui header strong {
+    font-size: 1.18rem;
+  }
+
+  .dark-card {
+    min-height: 118px;
+  }
+
+  .bar-chart {
+    height: 122px;
+  }
+
+  .water-meter,
+  .goal-ring,
+  .download-mark {
+    min-height: 116px;
+  }
+}
+
+@media (max-width: 360px) {
+  .site-header {
+    width: calc(100% - 12px);
+  }
+
+  .mini-cta {
+    padding: 0 0.72rem;
+    font-size: 0.7rem;
+  }
+
+  .menu-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .opening-frame {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .opening-visual {
+    width: min(238px, 76vw);
+  }
+
+  .hero-title {
+    font-size: clamp(2.55rem, 14vw, 3.45rem);
+  }
+
+  .story-phone-pin {
+    top: 4.45rem;
+    min-height: 340px;
+  }
+
+  .phone-glass-shell {
+    width: min(202px, 66vw);
+  }
+
+  .floating-signal {
+    max-width: 112px;
+    font-size: 0.62rem;
+  }
+
+  .signal-1 {
+    display: none;
   }
 }
 

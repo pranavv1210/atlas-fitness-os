@@ -1,5 +1,6 @@
 node_modules
 .next
+.checks
 dist
 *.tsbuildinfo
 vite.config.js

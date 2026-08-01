@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { Download, Github, Sparkles } from 'lucide-react';
 import { AtlasExperience } from '../components/atlas-experience';
 import { GlassButton } from '../components/glass-button';
+import { MobileMenu } from '../components/mobile-menu';
 import { PhoneStory } from '../components/phone-story';
 
 const apkUrl = '/downloads/atlas-release.apk';
@@ -26,8 +27,8 @@ export default function Home() {
             </a>
             <div className="nav-links">
               <a href="#story">Experience</a>
-              <a href="#library">Library</a>
-              <a href="#analytics">Progress</a>
+              <a href="#story-library">Library</a>
+              <a href="#story-analytics">Progress</a>
               <a href="#download">Download</a>
             </div>
             <div className="nav-actions">
@@ -37,6 +38,7 @@ export default function Home() {
               <a className="mini-cta" href={apkUrl} download>
                 Download
               </a>
+              <MobileMenu />
             </div>
           </nav>
         </header>
@@ -47,28 +49,44 @@ export default function Home() {
             <span className="light-orbit light-orbit-b" />
             <span className="soft-grid" />
           </div>
-          <div className="opening-copy">
-            <div className="eyebrow reveal-blur">
-              <Sparkles size={15} />
-              Personal fitness operating system
+          <div className="opening-layout">
+            <div className="opening-visual reveal-blur" aria-hidden="true">
+              <div className="hero-device">
+                <div className="hero-device-notch" />
+                <div className="hero-device-screen">
+                  <span>Today</span>
+                  <strong>Chest + Triceps</strong>
+                  <i>4 moves ready</i>
+                  <b>Start Workout</b>
+                </div>
+              </div>
+              <div className="hero-float hero-float-a">5/5 week</div>
+              <div className="hero-float hero-float-b">Atlas Buddy</div>
             </div>
-            <h1 className="hero-title reveal-blur">Atlas makes training feel inevitable.</h1>
-            <p className="hero-subtitle reveal-blur">
-              A premium Android fitness app for workout logging, 2,000+ exercises, goals, hydration, workout history, analytics, and Atlas Buddy.
-            </p>
-            <div className="hero-actions reveal-blur">
-              <GlassButton href={apkUrl} download icon={<Download size={18} />}>
-                Download Atlas APK
-              </GlassButton>
-              <GlassButton href={repoUrl} variant="quiet" icon={<Github size={18} />}>
-                View GitHub
-              </GlassButton>
-            </div>
-            <div className="hero-metrics reveal-blur">
-              <span>Google login</span>
-              <span>Biometric lock</span>
-              <span>Atlas Buddy</span>
-              <span>Tap-to-log hydration</span>
+            <div className="opening-copy">
+              <div className="eyebrow reveal-blur">
+                <Sparkles size={15} />
+                Personal fitness operating system
+              </div>
+              <h1 className="hero-title reveal-blur">Atlas makes training feel inevitable.</h1>
+              <p className="hero-subtitle reveal-blur">
+                A premium Android fitness app for workout logging, 2,000+ exercises, goals, hydration, workout history, analytics, and Atlas Buddy.
+              </p>
+              <div className="hero-actions reveal-blur">
+                <GlassButton href={apkUrl} download icon={<Download size={18} />}>
+                  Download Atlas APK
+                </GlassButton>
+                <GlassButton href={repoUrl} variant="quiet" icon={<Github size={18} />}>
+                  View GitHub
+                </GlassButton>
+              </div>
+              <div className="hero-metrics reveal-blur">
+                <span>Google login</span>
+                <span>Biometric lock</span>
+                <span>Atlas Buddy</span>
+                <span>Tap-to-log hydration</span>
+              </div>
+              <a href="#story" className="scroll-cue reveal-blur">Explore Atlas</a>
             </div>
           </div>
         </section>

@@ -194,7 +194,7 @@ export function PhoneStory() {
   );
 
   return (
-    <section className="phone-story" aria-label="Interactive Atlas product story">
+    <section id="story" className="phone-story" aria-label="Interactive Atlas product story">
       <div className="story-ambient" aria-hidden="true" />
       <div className="story-grid">
         <div className="story-copy">

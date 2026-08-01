@@ -75,17 +75,6 @@ export function AtlasExperience({ children }: { children: React.ReactNode }) {
         );
       });
 
-      gsap.to('.screen-rail', {
-        xPercent: -28,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: '.experience-section',
-          start: 'top 20%',
-          end: 'bottom top',
-          scrub: 1,
-        },
-      });
-
       gsap.utils.toArray<HTMLElement>('[data-count]').forEach((node) => {
         const original = node.textContent ?? '';
         const target = Number(node.dataset.count ?? '0');
