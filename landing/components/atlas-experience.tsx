@@ -27,37 +27,18 @@ export function AtlasExperience({ children }: { children: React.ReactNode }) {
     lenis.on('scroll', ScrollTrigger.update);
 
     const context = gsap.context(() => {
-      gsap.fromTo(
+      gsap.from(
         '.reveal-blur',
-        { opacity: 0, y: 42, filter: 'blur(18px)' },
         {
-          opacity: 1,
-          y: 0,
-          filter: 'blur(0px)',
+          opacity: 0,
+          y: 42,
+          filter: 'blur(18px)',
+          immediateRender: false,
           duration: 1,
           ease: 'power3.out',
           stagger: 0.08,
         },
       );
-
-      gsap.to('.orbit-card-a', {
-        y: -64,
-        x: 28,
-        rotate: -8,
-        scrollTrigger: { trigger: '.hero-shell', start: 'top top', end: 'bottom top', scrub: 1 },
-      });
-      gsap.to('.orbit-card-b', {
-        y: 52,
-        x: -34,
-        rotate: 6,
-        scrollTrigger: { trigger: '.hero-shell', start: 'top top', end: 'bottom top', scrub: 1 },
-      });
-      gsap.to('.orbit-card-c', {
-        y: -34,
-        x: -24,
-        rotate: 4,
-        scrollTrigger: { trigger: '.hero-shell', start: 'top top', end: 'bottom top', scrub: 1 },
-      });
 
       gsap.utils.toArray<HTMLElement>('.depth-card').forEach((card) => {
         gsap.fromTo(
