@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -80,17 +81,7 @@ class _AgentOrb extends StatelessWidget {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
-                  gradient: const RadialGradient(
-                    center: Alignment.topLeft,
-                    radius: 1.18,
-                    colors: [
-                      Colors.white,
-                      AtlasColors.success,
-                      AtlasColors.accent,
-                      AtlasColors.accentDeep,
-                    ],
-                    stops: [0, 0.18, 0.62, 1],
-                  ),
+                  gradient: _buddyGradient,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.54),
@@ -108,28 +99,7 @@ class _AgentOrb extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.fitness_center_rounded,
-                      color: Colors.white.withValues(alpha: 0.96),
-                      size: 26,
-                    ),
-                    Positioned(
-                      right: 11,
-                      top: 10,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: const _PlateBuddyFace(size: 40),
               ),
             ),
           ),
@@ -247,6 +217,10 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface =
+        isDark
+            ? const Color(0xF211141C)
+            : AtlasColors.surfaceWarm.withValues(alpha: 0.94);
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Align(
@@ -261,15 +235,23 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                 minHeight: MediaQuery.sizeOf(context).height * 0.58,
               ),
               decoration: BoxDecoration(
-                color:
-                    isDark
-                        ? const Color(0xEE131620)
-                        : Colors.white.withValues(alpha: 0.9),
+                color: surface,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(34),
                 ),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.62),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors:
+                      isDark
+                          ? [const Color(0xF2141721), const Color(0xF20B0D13)]
+                          : [
+                            Colors.white.withValues(alpha: 0.98),
+                            AtlasColors.cream.withValues(alpha: 0.9),
+                          ],
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -297,34 +279,25 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                       child: Row(
                         children: [
                           Container(
-                            width: 52,
-                            height: 52,
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
-                              gradient: const RadialGradient(
-                                center: Alignment.topLeft,
-                                colors: [
-                                  Colors.white,
-                                  AtlasColors.success,
-                                  AtlasColors.accent,
-                                  AtlasColors.accentDeep,
-                                ],
-                                stops: [0, 0.2, 0.68, 1],
+                              gradient: _buddyGradient,
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.58),
                               ),
-                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
                                   color: AtlasColors.accent.withValues(
-                                    alpha: 0.22,
+                                    alpha: 0.24,
                                   ),
-                                  blurRadius: 20,
+                                  blurRadius: 22,
                                   offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.fitness_center_rounded,
-                              color: Colors.white,
-                            ),
+                            child: const _PlateBuddyFace(size: 43),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -358,10 +331,17 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                             onPressed:
                                 _sending ? null : () => _send(suggestion),
                             label: Text(suggestion),
-                            avatar: const Icon(
-                              Icons.fitness_center_rounded,
-                              size: 16,
+                            side: BorderSide(
+                              color:
+                                  isDark
+                                      ? Colors.white.withValues(alpha: 0.1)
+                                      : AtlasColors.hairline,
                             ),
+                            backgroundColor:
+                                isDark
+                                    ? Colors.white.withValues(alpha: 0.06)
+                                    : Colors.white.withValues(alpha: 0.7),
+                            avatar: const Icon(Icons.bolt_rounded, size: 16),
                           );
                         },
                       ),
@@ -410,6 +390,7 @@ class _AgentBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AtlasAgentRole.user;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedContainer(
@@ -422,9 +403,17 @@ class _AgentBubble extends StatelessWidget {
           color:
               isUser
                   ? AtlasColors.accent
-                  : Theme.of(
-                    context,
-                  ).colorScheme.surface.withValues(alpha: 0.9),
+                  : isDark
+                  ? Colors.white.withValues(alpha: 0.07)
+                  : Colors.white.withValues(alpha: 0.86),
+          gradient:
+              isUser
+                  ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AtlasColors.accent, AtlasColors.accentDeep],
+                  )
+                  : null,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -435,6 +424,8 @@ class _AgentBubble extends StatelessWidget {
             color:
                 isUser
                     ? Colors.white.withValues(alpha: 0.18)
+                    : isDark
+                    ? Colors.white.withValues(alpha: 0.08)
                     : AtlasColors.hairline,
           ),
           boxShadow: [
@@ -508,6 +499,115 @@ class _AgentInput extends StatelessWidget {
       ],
     );
   }
+}
+
+const _buddyGradient = RadialGradient(
+  center: Alignment.topLeft,
+  radius: 1.2,
+  colors: [
+    Colors.white,
+    AtlasColors.success,
+    AtlasColors.accent,
+    AtlasColors.accentDeep,
+  ],
+  stops: [0, 0.2, 0.66, 1],
+);
+
+class _PlateBuddyFace extends StatelessWidget {
+  const _PlateBuddyFace({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: _PlateBuddyPainter(),
+      ),
+    );
+  }
+}
+
+class _PlateBuddyPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2;
+    final platePaint =
+        Paint()
+          ..shader = const RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.1,
+            colors: [Color(0xFFFFFFFF), Color(0xFFE9F0FF), Color(0xFF111827)],
+            stops: [0, 0.24, 1],
+          ).createShader(Offset.zero & size);
+    canvas.drawCircle(center, radius, platePaint);
+
+    final rim =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = radius * 0.16
+          ..color = Colors.white.withValues(alpha: 0.72);
+    canvas.drawCircle(center, radius * 0.82, rim);
+
+    final hole =
+        Paint()..color = const Color(0xFF111827).withValues(alpha: 0.16);
+    canvas.drawCircle(center, radius * 0.2, hole);
+
+    final gripPaint =
+        Paint()
+          ..color = const Color(0xFF111827).withValues(alpha: 0.34)
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = radius * 0.18;
+    for (final angle in const [-1.55, 0.55, 2.65]) {
+      final start =
+          center +
+          Offset(
+            radius * 0.48 * math.cos(angle),
+            radius * 0.48 * math.sin(angle),
+          );
+      final end =
+          center +
+          Offset(
+            radius * 0.7 * math.cos(angle),
+            radius * 0.7 * math.sin(angle),
+          );
+      canvas.drawLine(start, end, gripPaint);
+    }
+
+    final eyePaint = Paint()..color = const Color(0xFF111827);
+    canvas.drawCircle(
+      Offset(size.width * 0.39, size.height * 0.43),
+      radius * 0.08,
+      eyePaint,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.61, size.height * 0.43),
+      radius * 0.08,
+      eyePaint,
+    );
+
+    final mouth =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = radius * 0.075
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0xFF111827);
+    final mouthPath =
+        Path()
+          ..moveTo(size.width * 0.4, size.height * 0.58)
+          ..quadraticBezierTo(
+            size.width * 0.5,
+            size.height * 0.68,
+            size.width * 0.62,
+            size.height * 0.58,
+          );
+    canvas.drawPath(mouthPath, mouth);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ThinkingIndicator extends StatelessWidget {

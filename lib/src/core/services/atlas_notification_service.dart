@@ -8,6 +8,8 @@ class AtlasNotificationService {
   AtlasNotificationService(this._plugin);
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final ValueNotifier<int> hydrationTapRequests = ValueNotifier(0);
+  static const hydrationPayload = 'atlas_hydration_log';
 
   Future<void> initialize() async {
     tz.initializeTimeZones();
@@ -19,7 +21,22 @@ class AtlasNotificationService {
     }
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const settings = InitializationSettings(android: android);
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    final payload = launchDetails?.notificationResponse?.payload;
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        payload == hydrationPayload) {
+      hydrationTapRequests.value++;
+    }
+  }
+
+  void _handleNotificationResponse(NotificationResponse response) {
+    if (response.payload == hydrationPayload) {
+      hydrationTapRequests.value++;
+    }
   }
 
   Future<bool> requestPermission() async {
@@ -77,10 +94,11 @@ class AtlasNotificationService {
     ) {
       await _scheduleDailyNotification(
         'Atlas hydration',
-        'Time for a calm water check-in.',
+        'Tap to log 1 L and keep the day locked in.',
         _nextDailyOccurrence(hour: slot.hour, minute: slot.minute),
         id: notificationId++,
         details: _hydrationDetails,
+        payload: hydrationPayload,
       );
     }
     debugPrint(
@@ -88,10 +106,11 @@ class AtlasNotificationService {
     );
     await _scheduleOneShotNotification(
       'Atlas hydration check',
-      'This confirms scheduled hydration reminders are working.',
+      'Tap this to log 1 L and confirm reminders are working.',
       tz.TZDateTime.now(tz.local).add(const Duration(seconds: 15)),
       id: 991,
       details: _hydrationDetails,
+      payload: hydrationPayload,
     );
   }
 
@@ -162,8 +181,9 @@ class AtlasNotificationService {
     await _plugin.show(
       990,
       'Atlas hydration test',
-      'Water reminders are able to appear on this phone.',
+      'Tap to log 1 L. Water reminders can appear on this phone.',
       _hydrationDetails,
+      payload: hydrationPayload,
     );
   }
 
@@ -209,6 +229,7 @@ class AtlasNotificationService {
     tz.TZDateTime scheduledAt, {
     required int id,
     required NotificationDetails details,
+    String? payload,
   }) async {
     try {
       await _plugin.zonedSchedule(
@@ -219,6 +240,7 @@ class AtlasNotificationService {
         details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
+        payload: payload,
       );
     } catch (_) {
       await _plugin.zonedSchedule(
@@ -229,6 +251,7 @@ class AtlasNotificationService {
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
+        payload: payload,
       );
     }
   }
@@ -239,6 +262,7 @@ class AtlasNotificationService {
     tz.TZDateTime scheduledAt, {
     required int id,
     required NotificationDetails details,
+    String? payload,
   }) async {
     try {
       await _plugin.zonedSchedule(
@@ -248,6 +272,7 @@ class AtlasNotificationService {
         scheduledAt,
         details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
       );
     } catch (_) {
       await _plugin.zonedSchedule(
@@ -257,6 +282,7 @@ class AtlasNotificationService {
         scheduledAt,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: payload,
       );
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +62,8 @@ class AppDependencies {
   AtlasDataRepository? _atlasDataRepository;
   AtlasAgentService? _atlasAgentService;
   AtlasPreferences? _preferences;
+  int _handledHydrationTapCount = 0;
+  bool _listeningForHydrationTaps = false;
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
 
   Future<void> initializeLocalServices() async {
@@ -137,6 +141,33 @@ class AppDependencies {
     );
     _atlasDataRepository = AtlasDataRepository(client);
     _atlasAgentService = AtlasAgentService(client);
+    _startHydrationTapListener();
+  }
+
+  void _startHydrationTapListener() {
+    if (_listeningForHydrationTaps) return;
+    _listeningForHydrationTaps = true;
+    notificationService.hydrationTapRequests.addListener(
+      _handleHydrationNotificationTap,
+    );
+    _handleHydrationNotificationTap();
+  }
+
+  void _handleHydrationNotificationTap() {
+    final current = notificationService.hydrationTapRequests.value;
+    if (current <= _handledHydrationTapCount) return;
+    _handledHydrationTapCount = current;
+    final repository = _atlasDataRepository;
+    if (repository == null) return;
+    unawaited(
+      repository.saveHydration().catchError((Object error, StackTrace stack) {
+        logger.warning(
+          'Hydration notification tap could not be saved',
+          error: error,
+          stackTrace: stack,
+        );
+      }),
+    );
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
