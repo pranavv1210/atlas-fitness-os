@@ -263,23 +263,25 @@ class AtlasNotificationService {
 
   static const _hydrationDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'atlas_hydration_water_v2',
+      'atlas_hydration_default_v4',
       'Hydration reminders',
       channelDescription: 'Gentle hydration nudges from Atlas.',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound('atlas_water_drop'),
+      enableVibration: true,
     ),
   );
 
   static const _generalDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'atlas_daily_reminders',
+      'atlas_reminders_default_v2',
       'Atlas reminders',
       channelDescription: 'Workout and daily Atlas reminders.',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
     ),
   );
 }

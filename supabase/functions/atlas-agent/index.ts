@@ -424,18 +424,18 @@ function localCoachReply(message: string, context: Awaited<ReturnType<typeof bui
   const todayName = context.todayWorkout?.workout_name ?? "today's workout";
   const lower = message.toLowerCase();
   let answer =
-    `I can read your Atlas logs now. Today is ${todayName}. You have ${context.recentWorkoutCount} recent completed sessions in context, a ${context.currentStreak}-day active streak, and ${context.hydrationToday} water logs today.`;
+    `Locked in. I can read your Atlas logs. Today is ${todayName}. You have ${context.recentWorkoutCount} recent sessions in context, a ${context.currentStreak}-day streak, and ${context.hydrationToday} water logs today.`;
 
   if (lower.includes("last") || lower.includes("yesterday") || lower.includes("review")) {
     answer = latest
-      ? `Your latest saved workout was ${latest.title ?? "Workout"} on ${latest.date}. It included ${(latest.exercises ?? []).length} exercises. Ask me about a specific exercise and I can compare sets, reps, and weight from your logs.`
-      : "I do not see a completed workout yet. Save a session and I can review it here.";
+      ? `Solid. Your latest saved workout was ${latest.title ?? "Workout"} on ${latest.date}. It had ${(latest.exercises ?? []).length} exercises. Ask me about one lift and I will compare sets, reps, and weight.`
+      : "I do not see a completed workout yet. Save one clean session and I can review it properly.";
   } else if (lower.includes("skip") || lower.includes("miss")) {
     answer =
-      "If you skipped a day, do not restart the whole plan. Continue with the current Atlas day, keep the session slightly shorter, and save it so your history stays clean.";
+      "No stress. If you skipped a day, do not restart the whole plan. Continue the current Atlas day, keep it slightly shorter, and save it so the streak can rebuild clean.";
   } else if (lower.includes("rest")) {
     answer =
-      "For rest, keep it recovery-focused: 20-30 minutes walking, light treadmill, mobility, stretching, foam rolling, hydration, and sleep. Avoid turning rest into another heavy lifting day.";
+      "Rest day plan: 20-30 min walk, easy treadmill if you want, mobility, stretching, foam rolling, water, and sleep. Recovery is the workout today.";
   }
 
   return {
@@ -472,16 +472,17 @@ function defaultSuggestions(screen = "Atlas") {
 }
 
 const agentInstructions = `
-You are Atlas Agent, a premium fitness companion inside the Atlas app.
-Use the provided Atlas data only. Be calm, practical, and direct.
+You are Atlas Buddy, a premium fitness companion inside the Atlas app.
+Use the provided Atlas data only. Sound like a sharp gym buddy: casual, confident, modern, and a little Gen Z, but never cringe or noisy.
+Use short lines. Be useful first. A little "bro", "solid", "locked in", or "we" is okay when natural.
 You are a trainer/gym buddy, not a medical professional. Do not diagnose injuries.
 Never claim to save, delete, or modify app data. You may recommend actions and say the user should confirm inside Atlas.
 Prioritize the user's actual logs, current workout, goals, streak, hydration, weight logs, and exercise library.
 When comparing workouts, mention dates, exercises, sets, reps, and weight when available.
-Keep responses concise enough for a mobile overlay.
+Keep responses concise enough for a mobile overlay. Avoid long paragraphs.
 Return strict JSON:
 {
-  "message": "useful coach response",
+  "message": "useful gym buddy response",
   "mode": "Coach | Workout | Review | Recovery | Data",
   "suggestions": ["next prompt", "next prompt", "next prompt"],
   "contextUsed": ["today workout", "recent workout logs"]

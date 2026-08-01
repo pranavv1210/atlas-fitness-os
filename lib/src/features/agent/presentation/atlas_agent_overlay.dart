@@ -20,8 +20,8 @@ class AtlasAgentLauncher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      right: 22,
-      bottom: 104 + MediaQuery.paddingOf(context).bottom,
+      right: 24,
+      bottom: 88 + MediaQuery.paddingOf(context).bottom,
       child: _AgentOrb(
         onTap: () {
           HapticFeedback.mediumImpact();
@@ -30,7 +30,11 @@ class AtlasAgentLauncher extends StatelessWidget {
             isScrollControlled: true,
             useSafeArea: true,
             backgroundColor: Colors.transparent,
-            barrierColor: Colors.black.withValues(alpha: 0.24),
+            barrierColor: Colors.black.withValues(alpha: 0.32),
+            sheetAnimationStyle: AnimationStyle(
+              duration: const Duration(milliseconds: 340),
+              reverseDuration: const Duration(milliseconds: 240),
+            ),
             builder:
                 (context) =>
                     AtlasAgentSheet(service: service, initialScreen: screen),
@@ -50,7 +54,7 @@ class _AgentOrb extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Open Atlas Agent',
+      label: 'Open Atlas Gym Buddy',
       child: GestureDetector(
         onTap: onTap,
         child: TweenAnimationBuilder<double>(
@@ -58,38 +62,73 @@ class _AgentOrb extends StatelessWidget {
           duration: const Duration(milliseconds: 1200),
           curve: Curves.easeInOut,
           builder: (context, value, child) {
-            final lift = 3 * (1 - (value - 0.5).abs() * 2);
-            return Transform.translate(offset: Offset(0, -lift), child: child);
+            final lift = 2 * (1 - (value - 0.5).abs() * 2);
+            return Transform.translate(
+              offset: Offset(0, -lift),
+              child: AnimatedScale(
+                scale: 1,
+                duration: const Duration(milliseconds: 220),
+                child: child,
+              ),
+            );
           },
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
-                width: 58,
-                height: 58,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AtlasColors.success, AtlasColors.accent],
+                  gradient: const RadialGradient(
+                    center: Alignment.topLeft,
+                    radius: 1.18,
+                    colors: [
+                      Colors.white,
+                      AtlasColors.success,
+                      AtlasColors.accent,
+                      AtlasColors.accentDeep,
+                    ],
+                    stops: [0, 0.18, 0.62, 1],
                   ),
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.54),
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: AtlasColors.accent.withValues(alpha: 0.32),
-                      blurRadius: 28,
-                      offset: const Offset(0, 14),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                    BoxShadow(
+                      color: AtlasColors.success.withValues(alpha: 0.22),
+                      blurRadius: 32,
+                      offset: const Offset(-6, -6),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 26,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.fitness_center_rounded,
+                      color: Colors.white.withValues(alpha: 0.96),
+                      size: 26,
+                    ),
+                    Positioned(
+                      right: 11,
+                      top: 10,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -121,14 +160,14 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
     const AtlasAgentMessage(
       role: AtlasAgentRole.assistant,
       content:
-          'I am Atlas Agent. I can read your workouts, goals, history, weight, hydration, and exercise library to help you train smarter.',
+          'Yo, I am your Atlas gym buddy. I can read your workouts, goals, history, weight, hydration, and exercises. Ask me what to train, what improved, or what to fix.',
     ),
   ];
   List<String> _suggestions = const [
-    'What should I train today?',
-    'Review my last workout',
-    'I skipped a day, what now?',
-    'Suggest a rest day plan',
+    'What are we hitting today?',
+    'Rate my last workout',
+    'I skipped yesterday',
+    'Give me a rest day plan',
   ];
   bool _sending = false;
 
@@ -175,7 +214,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
       showAtlasSnack(
         context,
         message:
-            'Atlas Agent is not connected yet. Deploy the atlas-agent function and set OPENAI_API_KEY.',
+            'Atlas Buddy could not reach the coach backend. Check Supabase function logs.',
         icon: Icons.cloud_off_rounded,
       );
       setState(() {
@@ -183,7 +222,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
           const AtlasAgentMessage(
             role: AtlasAgentRole.assistant,
             content:
-                'I could not reach the Atlas Agent backend. The app UI is ready, but the Supabase Edge Function needs to be deployed with OPENAI_API_KEY.',
+                'Backend is not answering right now. Your app is fine, but the coach function needs a clean provider response.',
           ),
         );
       });
@@ -219,6 +258,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
             child: Container(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+                minHeight: MediaQuery.sizeOf(context).height * 0.58,
               ),
               decoration: BoxDecoration(
                 color:
@@ -231,6 +271,13 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                 border: Border.all(
                   color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.62),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 34,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
               ),
               child: SafeArea(
                 top: false,
@@ -250,19 +297,32 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                       child: Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 52,
+                            height: 52,
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
+                              gradient: const RadialGradient(
+                                center: Alignment.topLeft,
                                 colors: [
+                                  Colors.white,
                                   AtlasColors.success,
                                   AtlasColors.accent,
+                                  AtlasColors.accentDeep,
                                 ],
+                                stops: [0, 0.2, 0.68, 1],
                               ),
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AtlasColors.accent.withValues(
+                                    alpha: 0.22,
+                                  ),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
                             child: const Icon(
-                              Icons.auto_awesome_rounded,
+                              Icons.fitness_center_rounded,
                               color: Colors.white,
                             ),
                           ),
@@ -272,11 +332,11 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Atlas Agent',
+                                  'Atlas Buddy',
                                   style: Theme.of(context).textTheme.titleLarge,
                                 ),
                                 Text(
-                                  'Personal trainer, gym buddy, and log analyst',
+                                  'Trainer energy. Log brain. Zero fluff.',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
@@ -298,7 +358,10 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                             onPressed:
                                 _sending ? null : () => _send(suggestion),
                             label: Text(suggestion),
-                            avatar: const Icon(Icons.bolt_rounded, size: 17),
+                            avatar: const Icon(
+                              Icons.fitness_center_rounded,
+                              size: 16,
+                            ),
                           );
                         },
                       ),
@@ -419,8 +482,8 @@ class _AgentInput extends StatelessWidget {
             textInputAction: TextInputAction.send,
             onSubmitted: sending ? null : onSend,
             decoration: const InputDecoration(
-              hintText: 'Ask Atlas about training, recovery, or progress',
-              prefixIcon: Icon(Icons.search_rounded),
+              hintText: 'Ask your gym buddy...',
+              prefixIcon: Icon(Icons.fitness_center_rounded),
             ),
           ),
         ),
