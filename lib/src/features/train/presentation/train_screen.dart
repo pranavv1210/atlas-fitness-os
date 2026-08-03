@@ -437,7 +437,7 @@ class _WorkoutHero extends StatelessWidget {
             savedToday
                 ? 'Saved, locked, and available in Workout History.'
                 : isFirst
-                ? 'Save this session to anchor Atlas. Tomorrow continues with Back + Biceps, then the 5-day cycle repeats.'
+                ? 'Save this session to start Atlas. The next planned day unlocks only after you complete this workout.'
                 : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),

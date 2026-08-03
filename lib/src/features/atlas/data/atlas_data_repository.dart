@@ -19,7 +19,15 @@ class AtlasDataRepository {
     final completedToday = await _hasCompletedWorkoutOn(DateTime.now());
     final totalWorkouts = await _countAllWorkouts();
     final hasStarted = totalWorkouts > 0;
-    final todayWorkout = hasStarted ? await _loadTodayWorkout() : null;
+    final todayWorkout =
+        hasStarted
+            ? await _loadWorkoutDay(
+              _cycleDayForCompletedCount(
+                totalWorkouts,
+                completedToday: completedToday,
+              ),
+            )
+            : null;
     final starterWorkout = hasStarted ? null : await _loadWorkoutDay(1);
     final library = await _loadExerciseLibrary();
     const templateExercises = <AtlasWorkoutExercise>[];
@@ -68,13 +76,6 @@ class AtlasDataRepository {
     final now = DateTime.now();
     if (await _hasCompletedWorkoutOn(now)) {
       throw const AtlasWorkoutAlreadySavedException();
-    }
-    final isFirstWorkout = await _countAllWorkouts() == 0;
-    if (isFirstWorkout) {
-      await _client.rpc(
-        'advance_workout_cycle',
-        params: {'target_user_id': _userId, 'new_anchor_date': _date(now)},
-      );
     }
 
     String? sessionId;
@@ -336,22 +337,6 @@ class AtlasDataRepository {
     return volumes;
   }
 
-  Future<AtlasWorkoutDay?> _loadTodayWorkout() async {
-    final rows = await _client.rpc('get_today_workout', params: {});
-    if (rows is List && rows.isNotEmpty) {
-      final row = rows.first as Map<String, dynamic>;
-      return AtlasWorkoutDay(
-        dayNumber: row['cycle_day'] as int? ?? 1,
-        name: row['workout_name'] as String? ?? 'Workout',
-        focus: row['focus'] as String? ?? 'Train with intent',
-        isRestDay: row['is_rest_day'] as bool? ?? false,
-        workoutDayId: row['workout_day_id'] as String?,
-        templateId: row['template_id'] as String?,
-      );
-    }
-    return null;
-  }
-
   Future<AtlasWorkoutDay> _loadWorkoutDay(int dayNumber) async {
     try {
       final rows = await _client
@@ -580,6 +565,18 @@ String _date(DateTime value) {
 DateTime _startOfWeek(DateTime date) {
   final local = DateTime(date.year, date.month, date.day);
   return local.subtract(Duration(days: local.weekday - 1));
+}
+
+int _cycleDayForCompletedCount(
+  int completedWorkouts, {
+  required bool completedToday,
+}) {
+  if (completedWorkouts <= 0) {
+    return 1;
+  }
+  final completedBeforeToday =
+      completedToday ? completedWorkouts - 1 : completedWorkouts;
+  return (completedBeforeToday % fallbackCycle.length) + 1;
 }
 
 const fallbackCycle = [
