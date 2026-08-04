@@ -368,10 +368,10 @@ class _MetricsGrid extends StatelessWidget {
           value: '${snapshot.currentStreak}',
           caption:
               snapshot.currentStreak == 1
-                  ? 'day active'
+                  ? 'workout active'
                   : snapshot.currentStreak == 0
                   ? 'start today'
-                  : 'days active',
+                  : 'workouts active',
           icon: Icons.local_fire_department_rounded,
           color: AtlasColors.success,
         ),

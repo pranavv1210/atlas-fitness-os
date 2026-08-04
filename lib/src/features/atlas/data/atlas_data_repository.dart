@@ -439,34 +439,9 @@ class AtlasDataRepository {
   }
 
   Future<int> _currentWorkoutStreak() async {
-    final rows = await _client
-        .from('workout_sessions')
-        .select('session_date')
-        .eq('user_id', _userId)
-        .eq('status', 'completed')
-        .order('session_date', ascending: false)
-        .limit(90);
-    final dates = <String>{};
-    for (final row in rows) {
-      final value = row['session_date'] as String?;
-      if (value != null && value.isNotEmpty) {
-        dates.add(value);
-      }
-    }
-    if (dates.isEmpty) return 0;
-
-    final today = DateTime.now();
-    var cursor = DateTime(today.year, today.month, today.day);
-    if (!dates.contains(_date(cursor))) {
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-
-    var streak = 0;
-    while (dates.contains(_date(cursor))) {
-      streak++;
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-    return streak;
+    // Atlas keeps the current workout pending across missed calendar days.
+    // The streak must follow completed sessions, not strict daily attendance.
+    return _countAllWorkouts();
   }
 
   Future<bool> _hasCompletedWorkoutOn(DateTime date) async {
