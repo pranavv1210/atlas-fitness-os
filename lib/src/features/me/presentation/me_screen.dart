@@ -298,7 +298,6 @@ class _PreferenceCardState extends State<_PreferenceCard> {
         hydrationIntervalMinutes:
             dependencies.preferences.hydrationIntervalMinutes,
       );
-      await dependencies.notificationService.showHydrationTestNotification();
     }
     final hydrationReminderCount =
         granted
@@ -393,7 +392,6 @@ class _PreferenceCardState extends State<_PreferenceCard> {
       await dependencies.notificationService.scheduleAtlasReminders(
         hydrationIntervalMinutes: selected,
       );
-      await dependencies.notificationService.showHydrationTestNotification();
     }
     final hydrationReminderCount =
         notificationsEnabled

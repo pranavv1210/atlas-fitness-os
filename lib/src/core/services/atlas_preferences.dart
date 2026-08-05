@@ -13,6 +13,9 @@ class AtlasPreferences {
   static const _themeModeKey = 'atlas.theme_mode';
   static const _customWorkoutPlanKey = 'atlas.custom_workout_plan';
   static const _workoutDraftKey = 'atlas.workout_draft';
+  static const _dashboardSnapshotKey = 'atlas.dashboard_snapshot';
+  static const _agentOrbXKey = 'atlas.agent_orb_x';
+  static const _agentOrbYKey = 'atlas.agent_orb_y';
 
   final SharedPreferences _prefs;
 
@@ -106,5 +109,36 @@ class AtlasPreferences {
     final draft = workoutDraftFor(userId);
     if (draft == null) return;
     await _prefs.remove(_workoutDraftKey);
+  }
+
+  Map<String, dynamic>? dashboardSnapshotFor(String userId) {
+    final raw = _prefs.getString(_dashboardSnapshotKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map || decoded['userId'] != userId) return null;
+      return {
+        for (final entry in decoded.entries)
+          if (entry.key is String) entry.key as String: entry.value,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setDashboardSnapshot(String userId, Map<String, dynamic> value) {
+    return _prefs.setString(
+      _dashboardSnapshotKey,
+      jsonEncode({'userId': userId, ...value}),
+    );
+  }
+
+  double? get agentOrbX => _prefs.getDouble(_agentOrbXKey);
+
+  double? get agentOrbY => _prefs.getDouble(_agentOrbYKey);
+
+  Future<void> setAgentOrbPosition(double x, double y) async {
+    await _prefs.setDouble(_agentOrbXKey, x.clamp(0, 1));
+    await _prefs.setDouble(_agentOrbYKey, y.clamp(0, 1));
   }
 }

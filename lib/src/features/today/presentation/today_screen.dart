@@ -54,7 +54,10 @@ class _TodayScreenState extends State<TodayScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? emptyAtlasSnapshot();
+        final data =
+            snapshot.data ??
+            _repository?.cachedSnapshot ??
+            emptyAtlasSnapshot();
         return AtlasAppFrame(
           subtitle: '',
           title: '${_greeting(DateTime.now())} $firstName',
@@ -388,7 +391,7 @@ class _MetricsGrid extends StatelessWidget {
         AtlasStatCard(
           label: 'Hydration',
           value: '${snapshot.hydrationToday}',
-          caption: 'water logs today',
+          caption: 'sips today',
           icon: Icons.water_drop_outlined,
           color: AtlasColors.warning,
         ),
@@ -495,13 +498,29 @@ class _QuickActionsCard extends StatelessWidget {
       (
         Icons.monitor_weight_outlined,
         'Weight',
+        'Body log',
+        AtlasColors.accent,
         () => _showWeightSheet(context),
       ),
-      (Icons.water_drop_outlined, 'Water', () => _saveWater(context)),
-      (Icons.directions_run_rounded, 'Cardio', () => _showCardioSheet(context)),
+      (
+        Icons.water_drop_outlined,
+        'Water',
+        'Quick sip',
+        AtlasColors.warning,
+        () => _saveWater(context),
+      ),
+      (
+        Icons.directions_run_rounded,
+        'Cardio',
+        'Move today',
+        AtlasColors.success,
+        () => _showCardioSheet(context),
+      ),
       (
         Icons.sports_basketball_outlined,
         'Sport',
+        'Play log',
+        AtlasColors.lilac,
         () => _showSportSheet(context),
       ),
     ];
@@ -513,30 +532,64 @@ class _QuickActionsCard extends StatelessWidget {
         children: [
           const SectionTitle('Quick Actions'),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.35,
             children: [
               for (final action in actions)
                 AtlasPressable(
-                  onTap: action.$3,
+                  onTap: action.$5,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AtlasColors.hairline),
+                      color: action.$4.withValues(alpha: 0.07),
+                      border: Border.all(
+                        color: action.$4.withValues(alpha: 0.14),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: action.$4.withValues(alpha: 0.08),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(action.$1, size: 19, color: AtlasColors.inkMuted),
-                        const SizedBox(width: 9),
-                        Text(
-                          action.$2,
-                          style: Theme.of(context).textTheme.labelLarge,
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: action.$4.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(action.$1, size: 18, color: action.$4),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                action.$2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelLarge,
+                              ),
+                              Text(
+                                action.$3,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -564,7 +617,7 @@ class _QuickActionsCard extends StatelessWidget {
     await repository?.saveHydration();
     onSaved();
     if (context.mounted) {
-      showAtlasSnack(context, message: 'Water logged.');
+      showAtlasSnack(context, message: 'Water sip logged.');
     }
   }
 

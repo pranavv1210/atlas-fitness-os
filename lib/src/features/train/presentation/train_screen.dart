@@ -245,7 +245,10 @@ class _TrainScreenState extends State<TrainScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? emptyAtlasSnapshot();
+        final data =
+            snapshot.data ??
+            _repository?.cachedSnapshot ??
+            emptyAtlasSnapshot();
         final workout = data.todayWorkout ?? data.starterWorkout;
         return AtlasAppFrame(
           subtitle:

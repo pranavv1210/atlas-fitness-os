@@ -102,6 +102,7 @@ class _AtlasShellState extends State<AtlasShell> {
             if (dependencies != null)
               AtlasAgentLauncher(
                 service: dependencies.atlasAgentService,
+                preferences: dependencies.preferences,
                 screen: destinations[_selectedIndex].label,
               ),
           ],

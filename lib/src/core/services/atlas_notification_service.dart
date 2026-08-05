@@ -80,6 +80,7 @@ class AtlasNotificationService {
   Future<void> scheduleHydrationNudges({required int intervalMinutes}) async {
     await cancelHydrationNudge();
     await _plugin.cancel(991);
+    await _plugin.cancel(990);
     final safeInterval = intervalMinutes.clamp(
       _minHydrationIntervalMinutes,
       _maxHydrationIntervalMinutes,
@@ -94,7 +95,7 @@ class AtlasNotificationService {
     ) {
       await _scheduleDailyNotification(
         'Atlas hydration',
-        'Tap to log 1 L and keep the day locked in.',
+        'Tap to log a quick water sip and keep hydration visible.',
         _nextDailyOccurrence(hour: slot.hour, minute: slot.minute),
         id: notificationId++,
         details: _hydrationDetails,
@@ -103,14 +104,6 @@ class AtlasNotificationService {
     }
     debugPrint(
       'Atlas notifications: scheduled ${notificationId - _hydrationNotificationBaseId} hydration reminders every $safeInterval minutes.',
-    );
-    await _scheduleOneShotNotification(
-      'Atlas hydration check',
-      'Tap this to log 1 L and confirm reminders are working.',
-      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 15)),
-      id: 991,
-      details: _hydrationDetails,
-      payload: hydrationPayload,
     );
   }
 
@@ -177,16 +170,6 @@ class AtlasNotificationService {
         .length;
   }
 
-  Future<void> showHydrationTestNotification() async {
-    await _plugin.show(
-      990,
-      'Atlas hydration test',
-      'Tap to log 1 L. Water reminders can appear on this phone.',
-      _hydrationDetails,
-      payload: hydrationPayload,
-    );
-  }
-
   Future<void> scheduleMissedWorkoutCheck() async {
     await _scheduleDailyNotification(
       'Atlas workout check',
@@ -251,37 +234,6 @@ class AtlasNotificationService {
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
-        payload: payload,
-      );
-    }
-  }
-
-  Future<void> _scheduleOneShotNotification(
-    String title,
-    String body,
-    tz.TZDateTime scheduledAt, {
-    required int id,
-    required NotificationDetails details,
-    String? payload,
-  }) async {
-    try {
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledAt,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        payload: payload,
-      );
-    } catch (_) {
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledAt,
-        details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         payload: payload,
       );
     }

@@ -5,102 +5,139 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/atlas_colors.dart';
+import '../../../core/services/atlas_preferences.dart';
 import '../../../core/widgets/atlas_feedback.dart';
 import '../data/atlas_agent_service.dart';
 
-class AtlasAgentLauncher extends StatelessWidget {
+class AtlasAgentLauncher extends StatefulWidget {
   const AtlasAgentLauncher({
     required this.service,
+    required this.preferences,
     required this.screen,
     super.key,
   });
 
   final AtlasAgentService service;
+  final AtlasPreferences preferences;
   final String screen;
 
   @override
+  State<AtlasAgentLauncher> createState() => _AtlasAgentLauncherState();
+}
+
+class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
+  static const _orbSize = 68.0;
+  Offset? _position;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _position ??= _initialPosition(MediaQuery.sizeOf(context));
+  }
+
+  Offset _initialPosition(Size size) {
+    final savedX = widget.preferences.agentOrbX;
+    final savedY = widget.preferences.agentOrbY;
+    if (savedX != null && savedY != null) {
+      return Offset(savedX * size.width, savedY * size.height);
+    }
+    return Offset(size.width - _orbSize - 18, size.height - _orbSize - 120);
+  }
+
+  Offset _clampPosition(Offset position, Size size) {
+    final padding = MediaQuery.paddingOf(context);
+    final minY = padding.top + 16;
+    final maxY = size.height - padding.bottom - _orbSize - 92;
+    return Offset(
+      position.dx.clamp(12, size.width - _orbSize - 12),
+      position.dy.clamp(minY, maxY),
+    );
+  }
+
+  Future<void> _savePosition(Size size) async {
+    final position = _position;
+    if (position == null) return;
+    await widget.preferences.setAgentOrbPosition(
+      position.dx / size.width,
+      position.dy / size.height,
+    );
+  }
+
+  void _openSheet() {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.32),
+      sheetAnimationStyle: AnimationStyle(
+        duration: const Duration(milliseconds: 340),
+        reverseDuration: const Duration(milliseconds: 240),
+      ),
+      builder:
+          (context) => AtlasAgentSheet(
+            service: widget.service,
+            initialScreen: widget.screen,
+          ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final position = _clampPosition(_position ?? _initialPosition(size), size);
+    _position = position;
     return Positioned(
-      right: 24,
-      bottom: 88 + MediaQuery.paddingOf(context).bottom,
-      child: _AgentOrb(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            backgroundColor: Colors.transparent,
-            barrierColor: Colors.black.withValues(alpha: 0.32),
-            sheetAnimationStyle: AnimationStyle(
-              duration: const Duration(milliseconds: 340),
-              reverseDuration: const Duration(milliseconds: 240),
-            ),
-            builder:
-                (context) =>
-                    AtlasAgentSheet(service: service, initialScreen: screen),
-          );
-        },
+      left: position.dx,
+      top: position.dy,
+      child: GestureDetector(
+        onTap: _openSheet,
+        onPanUpdate:
+            (details) => setState(() {
+              _position = _clampPosition(position + details.delta, size);
+            }),
+        onPanEnd: (_) => _savePosition(size),
+        child: const _AgentOrb(),
       ),
     );
   }
 }
 
 class _AgentOrb extends StatelessWidget {
-  const _AgentOrb({required this.onTap});
-
-  final VoidCallback onTap;
+  const _AgentOrb();
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
       label: 'Open Atlas Gym Buddy',
-      child: GestureDetector(
-        onTap: onTap,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 1200),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            final lift = 2 * (1 - (value - 0.5).abs() * 2);
-            return Transform.translate(
-              offset: Offset(0, -lift),
-              child: AnimatedScale(
-                scale: 1,
-                duration: const Duration(milliseconds: 220),
-                child: child,
-              ),
-            );
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  gradient: _buddyGradient,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.54),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 1200),
+        curve: Curves.easeInOut,
+        builder: (context, value, child) {
+          final lift = 2 * (1 - (value - 0.5).abs() * 2);
+          return Transform.translate(offset: Offset(0, -lift), child: child);
+        },
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              width: _AtlasAgentLauncherState._orbSize,
+              height: _AtlasAgentLauncherState._orbSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AtlasColors.accent.withValues(alpha: 0.32),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                    BoxShadow(
-                      color: AtlasColors.success.withValues(alpha: 0.22),
-                      blurRadius: 32,
-                      offset: const Offset(-6, -6),
-                    ),
-                  ],
-                ),
-                child: const _PlateBuddyFace(size: 40),
+                ],
               ),
+              child: const _PlateBuddyFace(size: 62),
             ),
           ),
         ),
@@ -282,22 +319,25 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
-                              gradient: _buddyGradient,
-                              borderRadius: BorderRadius.circular(22),
+                              color:
+                                  isDark
+                                      ? Colors.white.withValues(alpha: 0.05)
+                                      : Colors.black.withValues(alpha: 0.03),
+                              shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.58),
+                                color: Colors.white.withValues(
+                                  alpha: isDark ? 0.12 : 0.52,
+                                ),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AtlasColors.accent.withValues(
-                                    alpha: 0.24,
-                                  ),
-                                  blurRadius: 22,
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                  blurRadius: 18,
                                   offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
-                            child: const _PlateBuddyFace(size: 43),
+                            child: const _PlateBuddyFace(size: 50),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -501,18 +541,6 @@ class _AgentInput extends StatelessWidget {
   }
 }
 
-const _buddyGradient = RadialGradient(
-  center: Alignment.topLeft,
-  radius: 1.2,
-  colors: [
-    Colors.white,
-    AtlasColors.success,
-    AtlasColors.accent,
-    AtlasColors.accentDeep,
-  ],
-  stops: [0, 0.2, 0.66, 1],
-);
-
 class _PlateBuddyFace extends StatelessWidget {
   const _PlateBuddyFace({required this.size});
 
@@ -536,30 +564,44 @@ class _PlateBuddyPainter extends CustomPainter {
     final radius = size.shortestSide / 2;
     final platePaint =
         Paint()
-          ..shader = const RadialGradient(
-            center: Alignment.topLeft,
-            radius: 1.1,
-            colors: [Color(0xFFFFFFFF), Color(0xFFE9F0FF), Color(0xFF111827)],
-            stops: [0, 0.24, 1],
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF3A3D43), Color(0xFF0C0D10), Color(0xFF1C2028)],
+            stops: [0, 0.55, 1],
           ).createShader(Offset.zero & size);
-    canvas.drawCircle(center, radius, platePaint);
+    canvas.drawCircle(center, radius * 0.98, platePaint);
 
-    final rim =
+    final outerRim =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = radius * 0.16
-          ..color = Colors.white.withValues(alpha: 0.72);
-    canvas.drawCircle(center, radius * 0.82, rim);
+          ..strokeWidth = radius * 0.08
+          ..shader = const LinearGradient(
+            colors: [Color(0xFF6B7280), Color(0xFF111827)],
+          ).createShader(Offset.zero & size);
+    canvas.drawCircle(center, radius * 0.91, outerRim);
+
+    final innerRing =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = radius * 0.08
+          ..color = const Color(0xFF2F343D);
+    canvas.drawCircle(center, radius * 0.32, innerRing);
 
     final hole =
-        Paint()..color = const Color(0xFF111827).withValues(alpha: 0.16);
+        Paint()
+          ..shader = const RadialGradient(
+            center: Alignment.topLeft,
+            colors: [Color(0xFFF8FAFC), Color(0xFF9CA3AF), Color(0xFF111827)],
+            stops: [0, 0.58, 1],
+          ).createShader(Offset.zero & size);
     canvas.drawCircle(center, radius * 0.2, hole);
 
     final gripPaint =
         Paint()
-          ..color = const Color(0xFF111827).withValues(alpha: 0.34)
+          ..color = Colors.black.withValues(alpha: 0.34)
           ..strokeCap = StrokeCap.round
-          ..strokeWidth = radius * 0.18;
+          ..strokeWidth = radius * 0.2;
     for (final angle in const [-1.55, 0.55, 2.65]) {
       final start =
           center +
@@ -576,24 +618,42 @@ class _PlateBuddyPainter extends CustomPainter {
       canvas.drawLine(start, end, gripPaint);
     }
 
-    final eyePaint = Paint()..color = const Color(0xFF111827);
+    final labelPainter = TextPainter(
+      text: TextSpan(
+        text: '25 LB',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.82),
+          fontSize: radius * 0.24,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.2,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    labelPainter.paint(
+      canvas,
+      Offset(center.dx - labelPainter.width / 2, size.height * 0.2),
+    );
+
+    final eyePaint = Paint()..color = Colors.white;
     canvas.drawCircle(
       Offset(size.width * 0.39, size.height * 0.43),
-      radius * 0.08,
+      radius * 0.065,
       eyePaint,
     );
     canvas.drawCircle(
       Offset(size.width * 0.61, size.height * 0.43),
-      radius * 0.08,
+      radius * 0.065,
       eyePaint,
     );
 
     final mouth =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = radius * 0.075
+          ..strokeWidth = radius * 0.07
           ..strokeCap = StrokeCap.round
-          ..color = const Color(0xFF111827);
+          ..color = Colors.white;
     final mouthPath =
         Path()
           ..moveTo(size.width * 0.4, size.height * 0.58)

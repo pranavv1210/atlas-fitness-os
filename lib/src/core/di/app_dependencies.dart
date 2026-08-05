@@ -139,7 +139,10 @@ class AppDependencies {
       remoteDataSource: SupabaseProfileRemoteDataSource(client),
       localCache: const NoopProfileLocalCache(),
     );
-    _atlasDataRepository = AtlasDataRepository(client);
+    _atlasDataRepository = AtlasDataRepository(
+      client,
+      preferences: preferences,
+    );
     _atlasAgentService = AtlasAgentService(client);
     _startHydrationTapListener();
   }

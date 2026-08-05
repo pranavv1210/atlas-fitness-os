@@ -5,15 +5,21 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/theme/atlas_colors.dart';
+import '../../../core/services/atlas_preferences.dart';
 import 'atlas_models.dart';
 
 class AtlasDataRepository {
-  AtlasDataRepository(this._client);
+  AtlasDataRepository(this._client, {AtlasPreferences? preferences})
+    : _preferences = preferences;
 
   final SupabaseClient _client;
+  final AtlasPreferences? _preferences;
+  AtlasDashboardSnapshot? _cachedSnapshot;
 
   String get _userId => _client.auth.currentUser!.id;
   String get currentUserId => _userId;
+  AtlasDashboardSnapshot? get cachedSnapshot =>
+      _cachedSnapshot ?? _loadCachedSnapshot();
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
     final completedToday = await _hasCompletedWorkoutOn(DateTime.now());
@@ -47,7 +53,7 @@ class AtlasDataRepository {
         completedToday ? await loadWorkoutReport(DateTime.now()) : null;
     final currentStreak = await _currentWorkoutStreak();
 
-    return AtlasDashboardSnapshot(
+    final snapshot = AtlasDashboardSnapshot(
       todayWorkout: todayWorkout,
       starterWorkout: starterWorkout,
       templateExercises: templateExercises,
@@ -66,6 +72,118 @@ class AtlasDataRepository {
       activeGoals: activeGoals,
       lastWorkoutTitle: lastWorkoutTitle,
       todayReport: todayReport,
+    );
+    _cachedSnapshot = snapshot;
+    await _preferences?.setDashboardSnapshot(
+      _userId,
+      _snapshotToJson(snapshot),
+    );
+    return snapshot;
+  }
+
+  AtlasDashboardSnapshot? _loadCachedSnapshot() {
+    final raw = _preferences?.dashboardSnapshotFor(_userId);
+    if (raw == null) return null;
+    try {
+      final latestWeight = (raw['latestWeight'] as num?)?.toDouble();
+      final latestWeightDate = raw['latestWeightDate'];
+      final goals = raw['activeGoals'];
+      return AtlasDashboardSnapshot(
+        todayWorkout: _workoutDayFromJson(raw['todayWorkout']),
+        starterWorkout: _workoutDayFromJson(raw['starterWorkout']),
+        templateExercises: const [],
+        exerciseLibrary: fallbackExercises,
+        completedThisWeek: raw['completedThisWeek'] as int? ?? 0,
+        weeklyTarget: raw['weeklyTarget'] as int? ?? 5,
+        totalWorkouts: raw['totalWorkouts'] as int? ?? 0,
+        monthWorkouts: raw['monthWorkouts'] as int? ?? 0,
+        completedToday: raw['completedToday'] as bool? ?? false,
+        cycleStarted: raw['cycleStarted'] as bool? ?? false,
+        currentStreak: raw['currentStreak'] as int? ?? 0,
+        latestWeight: latestWeight,
+        latestWeightUnit: raw['latestWeightUnit'] as String? ?? 'kg',
+        latestWeightDate:
+            latestWeightDate is String
+                ? DateTime.tryParse(latestWeightDate)
+                : null,
+        hydrationToday: raw['hydrationToday'] as int? ?? 0,
+        activeGoals:
+            goals is List
+                ? [
+                  for (final goal in goals)
+                    if (goal is Map)
+                      AtlasGoal(
+                        id: goal['id'] as String? ?? 'cached-goal',
+                        type: _goalType(goal['type'] as String?),
+                        title: goal['title'] as String? ?? 'Goal',
+                        progress: (goal['progress'] as num?)?.toDouble() ?? 0,
+                        currentValue:
+                            (goal['currentValue'] as num?)?.toDouble(),
+                        targetValue: (goal['targetValue'] as num?)?.toDouble(),
+                        targetUnit: goal['targetUnit'] as String?,
+                      ),
+                ]
+                : const [],
+        lastWorkoutTitle: raw['lastWorkoutTitle'] as String?,
+        todayReport: null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> _snapshotToJson(AtlasDashboardSnapshot snapshot) {
+    return {
+      'todayWorkout': _workoutDayToJson(snapshot.todayWorkout),
+      'starterWorkout': _workoutDayToJson(snapshot.starterWorkout),
+      'completedThisWeek': snapshot.completedThisWeek,
+      'weeklyTarget': snapshot.weeklyTarget,
+      'totalWorkouts': snapshot.totalWorkouts,
+      'monthWorkouts': snapshot.monthWorkouts,
+      'completedToday': snapshot.completedToday,
+      'cycleStarted': snapshot.cycleStarted,
+      'currentStreak': snapshot.currentStreak,
+      'latestWeight': snapshot.latestWeight,
+      'latestWeightUnit': snapshot.latestWeightUnit,
+      'latestWeightDate': snapshot.latestWeightDate?.toIso8601String(),
+      'hydrationToday': snapshot.hydrationToday,
+      'activeGoals': [
+        for (final goal in snapshot.activeGoals)
+          {
+            'id': goal.id,
+            'type': goal.type.name,
+            'title': goal.title,
+            'progress': goal.progress,
+            'currentValue': goal.currentValue,
+            'targetValue': goal.targetValue,
+            'targetUnit': goal.targetUnit,
+          },
+      ],
+      'lastWorkoutTitle': snapshot.lastWorkoutTitle,
+    };
+  }
+
+  Map<String, dynamic>? _workoutDayToJson(AtlasWorkoutDay? day) {
+    if (day == null) return null;
+    return {
+      'dayNumber': day.dayNumber,
+      'name': day.name,
+      'focus': day.focus,
+      'isRestDay': day.isRestDay,
+      'workoutDayId': day.workoutDayId,
+      'templateId': day.templateId,
+    };
+  }
+
+  AtlasWorkoutDay? _workoutDayFromJson(Object? raw) {
+    if (raw is! Map) return null;
+    return AtlasWorkoutDay(
+      dayNumber: raw['dayNumber'] as int? ?? 1,
+      name: raw['name'] as String? ?? 'Workout',
+      focus: raw['focus'] as String? ?? 'Train with intent',
+      isRestDay: raw['isRestDay'] as bool? ?? false,
+      workoutDayId: raw['workoutDayId'] as String?,
+      templateId: raw['templateId'] as String?,
     );
   }
 

@@ -54,7 +54,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? emptyAtlasSnapshot();
+        final data =
+            snapshot.data ??
+            _repository?.cachedSnapshot ??
+            emptyAtlasSnapshot();
         return AtlasAppFrame(
           subtitle: 'Trends from your logs',
           title: 'Progress',

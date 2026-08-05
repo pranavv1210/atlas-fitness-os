@@ -257,7 +257,7 @@ class AtlasDashboardSnapshot {
     if (totalWorkouts == 0 && hydrationToday == 0) {
       return null;
     }
-    var score = hydrationToday * 12;
+    var score = hydrationToday * 4;
     if (totalWorkouts > 0) {
       score += 40;
     }
