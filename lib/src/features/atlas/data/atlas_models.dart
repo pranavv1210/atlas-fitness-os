@@ -169,6 +169,73 @@ class AtlasWorkoutReport {
   }
 }
 
+class AtlasWeightTrendPoint {
+  const AtlasWeightTrendPoint({
+    required this.date,
+    required this.weight,
+    required this.unit,
+  });
+
+  final DateTime date;
+  final double weight;
+  final String unit;
+}
+
+class AtlasCardioLog {
+  const AtlasCardioLog({
+    required this.activityType,
+    required this.durationMinutes,
+    this.distance,
+    this.distanceUnit,
+    this.notes,
+  });
+
+  final String activityType;
+  final int durationMinutes;
+  final double? distance;
+  final String? distanceUnit;
+  final String? notes;
+}
+
+class AtlasSportLog {
+  const AtlasSportLog({
+    required this.sportName,
+    required this.durationMinutes,
+    this.notes,
+  });
+
+  final String sportName;
+  final int durationMinutes;
+  final String? notes;
+}
+
+class AtlasDailyActivityReport {
+  const AtlasDailyActivityReport({
+    required this.date,
+    this.workout,
+    this.weight,
+    this.weightUnit = 'kg',
+    this.hydrationSips = 0,
+    this.cardio = const [],
+    this.sports = const [],
+  });
+
+  final DateTime date;
+  final AtlasWorkoutReport? workout;
+  final double? weight;
+  final String weightUnit;
+  final int hydrationSips;
+  final List<AtlasCardioLog> cardio;
+  final List<AtlasSportLog> sports;
+
+  bool get hasAnyLog =>
+      workout != null ||
+      weight != null ||
+      hydrationSips > 0 ||
+      cardio.isNotEmpty ||
+      sports.isNotEmpty;
+}
+
 class AtlasGoal {
   const AtlasGoal({
     required this.id,

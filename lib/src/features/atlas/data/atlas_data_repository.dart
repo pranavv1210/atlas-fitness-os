@@ -372,6 +372,129 @@ class AtlasDataRepository {
     return dates.values.toList()..sort((a, b) => b.compareTo(a));
   }
 
+  Future<List<DateTime>> loadActivityHistoryDates({int limit = 160}) async {
+    final dates = <String, DateTime>{};
+    void addDate(Object? value) {
+      if (value is! String || value.isEmpty) return;
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) {
+        dates.putIfAbsent(_date(parsed), () => parsed);
+      }
+    }
+
+    final workouts = await _client
+        .from('workout_sessions')
+        .select('session_date')
+        .eq('user_id', _userId)
+        .eq('status', 'completed')
+        .order('session_date', ascending: false)
+        .limit(limit);
+    for (final row in workouts) {
+      addDate(row['session_date']);
+    }
+
+    final cardio = await _client
+        .from('cardio_sessions')
+        .select('session_date')
+        .eq('user_id', _userId)
+        .order('session_date', ascending: false)
+        .limit(limit);
+    for (final row in cardio) {
+      addDate(row['session_date']);
+    }
+
+    final sports = await _client
+        .from('sports_sessions')
+        .select('session_date')
+        .eq('user_id', _userId)
+        .order('session_date', ascending: false)
+        .limit(limit);
+    for (final row in sports) {
+      addDate(row['session_date']);
+    }
+
+    final weights = await _client
+        .from('body_weight_logs')
+        .select('measured_on')
+        .eq('user_id', _userId)
+        .order('measured_on', ascending: false)
+        .limit(limit);
+    for (final row in weights) {
+      addDate(row['measured_on']);
+    }
+
+    final today = DateTime.now();
+    final start = today.subtract(const Duration(days: 30)).toUtc();
+    final hydration = await _client
+        .from('hydration_events')
+        .select('occurred_at')
+        .eq('user_id', _userId)
+        .gte('occurred_at', start.toIso8601String())
+        .order('occurred_at', ascending: false)
+        .limit(limit);
+    for (final row in hydration) {
+      addDate(row['occurred_at']);
+    }
+
+    return dates.values.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  Future<AtlasDailyActivityReport> loadDailyActivityReport(
+    DateTime date,
+  ) async {
+    final key = _date(date);
+    final workout = await loadWorkoutReport(date);
+    final hydration = await _hydrationCountOn(date);
+
+    final cardioRows = await _client
+        .from('cardio_sessions')
+        .select(
+          'activity_type, duration_minutes, distance, distance_unit, notes',
+        )
+        .eq('user_id', _userId)
+        .eq('session_date', key)
+        .order('created_at');
+    final sportRows = await _client
+        .from('sports_sessions')
+        .select('sport_name, duration_minutes, notes')
+        .eq('user_id', _userId)
+        .eq('session_date', key)
+        .order('created_at');
+    final weightRows = await _client
+        .from('body_weight_logs')
+        .select('weight, unit')
+        .eq('user_id', _userId)
+        .eq('measured_on', key)
+        .limit(1);
+
+    final weight = weightRows.isEmpty ? null : weightRows.first;
+    return AtlasDailyActivityReport(
+      date: DateTime.parse(key),
+      workout: workout,
+      hydrationSips: hydration,
+      weight: (weight?['weight'] as num?)?.toDouble(),
+      weightUnit: weight?['unit'] as String? ?? 'kg',
+      cardio: [
+        for (final row in cardioRows)
+          AtlasCardioLog(
+            activityType: row['activity_type'] as String? ?? 'Cardio',
+            durationMinutes: row['duration_minutes'] as int? ?? 0,
+            distance: (row['distance'] as num?)?.toDouble(),
+            distanceUnit: row['distance_unit'] as String?,
+            notes: row['notes'] as String?,
+          ),
+      ],
+      sports: [
+        for (final row in sportRows)
+          AtlasSportLog(
+            sportName: row['sport_name'] as String? ?? 'Sport',
+            durationMinutes: row['duration_minutes'] as int? ?? 0,
+            notes: row['notes'] as String?,
+          ),
+      ],
+    );
+  }
+
   Future<AtlasWorkoutReport?> loadWorkoutReport(DateTime date) async {
     final sessions = await _client
         .from('workout_sessions')
@@ -453,6 +576,23 @@ class AtlasDataRepository {
       volumes.add(report?.totalVolume ?? 0);
     }
     return volumes;
+  }
+
+  Future<List<AtlasWeightTrendPoint>> loadWeightTrend({int limit = 12}) async {
+    final rows = await _client
+        .from('body_weight_logs')
+        .select('measured_on, weight, unit')
+        .eq('user_id', _userId)
+        .order('measured_on', ascending: false)
+        .limit(limit);
+    return [
+      for (final row in rows.reversed)
+        AtlasWeightTrendPoint(
+          date: DateTime.parse(row['measured_on'] as String),
+          weight: (row['weight'] as num).toDouble(),
+          unit: row['unit'] as String? ?? 'kg',
+        ),
+    ];
   }
 
   Future<AtlasWorkoutDay> _loadWorkoutDay(int dayNumber) async {
@@ -600,6 +740,19 @@ class AtlasDataRepository {
           'occurred_at',
           DateTime.now().toUtc().copyWith(hour: 0, minute: 0).toIso8601String(),
         );
+    return rows.length;
+  }
+
+  Future<int> _hydrationCountOn(DateTime date) async {
+    final local = DateTime(date.year, date.month, date.day);
+    final start = local.toUtc();
+    final end = local.add(const Duration(days: 1)).toUtc();
+    final rows = await _client
+        .from('hydration_events')
+        .select('id')
+        .eq('user_id', _userId)
+        .gte('occurred_at', start.toIso8601String())
+        .lt('occurred_at', end.toIso8601String());
     return rows.length;
   }
 

@@ -47,8 +47,8 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
 
   Offset _clampPosition(Offset position, Size size) {
     final padding = MediaQuery.paddingOf(context);
-    final minY = padding.top + 16;
-    final maxY = size.height - padding.bottom - _orbSize - 92;
+    final minY = padding.top + 12;
+    final maxY = size.height - padding.bottom - _orbSize - 12;
     return Offset(
       position.dx.clamp(12, size.width - _orbSize - 12),
       position.dy.clamp(minY, maxY),
@@ -111,7 +111,10 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
         onPanStart: (_) => setState(() => _dragging = true),
         onPanUpdate:
             (details) => setState(() {
-              _position = _clampPosition(position + details.delta, size);
+              _position = _clampPosition(
+                (_position ?? position) + details.delta,
+                size,
+              );
             }),
         onPanEnd: (_) {
           HapticFeedback.selectionClick();
@@ -190,14 +193,8 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
     const AtlasAgentMessage(
       role: AtlasAgentRole.assistant,
       content:
-          'Yo, I am your Atlas gym buddy. I can read your workouts, goals, history, weight, hydration, and exercises. Ask me what to train, what improved, or what to fix.',
+          'Tell me what you want to know. I can check your saved workouts, exercises, weight, hydration, cardio, goals, and missed days.',
     ),
-  ];
-  List<String> _suggestions = const [
-    'What are we hitting today?',
-    'Rate my last workout',
-    'I skipped yesterday',
-    'Give me a rest day plan',
   ];
   bool _sending = false;
 
@@ -234,9 +231,6 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
             content: reply.message,
           ),
         );
-        if (reply.suggestions.isNotEmpty) {
-          _suggestions = reply.suggestions;
-        }
       });
       _scrollToBottom();
     } catch (_) {
@@ -335,13 +329,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                       ),
                     ),
                     _BuddyHeader(screen: widget.initialScreen),
-                    _BuddyContextStrip(screen: widget.initialScreen),
-                    _BuddySuggestionRail(
-                      suggestions: _suggestions,
-                      sending: _sending,
-                      onTap: _send,
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     Expanded(
                       child: ListView.separated(
                         controller: _scrollController,
@@ -386,9 +374,9 @@ class _BuddyHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
           gradient: LinearGradient(
@@ -466,7 +454,7 @@ class _BuddyHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'Your gym buddy for $screen',
+                    'Ask about any date, lift, log, or trend',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -478,147 +466,15 @@ class _BuddyHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.graphic_eq_rounded, color: AtlasColors.accent),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BuddyContextStrip extends StatelessWidget {
-  const _BuddyContextStrip({required this.screen});
-
-  final String screen;
-
-  @override
-  Widget build(BuildContext context) {
-    final chips = [
-      (Icons.visibility_rounded, 'Reads logs'),
-      (Icons.fitness_center_rounded, screen),
-      (Icons.bolt_rounded, 'Fast advice'),
-    ];
-    return SizedBox(
-      height: 34,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        scrollDirection: Axis.horizontal,
-        itemCount: chips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final chip = chips[index];
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AtlasColors.ink.withValues(alpha: 0.055),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AtlasColors.hairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(chip.$1, size: 14, color: AtlasColors.accent),
-                const SizedBox(width: 6),
-                Text(chip.$2, style: Theme.of(context).textTheme.labelMedium),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _BuddySuggestionRail extends StatelessWidget {
-  const _BuddySuggestionRail({
-    required this.suggestions,
-    required this.sending,
-    required this.onTap,
-  });
-
-  final List<String> suggestions;
-  final bool sending;
-  final ValueChanged<String> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      height: 54,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
-        scrollDirection: Axis.horizontal,
-        itemCount: suggestions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 9),
-        itemBuilder: (context, index) {
-          final suggestion = suggestions[index];
-          return AtlasBuddyPrompt(
-            label: suggestion,
-            enabled: !sending,
-            isDark: isDark,
-            onTap: () => onTap(suggestion),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class AtlasBuddyPrompt extends StatelessWidget {
-  const AtlasBuddyPrompt({
-    required this.label,
-    required this.enabled,
-    required this.isDark,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool enabled;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.52,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: enabled ? onTap : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color:
-                isDark
-                    ? Colors.white.withValues(alpha: 0.07)
-                    : Colors.white.withValues(alpha: 0.82),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color:
-                  isDark
-                      ? Colors.white.withValues(alpha: 0.09)
-                      : AtlasColors.hairline,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                size: 15,
+            IconButton(
+              tooltip: 'Atlas Buddy listens to your typed questions',
+              onPressed: null,
+              icon: const Icon(
+                Icons.graphic_eq_rounded,
                 color: AtlasColors.accent,
               ),
-              const SizedBox(width: 7),
-              Text(label, style: Theme.of(context).textTheme.labelLarge),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -32,7 +32,7 @@ serve(async (request) => {
       {
         message:
           "Atlas Agent is missing Supabase environment variables on the server.",
-        suggestions: ["Review my last workout", "What should I train today?"],
+        suggestions: [],
       },
       500,
     );
@@ -48,7 +48,7 @@ serve(async (request) => {
     return json(
       {
         message: "Sign in again so Atlas Agent can read your training data.",
-        suggestions: ["Review my week", "What should I train today?"],
+        suggestions: [],
       },
       401,
     );
@@ -207,6 +207,7 @@ async function callHuggingFace({
 
 async function buildAtlasContext(supabase: ReturnType<typeof createClient>, message: string, screen?: string) {
   const today = new Date().toISOString().slice(0, 10);
+  const requestedDate = requestedDateFromMessage(message, today);
   const search = searchTerms(message);
 
   const [
@@ -217,6 +218,7 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
     weights,
     hydration,
     exercises,
+    requestedDateSummary,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -247,6 +249,7 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
       .select("id", { count: "exact", head: true })
       .gte("occurred_at", `${today}T00:00:00.000Z`),
     loadRelevantExercises(supabase, search),
+    requestedDate ? loadDaySummary(supabase, requestedDate) : Promise.resolve(null),
   ]);
 
   const workoutRows = Array.isArray(todayWorkout.data) ? todayWorkout.data : [];
@@ -269,16 +272,79 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
     goals: goals.data ?? [],
     weightLogs: weights.data ?? [],
     hydrationToday: hydration.count ?? 0,
+    requestedDate,
+    requestedDateSummary,
     relevantExercises: exercises,
     contextUsed: [
       "today workout",
       "recent workout logs",
       "exercise sets/reps/weight",
+      ...(requestedDateSummary ? ["requested date report"] : []),
       "goals",
       "weight logs",
       "hydration",
       "exercise library",
     ],
+  };
+}
+
+async function loadDaySummary(supabase: ReturnType<typeof createClient>, date: string) {
+  const next = nextDateKey(date);
+  const [
+    workouts,
+    cardio,
+    sports,
+    hydration,
+    weight,
+  ] = await Promise.all([
+    supabase
+      .from("workout_sessions")
+      .select(
+        "id, session_date, started_at, completed_at, status, title, workout_session_exercises(display_order, name_snapshot, workout_sets(set_number, reps, weight, weight_unit))",
+      )
+      .eq("status", "completed")
+      .eq("session_date", date)
+      .order("completed_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("cardio_sessions")
+      .select("activity_type, duration_minutes, distance, distance_unit, notes")
+      .eq("session_date", date)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("sports_sessions")
+      .select("sport_name, duration_minutes, notes")
+      .eq("session_date", date)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("hydration_events")
+      .select("id", { count: "exact", head: true })
+      .gte("occurred_at", `${date}T00:00:00.000Z`)
+      .lt("occurred_at", `${next}T00:00:00.000Z`),
+    supabase
+      .from("body_weight_logs")
+      .select("measured_on, weight, unit")
+      .eq("measured_on", date)
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+  const workoutRows = Array.isArray(workouts.data) ? workouts.data : [];
+  const cardioRows = Array.isArray(cardio.data) ? cardio.data : [];
+  const sportRows = Array.isArray(sports.data) ? sports.data : [];
+  const weightRows = Array.isArray(weight.data) ? weight.data : [];
+  return {
+    date,
+    workout: workoutRows[0] ? compactSession(workoutRows[0]) : null,
+    cardio: cardioRows,
+    sports: sportRows,
+    hydrationSips: hydration.count ?? 0,
+    weight: weightRows[0] ?? null,
+    hasAnyLog:
+      workoutRows.length > 0 ||
+      cardioRows.length > 0 ||
+      sportRows.length > 0 ||
+      (hydration.count ?? 0) > 0 ||
+      weightRows.length > 0,
   };
 }
 
@@ -360,6 +426,92 @@ function searchTerms(message: string) {
   )];
 }
 
+function requestedDateFromMessage(message: string, todayKey: string) {
+  const lower = message.toLowerCase();
+  if (/\btoday\b/.test(lower)) return todayKey;
+  const today = parseDateKey(todayKey);
+  if (/\byesterday\b/.test(lower)) {
+    today.setDate(today.getDate() - 1);
+    return dateKey(today);
+  }
+  if (/day before yesterday/.test(lower)) {
+    today.setDate(today.getDate() - 2);
+    return dateKey(today);
+  }
+
+  const iso = lower.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  if (iso) {
+    return dateKey(new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  }
+
+  const numeric = lower.match(/\b(\d{1,2})[-/](\d{1,2})(?:[-/](20\d{2}))?\b/);
+  if (numeric) {
+    return dateKey(
+      new Date(
+        numeric[3] ? Number(numeric[3]) : today.getFullYear(),
+        Number(numeric[2]) - 1,
+        Number(numeric[1]),
+      ),
+    );
+  }
+
+  const monthNames = new Map([
+    ["jan", 0],
+    ["january", 0],
+    ["feb", 1],
+    ["february", 1],
+    ["mar", 2],
+    ["march", 2],
+    ["apr", 3],
+    ["april", 3],
+    ["may", 4],
+    ["jun", 5],
+    ["june", 5],
+    ["jul", 6],
+    ["july", 6],
+    ["aug", 7],
+    ["august", 7],
+    ["sep", 8],
+    ["sept", 8],
+    ["september", 8],
+    ["oct", 9],
+    ["october", 9],
+    ["nov", 10],
+    ["november", 10],
+    ["dec", 11],
+    ["december", 11],
+  ]);
+  const monthText = lower.match(/\b(\d{1,2})\s+([a-z]+)(?:\s+(20\d{2}))?\b/);
+  if (monthText && monthNames.has(monthText[2])) {
+    return dateKey(
+      new Date(
+        monthText[3] ? Number(monthText[3]) : today.getFullYear(),
+        monthNames.get(monthText[2])!,
+        Number(monthText[1]),
+      ),
+    );
+  }
+  return null;
+}
+
+function parseDateKey(key: string) {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function nextDateKey(key: string) {
+  const date = parseDateKey(key);
+  date.setDate(date.getDate() + 1);
+  return dateKey(date);
+}
+
 function calculateStreak(dates: string[]) {
   const set = new Set(dates);
   const now = new Date();
@@ -426,7 +578,23 @@ function localCoachReply(message: string, context: Awaited<ReturnType<typeof bui
   let answer =
     `Locked in. I can read your Atlas logs. Today is ${todayName}. You have ${context.recentWorkoutCount} recent sessions in context, a ${context.currentStreak}-day streak, and ${context.hydrationToday} water logs today.`;
 
-  if (lower.includes("last") || lower.includes("yesterday") || lower.includes("review")) {
+  if (context.requestedDateSummary) {
+    const day = context.requestedDateSummary;
+    if (!day.hasAnyLog) {
+      answer = `I checked ${day.date}. No Atlas logs are saved for that day: no workout, cardio, sport, weight, or hydration entries.`;
+    } else {
+      const workout = day.workout
+        ? `${day.workout.title ?? "Workout"} with ${(day.workout.exercises ?? []).map((exercise: Record<string, unknown>) => exercise.name).join(", ")}`
+        : "no saved workout";
+      const extras = [
+        day.hydrationSips > 0 ? `${day.hydrationSips} water sips` : null,
+        day.weight ? `${day.weight.weight} ${day.weight.unit ?? "kg"} body weight` : null,
+        day.cardio.length > 0 ? `${day.cardio.length} cardio log(s)` : null,
+        day.sports.length > 0 ? `${day.sports.length} sport log(s)` : null,
+      ].filter(Boolean);
+      answer = `For ${day.date}: ${workout}.${extras.length ? ` Also logged ${extras.join(", ")}.` : ""}`;
+    }
+  } else if (lower.includes("last") || lower.includes("yesterday") || lower.includes("review")) {
     answer = latest
       ? `Solid. Your latest saved workout was ${latest.title ?? "Workout"} on ${latest.date}. It had ${(latest.exercises ?? []).length} exercises. Ask me about one lift and I will compare sets, reps, and weight.`
       : "I do not see a completed workout yet. Save one clean session and I can review it properly.";
@@ -441,34 +609,13 @@ function localCoachReply(message: string, context: Awaited<ReturnType<typeof bui
   return {
     message: answer,
     mode: "Coach",
-    suggestions: defaultSuggestions(context.currentScreen),
+    suggestions: [],
     contextUsed: context.contextUsed,
   };
 }
 
 function defaultSuggestions(screen = "Atlas") {
-  if (screen === "Train") {
-    return [
-      "What should I train today?",
-      "Suggest weights from last time",
-      "Replace an exercise",
-      "Make this workout shorter",
-    ];
-  }
-  if (screen === "Progress") {
-    return [
-      "Review my week",
-      "What improved most?",
-      "What am I skipping?",
-      "Explain my streak",
-    ];
-  }
-  return [
-    "What should I train today?",
-    "Review my last workout",
-    "I skipped a day, what now?",
-    "Suggest a rest day plan",
-  ];
+  return [];
 }
 
 const agentInstructions = `
@@ -478,6 +625,7 @@ Use short lines. Be useful first. A little "bro", "solid", "locked in", or "we" 
 You are a trainer/gym buddy, not a medical professional. Do not diagnose injuries.
 Never claim to save, delete, or modify app data. You may recommend actions and say the user should confirm inside Atlas.
 Prioritize the user's actual logs, current workout, goals, streak, hydration, weight logs, and exercise library.
+If the user asks about a specific date, yesterday, or today, answer from requestedDateSummary. Include workouts, exercises, cardio, sport, hydration sips, and weight when present. If nothing is saved for that date, say that clearly.
 When comparing workouts, mention dates, exercises, sets, reps, and weight when available.
 Keep responses concise enough for a mobile overlay. Avoid long paragraphs.
 Return strict JSON:

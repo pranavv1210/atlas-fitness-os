@@ -114,7 +114,7 @@ class _TrainScreenState extends State<TrainScreen> {
           for (final entry in _entries)
             AtlasWorkoutEntry(
               exercise: entry.exercise,
-              sets: entry.sets,
+              sets: _isCardioStyleExercise(entry.exercise) ? 1 : entry.sets,
               reps: entry.reps,
               weight: entry.weight,
             ),
@@ -1065,10 +1065,7 @@ class _WorkoutReportExerciseTile extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   exercise.sets
-                      .map(
-                        (set) =>
-                            'Set ${set.setNumber}: ${set.reps} reps x ${_weightLabel(set)}',
-                      )
+                      .map((set) => _reportSetLabel(exercise, set))
                       .join('\n'),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -1119,6 +1116,23 @@ String _weightLabel(AtlasWorkoutSetLog set) {
           ? set.weight.round().toString()
           : set.weight.toStringAsFixed(1);
   return '$value ${set.weightUnit}';
+}
+
+String _reportSetLabel(
+  AtlasWorkoutExerciseLog exercise,
+  AtlasWorkoutSetLog set,
+) {
+  final atlasExercise = exercise.exercise;
+  final isCardio =
+      atlasExercise != null && _isCardioStyleExercise(atlasExercise);
+  if (isCardio) {
+    final distance =
+        set.weight == 0
+            ? ''
+            : ' / ${set.weight == set.weight.roundToDouble() ? set.weight.round() : set.weight.toStringAsFixed(1)} km';
+    return '${set.reps} min$distance';
+  }
+  return 'Set ${set.setNumber}: ${set.reps} reps x ${_weightLabel(set)}';
 }
 
 class _ExerciseEditor extends StatelessWidget {
@@ -1210,8 +1224,11 @@ class _ExerciseEditor extends StatelessWidget {
     if (picked == null) return;
     HapticFeedback.selectionClick();
     entry.exercise = picked;
-    entry.sets = picked.defaultSets;
-    entry.reps = _firstNumber(picked.defaultReps);
+    entry.sets = _defaultSetsFor(picked);
+    entry.reps = _defaultRepsFor(picked);
+    if (_isCardioStyleExercise(picked)) {
+      entry.weight = 0;
+    }
     onChanged();
   }
 }
@@ -1799,8 +1816,9 @@ class _SetInputPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCardio = _isCardioStyleExercise(entry.exercise);
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
@@ -1810,22 +1828,26 @@ class _SetInputPanel extends StatelessWidget {
         children: [
           Row(
             children: [
+              if (!isCardio) ...[
+                Expanded(
+                  child: Text(
+                    'Sets',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Text(
-                  'Sets',
+                  isCardio ? 'Minutes' : 'Reps',
+                  textAlign: isCardio ? TextAlign.start : TextAlign.center,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Reps',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Kg',
+                  isCardio ? 'Distance' : 'Kg',
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
@@ -1835,14 +1857,16 @@ class _SetInputPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              _CompactStepper(
-                value: entry.sets,
-                onChanged: (value) {
-                  entry.sets = value;
-                  onChanged();
-                },
-              ),
-              const SizedBox(width: 10),
+              if (!isCardio) ...[
+                _CompactStepper(
+                  value: entry.sets,
+                  onChanged: (value) {
+                    entry.sets = value;
+                    onChanged();
+                  },
+                ),
+                const SizedBox(width: 10),
+              ],
               _CompactStepper(
                 value: entry.reps,
                 onChanged: (value) {
@@ -1853,7 +1877,7 @@ class _SetInputPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _InlineNumberField(
-                  label: '',
+                  label: isCardio ? 'km' : '',
                   value: entry.weight,
                   onChanged: (value) {
                     entry.weight = value;
@@ -2019,8 +2043,8 @@ String _longDateLabel(DateTime date) {
 
 class _EditableWorkoutEntry {
   _EditableWorkoutEntry(this.exercise)
-    : sets = exercise.defaultSets,
-      reps = _firstNumber(exercise.defaultReps),
+    : sets = _defaultSetsFor(exercise),
+      reps = _defaultRepsFor(exercise),
       weight = 0;
 
   _EditableWorkoutEntry.fromDraft(
@@ -2031,11 +2055,11 @@ class _EditableWorkoutEntry {
   }) : sets =
            sets is num
                ? sets.round().clamp(1, 99).toInt()
-               : exercise.defaultSets,
+               : _defaultSetsFor(exercise),
        reps =
            reps is num
                ? reps.round().clamp(1, 999).toInt()
-               : _firstNumber(exercise.defaultReps),
+               : _defaultRepsFor(exercise),
        weight = weight is num ? weight.toDouble().clamp(0, 9999).toDouble() : 0;
 
   AtlasExercise exercise;
@@ -2181,4 +2205,30 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
 int _firstNumber(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
   return int.tryParse(match?.group(0) ?? '') ?? 15;
+}
+
+int _defaultSetsFor(AtlasExercise exercise) {
+  return _isCardioStyleExercise(exercise) ? 1 : exercise.defaultSets;
+}
+
+int _defaultRepsFor(AtlasExercise exercise) {
+  return _isCardioStyleExercise(exercise)
+      ? 20
+      : _firstNumber(exercise.defaultReps);
+}
+
+bool _isCardioStyleExercise(AtlasExercise exercise) {
+  final text =
+      '${exercise.name} ${exercise.primaryMuscle} ${exercise.movementType} ${exercise.pattern}'
+          .toLowerCase();
+  return text.contains('cardio') ||
+      text.contains('treadmill') ||
+      text.contains('running') ||
+      text.contains('cycling') ||
+      text.contains('bike') ||
+      text.contains('elliptical') ||
+      text.contains('rowing') ||
+      text.contains('stair') ||
+      text.contains('jump rope') ||
+      text.contains('walking');
 }

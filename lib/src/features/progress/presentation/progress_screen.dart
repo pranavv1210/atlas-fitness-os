@@ -46,7 +46,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Future<List<DateTime>> _loadHistoryDates() async {
-    return _repository?.loadWorkoutHistoryDates() ?? const [];
+    return _repository?.loadActivityHistoryDates() ?? const [];
   }
 
   @override
@@ -106,7 +106,7 @@ class _WorkoutHistorySection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(child: SectionTitle('Workout History')),
+              const Expanded(child: SectionTitle('Daily Reports')),
               TextButton.icon(
                 onPressed: () async {
                   final picked = await showDatePicker(
@@ -124,7 +124,7 @@ class _WorkoutHistorySection extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Review any saved workout by date.',
+            'Review workouts, water, cardio, sports, and weight by date.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 14),
@@ -158,7 +158,7 @@ class _WorkoutHistorySection extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _WorkoutReportCard(
+                  _DailyActivityReportCard(
                     key: ValueKey(_dateKey(selectedDate)),
                     repository: repository,
                     date: selectedDate,
@@ -173,8 +173,8 @@ class _WorkoutHistorySection extends StatelessWidget {
   }
 }
 
-class _WorkoutReportCard extends StatelessWidget {
-  const _WorkoutReportCard({
+class _DailyActivityReportCard extends StatelessWidget {
+  const _DailyActivityReportCard({
     required this.repository,
     required this.date,
     super.key,
@@ -185,8 +185,8 @@ class _WorkoutReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<AtlasWorkoutReport?>(
-      future: repository?.loadWorkoutReport(date),
+    return FutureBuilder<AtlasDailyActivityReport>(
+      future: repository?.loadDailyActivityReport(date),
       builder: (context, snapshot) {
         final report = snapshot.data;
         if (snapshot.connectionState != ConnectionState.done) {
@@ -195,19 +195,22 @@ class _WorkoutReportCard extends StatelessWidget {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (report == null) {
+        if (report == null || !report.hasAnyLog) {
           return _EmptyChartMessage(
             icon: Icons.event_busy_rounded,
-            message: 'No workout saved on ${_longDateLabel(date)}.',
+            message: 'No logs saved on ${_longDateLabel(date)}.',
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(report.title, style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              _longDateLabel(report.date),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 4),
             Text(
-              '${_longDateLabel(report.date)} / ${_durationLabel(report.duration)}',
+              _reportSubtitle(report),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 14),
@@ -215,22 +218,133 @@ class _WorkoutReportCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _ReportChip(label: '${report.totalExercises} exercises'),
-                _ReportChip(label: '${report.totalSets} sets'),
-                _ReportChip(label: '${report.totalReps} reps'),
-                _ReportChip(
-                  label: '${report.totalVolume.toStringAsFixed(0)} kg volume',
-                ),
+                if (report.workout != null)
+                  _ReportChip(label: report.workout!.title),
+                if (report.workout != null)
+                  _ReportChip(
+                    label: '${report.workout!.totalExercises} exercises',
+                  ),
+                if (report.hydrationSips > 0)
+                  _ReportChip(label: '${report.hydrationSips} sips'),
+                if (report.weight != null)
+                  _ReportChip(
+                    label:
+                        '${report.weight!.toStringAsFixed(1)} ${report.weightUnit}',
+                  ),
+                if (report.cardio.isNotEmpty)
+                  _ReportChip(label: '${report.cardio.length} cardio'),
+                if (report.sports.isNotEmpty)
+                  _ReportChip(label: '${report.sports.length} sports'),
               ],
             ),
             const SizedBox(height: 16),
-            for (final exercise in report.exercises) ...[
-              _ReportExerciseTile(exercise: exercise),
+            if (report.workout != null) ...[
+              _ReportSummaryBand(
+                icon: Icons.fitness_center_rounded,
+                title: 'Workout',
+                lines: [
+                  '${_durationLabel(report.workout!.duration)} / ${report.workout!.totalSets} sets / ${report.workout!.totalVolume.toStringAsFixed(0)} kg volume',
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (final exercise in report.workout!.exercises) ...[
+                _ReportExerciseTile(exercise: exercise),
+                const SizedBox(height: 10),
+              ],
+            ],
+            if (report.cardio.isNotEmpty) ...[
+              _ReportSummaryBand(
+                icon: Icons.directions_run_rounded,
+                title: 'Cardio',
+                lines: [
+                  for (final item in report.cardio)
+                    '${item.activityType} / ${item.durationMinutes} min${item.distance == null ? '' : ' / ${_compactDouble(item.distance!)} ${item.distanceUnit ?? 'km'}'}',
+                ],
+              ),
               const SizedBox(height: 10),
             ],
+            if (report.sports.isNotEmpty) ...[
+              _ReportSummaryBand(
+                icon: Icons.sports_basketball_rounded,
+                title: 'Sports',
+                lines: [
+                  for (final item in report.sports)
+                    '${item.sportName} / ${item.durationMinutes} min',
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            if (report.hydrationSips > 0 || report.weight != null)
+              _ReportSummaryBand(
+                icon: Icons.insights_rounded,
+                title: 'Body logs',
+                lines: [
+                  if (report.hydrationSips > 0)
+                    'Hydration: ${report.hydrationSips} sips',
+                  if (report.weight != null)
+                    'Weight: ${report.weight!.toStringAsFixed(1)} ${report.weightUnit}',
+                ],
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+class _ReportSummaryBand extends StatelessWidget {
+  const _ReportSummaryBand({
+    required this.icon,
+    required this.title,
+    required this.lines,
+  });
+
+  final IconData icon;
+  final String title;
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AtlasColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AtlasColors.accentSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AtlasColors.accent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                for (final line in lines)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      line,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -306,13 +420,7 @@ class _ReportExerciseTile extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   exercise.sets
-                      .map((set) {
-                        final weight =
-                            set.weight == 0
-                                ? 'bodyweight'
-                                : '${set.weight.toStringAsFixed(set.weight == set.weight.roundToDouble() ? 0 : 1)} ${set.weightUnit}';
-                        return 'Set ${set.setNumber}: ${set.reps} reps x $weight';
-                      })
+                      .map((set) => _setReportLine(exercise, set))
                       .join('\n'),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -375,17 +483,41 @@ class _ProgressHero extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 22),
-          if (weight == null)
-            const _EmptyChartMessage(
-              icon: Icons.monitor_weight_outlined,
-              message: 'Log your first weight to start the trend line.',
-            )
-          else
-            MockLineChart(
-              values: List.filled(7, weight),
-              color: AtlasColors.accent,
-              semanticLabel: 'Weight trend chart',
-            ),
+          FutureBuilder<List<AtlasWeightTrendPoint>>(
+            future: repository?.loadWeightTrend(),
+            builder: (context, trendSnapshot) {
+              final points =
+                  trendSnapshot.data ?? const <AtlasWeightTrendPoint>[];
+              if (weight == null || points.isEmpty) {
+                return const _EmptyChartMessage(
+                  icon: Icons.monitor_weight_outlined,
+                  message: 'Log your first weight to start the trend line.',
+                );
+              }
+              if (points.length == 1) {
+                return _EmptyChartMessage(
+                  icon: Icons.monitor_weight_outlined,
+                  message:
+                      'One saved weight: ${points.first.weight.toStringAsFixed(1)} ${points.first.unit}. Add another entry to see movement.',
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MockLineChart(
+                    values: [for (final point in points) point.weight],
+                    color: AtlasColors.accent,
+                    semanticLabel: 'Weight trend chart',
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _weightTrendLabel(points),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -607,4 +739,68 @@ String _durationLabel(Duration? duration) {
     return '${minutes}m';
   }
   return '${hours}h ${minutes}m';
+}
+
+String _reportSubtitle(AtlasDailyActivityReport report) {
+  final parts = <String>[];
+  if (report.workout != null) {
+    parts.add(_durationLabel(report.workout!.duration));
+  }
+  if (report.hydrationSips > 0) parts.add('${report.hydrationSips} sips');
+  if (report.cardio.isNotEmpty) parts.add('cardio logged');
+  if (report.sports.isNotEmpty) parts.add('sport logged');
+  if (report.weight != null) parts.add('weight logged');
+  return parts.isEmpty ? 'No saved activity' : parts.join(' / ');
+}
+
+String _setReportLine(
+  AtlasWorkoutExerciseLog exercise,
+  AtlasWorkoutSetLog set,
+) {
+  if (_isCardioExerciseLog(exercise)) {
+    final distance =
+        set.weight == 0 ? '' : ' / ${_compactDouble(set.weight)} km';
+    return '${set.reps} min$distance';
+  }
+  final weight =
+      set.weight == 0
+          ? 'bodyweight'
+          : '${_compactDouble(set.weight)} ${set.weightUnit}';
+  return 'Set ${set.setNumber}: ${set.reps} reps x $weight';
+}
+
+bool _isCardioExerciseLog(AtlasWorkoutExerciseLog exercise) {
+  final source = exercise.exercise;
+  final text =
+      '${exercise.name} ${source?.primaryMuscle ?? ''} ${source?.movementType ?? ''} ${source?.pattern ?? ''}'
+          .toLowerCase();
+  return text.contains('cardio') ||
+      text.contains('treadmill') ||
+      text.contains('running') ||
+      text.contains('cycling') ||
+      text.contains('bike') ||
+      text.contains('elliptical') ||
+      text.contains('rowing') ||
+      text.contains('stair') ||
+      text.contains('jump rope') ||
+      text.contains('walking');
+}
+
+String _compactDouble(double value) {
+  return value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(1);
+}
+
+String _weightTrendLabel(List<AtlasWeightTrendPoint> points) {
+  final first = points.first;
+  final latest = points.last;
+  final delta = latest.weight - first.weight;
+  final direction =
+      delta == 0
+          ? 'No change'
+          : delta > 0
+          ? '+${delta.toStringAsFixed(1)}'
+          : delta.toStringAsFixed(1);
+  return '${first.weight.toStringAsFixed(1)} -> ${latest.weight.toStringAsFixed(1)} ${latest.unit} ($direction ${latest.unit})';
 }
