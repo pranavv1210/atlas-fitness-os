@@ -28,6 +28,7 @@ class AtlasAgentLauncher extends StatefulWidget {
 class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
   static const _orbSize = 68.0;
   Offset? _position;
+  bool _dragging = false;
 
   @override
   void didChangeDependencies() {
@@ -52,6 +53,14 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
       position.dx.clamp(12, size.width - _orbSize - 12),
       position.dy.clamp(minY, maxY),
     );
+  }
+
+  Offset _snapToNearestSide(Offset position, Size size) {
+    final clamped = _clampPosition(position, size);
+    final left = 12.0;
+    final right = size.width - _orbSize - 12;
+    final targetX = clamped.dx + (_orbSize / 2) < size.width / 2 ? left : right;
+    return Offset(targetX, clamped.dy);
   }
 
   Future<void> _savePosition(Size size) async {
@@ -86,18 +95,32 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final position = _clampPosition(_position ?? _initialPosition(size), size);
+    final rawPosition = _position ?? _initialPosition(size);
+    final position =
+        _dragging
+            ? _clampPosition(rawPosition, size)
+            : _snapToNearestSide(rawPosition, size);
     _position = position;
-    return Positioned(
+    return AnimatedPositioned(
       left: position.dx,
       top: position.dy,
+      duration: _dragging ? Duration.zero : const Duration(milliseconds: 260),
+      curve: Curves.easeOutBack,
       child: GestureDetector(
         onTap: _openSheet,
+        onPanStart: (_) => setState(() => _dragging = true),
         onPanUpdate:
             (details) => setState(() {
               _position = _clampPosition(position + details.delta, size);
             }),
-        onPanEnd: (_) => _savePosition(size),
+        onPanEnd: (_) {
+          HapticFeedback.selectionClick();
+          setState(() {
+            _dragging = false;
+            _position = _snapToNearestSide(_position ?? position, size);
+          });
+          _savePosition(size);
+        },
         child: const _AgentOrb(),
       ),
     );
@@ -311,82 +334,14 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color:
-                                  isDark
-                                      ? Colors.white.withValues(alpha: 0.05)
-                                      : Colors.black.withValues(alpha: 0.03),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(
-                                  alpha: isDark ? 0.12 : 0.52,
-                                ),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.12),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: const _PlateBuddyFace(size: 50),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Atlas Buddy',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                Text(
-                                  'Trainer energy. Log brain. Zero fluff.',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                    _BuddyHeader(screen: widget.initialScreen),
+                    _BuddyContextStrip(screen: widget.initialScreen),
+                    _BuddySuggestionRail(
+                      suggestions: _suggestions,
+                      sending: _sending,
+                      onTap: _send,
                     ),
-                    SizedBox(
-                      height: 42,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _suggestions.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final suggestion = _suggestions[index];
-                          return ActionChip(
-                            onPressed:
-                                _sending ? null : () => _send(suggestion),
-                            label: Text(suggestion),
-                            side: BorderSide(
-                              color:
-                                  isDark
-                                      ? Colors.white.withValues(alpha: 0.1)
-                                      : AtlasColors.hairline,
-                            ),
-                            backgroundColor:
-                                isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : Colors.white.withValues(alpha: 0.7),
-                            avatar: const Icon(Icons.bolt_rounded, size: 16),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: ListView.separated(
                         controller: _scrollController,
@@ -422,6 +377,254 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
   }
 }
 
+class _BuddyHeader extends StatelessWidget {
+  const _BuddyHeader({required this.screen});
+
+  final String screen;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors:
+                isDark
+                    ? [
+                      Colors.white.withValues(alpha: 0.08),
+                      Colors.white.withValues(alpha: 0.025),
+                    ]
+                    : [
+                      Colors.white.withValues(alpha: 0.94),
+                      AtlasColors.accentSoft.withValues(alpha: 0.48),
+                    ],
+          ),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.72),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.06),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.black.withValues(alpha: 0.03),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.62),
+                ),
+              ),
+              child: const _PlateBuddyFace(size: 56),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Atlas Buddy',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(height: 1),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AtlasColors.success,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Your gym buddy for $screen',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AtlasColors.inkMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.graphic_eq_rounded, color: AtlasColors.accent),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BuddyContextStrip extends StatelessWidget {
+  const _BuddyContextStrip({required this.screen});
+
+  final String screen;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = [
+      (Icons.visibility_rounded, 'Reads logs'),
+      (Icons.fitness_center_rounded, screen),
+      (Icons.bolt_rounded, 'Fast advice'),
+    ];
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final chip = chips[index];
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AtlasColors.ink.withValues(alpha: 0.055),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AtlasColors.hairline),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(chip.$1, size: 14, color: AtlasColors.accent),
+                const SizedBox(width: 6),
+                Text(chip.$2, style: Theme.of(context).textTheme.labelMedium),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BuddySuggestionRail extends StatelessWidget {
+  const _BuddySuggestionRail({
+    required this.suggestions,
+    required this.sending,
+    required this.onTap,
+  });
+
+  final List<String> suggestions;
+  final bool sending;
+  final ValueChanged<String> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+        scrollDirection: Axis.horizontal,
+        itemCount: suggestions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 9),
+        itemBuilder: (context, index) {
+          final suggestion = suggestions[index];
+          return AtlasBuddyPrompt(
+            label: suggestion,
+            enabled: !sending,
+            isDark: isDark,
+            onTap: () => onTap(suggestion),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class AtlasBuddyPrompt extends StatelessWidget {
+  const AtlasBuddyPrompt({
+    required this.label,
+    required this.enabled,
+    required this.isDark,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final bool enabled;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.52,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: enabled ? onTap : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color:
+                isDark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : Colors.white.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color:
+                  isDark
+                      ? Colors.white.withValues(alpha: 0.09)
+                      : AtlasColors.hairline,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                size: 15,
+                color: AtlasColors.accent,
+              ),
+              const SizedBox(width: 7),
+              Text(label, style: Theme.of(context).textTheme.labelLarge),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AgentBubble extends StatelessWidget {
   const _AgentBubble({required this.message});
 
@@ -431,60 +634,133 @@ class _AgentBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == AtlasAgentRole.user;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(
-          color:
-              isUser
-                  ? AtlasColors.accent
-                  : isDark
-                  ? Colors.white.withValues(alpha: 0.07)
-                  : Colors.white.withValues(alpha: 0.86),
-          gradient:
-              isUser
-                  ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AtlasColors.accent, AtlasColors.accentDeep],
-                  )
-                  : null,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isUser ? 20 : 6),
-            bottomRight: Radius.circular(isUser ? 6 : 20),
+    if (isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.76,
           ),
-          border: Border.all(
-            color:
-                isUser
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : AtlasColors.hairline,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AtlasColors.accent, AtlasColors.accentDeep],
             ),
-          ],
-        ),
-        child: Text(
-          message.content,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isUser ? Colors.white : null,
-            height: 1.45,
-            fontWeight: isUser ? FontWeight.w700 : FontWeight.w500,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(22),
+              topRight: Radius.circular(22),
+              bottomLeft: Radius.circular(22),
+              bottomRight: Radius.circular(7),
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: AtlasColors.accent.withValues(alpha: 0.18),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Text(
+            message.content,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              height: 1.42,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+            border: Border.all(color: AtlasColors.hairline),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const _PlateBuddyFace(size: 30),
+        ),
+        const SizedBox(width: 9),
+        Flexible(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.fromLTRB(15, 12, 15, 14),
+            decoration: BoxDecoration(
+              color:
+                  isDark
+                      ? Colors.white.withValues(alpha: 0.07)
+                      : Colors.white.withValues(alpha: 0.9),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(24),
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+              border: Border.all(
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.white.withValues(alpha: 0.72),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.055),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Buddy note',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AtlasColors.accent,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.bolt_rounded,
+                      size: 14,
+                      color: AtlasColors.warning,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  message.content,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.48,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -502,41 +778,83 @@ class _AgentInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            enabled: !sending,
-            minLines: 1,
-            maxLines: 4,
-            textInputAction: TextInputAction.send,
-            onSubmitted: sending ? null : onSend,
-            decoration: const InputDecoration(
-              hintText: 'Ask your gym buddy...',
-              prefixIcon: Icon(Icons.fitness_center_rounded),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.white.withValues(alpha: 0.76),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AtlasColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.fitness_center_rounded,
+              color: AtlasColors.accent,
+              size: 20,
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        FilledButton(
-          onPressed: sending ? null : () => onSend(null),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(56, 56),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !sending,
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.send,
+              onSubmitted: sending ? null : onSend,
+              decoration: const InputDecoration(
+                hintText: 'Talk training, food, recovery...',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
           ),
-          child:
-              sending
-                  ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                  : const Icon(Icons.arrow_upward_rounded),
-        ),
-      ],
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: sending ? null : () => onSend(null),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child:
+                sending
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.arrow_upward_rounded),
+          ),
+        ],
+      ),
     );
   }
 }
