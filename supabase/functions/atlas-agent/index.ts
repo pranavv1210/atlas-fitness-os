@@ -63,7 +63,12 @@ serve(async (request) => {
     });
   }
 
-  const context = await buildAtlasContext(supabase, message, body.screen);
+  const context = await buildAtlasContext(
+    supabase,
+    authData.user.id,
+    message,
+    body.screen,
+  );
   if (geminiKey) {
     const geminiReply = await callGemini({
       apiKey: geminiKey,
@@ -205,7 +210,12 @@ async function callHuggingFace({
   return parseAgentText(text, context, screen);
 }
 
-async function buildAtlasContext(supabase: ReturnType<typeof createClient>, message: string, screen?: string) {
+async function buildAtlasContext(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  message: string,
+  screen?: string,
+) {
   const today = new Date().toISOString().slice(0, 10);
   const requestedDate = requestedDateFromMessage(message, today);
   const search = searchTerms(message);
@@ -231,25 +241,29 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
       .select(
         "id, session_date, started_at, completed_at, status, title, workout_session_exercises(display_order, name_snapshot, workout_sets(set_number, reps, weight, weight_unit))",
       )
+      .eq("user_id", userId)
       .eq("status", "completed")
       .order("session_date", { ascending: false })
       .limit(14),
     supabase
       .from("v_active_goals")
       .select("title, goal_type, target_value, target_unit, current_value, progress_percent")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(8),
     supabase
       .from("body_weight_logs")
       .select("measured_on, weight, unit")
+      .eq("user_id", userId)
       .order("measured_on", { ascending: false })
       .limit(10),
     supabase
       .from("hydration_events")
       .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
       .gte("occurred_at", `${today}T00:00:00.000Z`),
     loadRelevantExercises(supabase, search),
-    requestedDate ? loadDaySummary(supabase, requestedDate) : Promise.resolve(null),
+    requestedDate ? loadDaySummary(supabase, userId, requestedDate) : Promise.resolve(null),
   ]);
 
   const workoutRows = Array.isArray(todayWorkout.data) ? todayWorkout.data : [];
@@ -264,6 +278,7 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
     today,
     currentScreen: screen ?? "Atlas",
     profile: profile.data ?? null,
+    userScope: userId,
     todayWorkout: workoutRows[0] ?? null,
     recentWorkoutCount: recentSessions.length,
     recentWorkoutDates: [...workoutDates],
@@ -288,7 +303,11 @@ async function buildAtlasContext(supabase: ReturnType<typeof createClient>, mess
   };
 }
 
-async function loadDaySummary(supabase: ReturnType<typeof createClient>, date: string) {
+async function loadDaySummary(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  date: string,
+) {
   const next = nextDateKey(date);
   const [
     workouts,
@@ -303,27 +322,32 @@ async function loadDaySummary(supabase: ReturnType<typeof createClient>, date: s
         "id, session_date, started_at, completed_at, status, title, workout_session_exercises(display_order, name_snapshot, workout_sets(set_number, reps, weight, weight_unit))",
       )
       .eq("status", "completed")
+      .eq("user_id", userId)
       .eq("session_date", date)
       .order("completed_at", { ascending: false })
       .limit(1),
     supabase
       .from("cardio_sessions")
       .select("activity_type, duration_minutes, distance, distance_unit, notes")
+      .eq("user_id", userId)
       .eq("session_date", date)
       .order("created_at", { ascending: true }),
     supabase
       .from("sports_sessions")
       .select("sport_name, duration_minutes, notes")
+      .eq("user_id", userId)
       .eq("session_date", date)
       .order("created_at", { ascending: true }),
     supabase
       .from("hydration_events")
       .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
       .gte("occurred_at", `${date}T00:00:00.000Z`)
       .lt("occurred_at", `${next}T00:00:00.000Z`),
     supabase
       .from("body_weight_logs")
       .select("measured_on, weight, unit")
+      .eq("user_id", userId)
       .eq("measured_on", date)
       .order("created_at", { ascending: false })
       .limit(1),

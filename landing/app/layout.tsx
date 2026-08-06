@@ -9,10 +9,10 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://atlas-fitness-os.vercel.app'),
+  metadataBase: new URL('https://atlas-fitness-os-henna.vercel.app'),
   title: 'Atlas | Personal Fitness Operating System',
   description:
-    'Atlas is a premium Android fitness operating system for workouts, goals, hydration, analytics, and an AI gym buddy.',
+    'Atlas is a premium Android fitness operating system for secure Google login, workout logging, 2,069+ exercises, daily reports, hydration, goals, progress analytics, and Atlas Buddy.',
   keywords: [
     'Atlas fitness app',
     'workout tracker',
@@ -21,20 +21,24 @@ export const metadata: Metadata = {
     'AI fitness coach',
     'exercise library',
     'hydration tracking',
+    'fitness analytics',
+    'Google sign in fitness app',
+    'workout history',
+    'daily workout report',
   ],
   openGraph: {
     title: 'Atlas | Personal Fitness Operating System',
     description:
-      'A premium Android fitness app for workout logging, 2,000+ exercises, goals, hydration, progress, and Atlas Buddy.',
+      'A premium Android fitness app for secure accounts, workout logging, 2,069+ exercises, goals, hydration, progress, daily reports, and Atlas Buddy.',
     type: 'website',
-    url: 'https://atlas-fitness-os.vercel.app',
+    url: 'https://atlas-fitness-os-henna.vercel.app',
     images: ['/brand/atlas-logo.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Atlas | Personal Fitness Operating System',
     description:
-      'A premium Android fitness app for workout logging, 2,000+ exercises, goals, hydration, progress, and Atlas Buddy.',
+      'A premium Android fitness app for secure accounts, workout logging, 2,069+ exercises, goals, hydration, progress, daily reports, and Atlas Buddy.',
     images: ['/brand/atlas-logo.png'],
   },
   icons: {

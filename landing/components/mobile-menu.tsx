@@ -5,9 +5,12 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const links = [
+  ['Why', '#why'],
   ['Experience', '#story'],
-  ['Library', '#story-library'],
-  ['Progress', '#story-analytics'],
+  ['Features', '#features'],
+  ['Security', '#security'],
+  ['Compare', '#compare'],
+  ['Terms', '#terms'],
   ['Download', '#download'],
 ];
 
