@@ -33,7 +33,7 @@ const proof = [
 
 const features = [
   ['Workout OS', 'Daily training, builder, logger, history, and analytics live in one loop.', Activity],
-  ['Atlas Buddy', 'A gym companion that reads your logs and helps you understand what changed.', Sparkles],
+  ['Atlas Buddy', 'Tell Buddy what you trained and it drafts exercises into your workout for review.', Sparkles],
   ['Goals', 'Strength, habit, weight, and hydration targets stay visible while you train.', Target],
   ['Private', 'Google login, separate accounts, sync, and biometric lock keep data personal.', LockKeyhole],
 ];
@@ -46,7 +46,7 @@ const productFeatures = [
   ['Progress analytics', 'Weekly volume, consistency, fitness score, recovery, and weight trend.', BarChart3],
   ['Hydration tracking', 'Quick sip logging, reminder intervals, and daily hydration context.', Droplets],
   ['Goals and streaks', 'Targets, weekly completion, cycle progress, and habit momentum.', Target],
-  ['Atlas Buddy', 'Ask questions about your saved logs, missed days, lifts, and trends.', Sparkles],
+  ['Atlas Buddy', 'Ask about logs, then describe today’s workout so Buddy drafts matched exercises for review.', Sparkles],
 ];
 
 const securityPoints = [
@@ -147,6 +147,35 @@ export default function Home() {
         </section>
 
         <StoryShowcase />
+
+        <section className="buddy-draft-v2">
+          <div className="buddy-draft-panel">
+            <div className="buddy-draft-copy">
+              <span className="section-kicker">New In Atlas Buddy</span>
+              <h2>Say what you did. Atlas builds the draft.</h2>
+              <p>
+                No more searching every movement while your pump is fading. Tell Atlas Buddy something like “shrugs 3x15 at 20 kg, pulldown 4x12, treadmill 20 minutes” and it matches the closest exercises from the library into today’s workout draft.
+              </p>
+              <p>
+                Buddy does not complete the workout for you. It prepares the list, then you review, edit sets, reps, weight, or distance, and save only when it looks right.
+              </p>
+            </div>
+            <div className="buddy-draft-demo" aria-label="Atlas Buddy workout drafting example">
+              <div className="buddy-chat user">I did shrugs 3x15 20kg, lat pulldown 4x12 35kg</div>
+              <div className="buddy-chat buddy">Matched Shrugs and Cable Pulldown. Added 2 exercises to today’s draft.</div>
+              <div className="draft-card">
+                <span>Workout draft</span>
+                <strong>Shrugs</strong>
+                <p>3 sets / 15 reps / 20 kg</p>
+              </div>
+              <div className="draft-card">
+                <span>Closest library match</span>
+                <strong>Cable Pulldown</strong>
+                <p>4 sets / 12 reps / 35 kg</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section id="features" className="features-v2">
           <div className="section-heading">

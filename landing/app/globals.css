@@ -662,6 +662,7 @@ a {
 }
 
 .why-v2,
+.buddy-draft-v2,
 .features-v2,
 .inventory-v2,
 .security-v2,
@@ -815,6 +816,106 @@ a {
 
 .features-v2 {
   padding: 72px 0;
+}
+
+.buddy-draft-v2 {
+  padding: 56px 0;
+}
+
+.buddy-draft-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(340px, 0.72fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 48px;
+  padding: clamp(28px, 5vw, 58px);
+  background:
+    radial-gradient(circle at 86% 12%, rgba(37, 99, 255, 0.18), transparent 23rem),
+    radial-gradient(circle at 14% 84%, rgba(16, 185, 129, 0.14), transparent 24rem),
+    rgba(255, 255, 255, 0.62);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(28px);
+}
+
+.buddy-draft-copy h2 {
+  margin-top: 14px;
+  font-size: clamp(42px, 5.6vw, 84px);
+  font-weight: 950;
+  letter-spacing: -0.058em;
+  line-height: 0.9;
+}
+
+.buddy-draft-copy p {
+  max-width: 660px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.66;
+}
+
+.buddy-draft-demo {
+  display: grid;
+  gap: 12px;
+}
+
+.buddy-chat,
+.draft-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 24px 70px rgba(17, 18, 20, 0.1);
+  backdrop-filter: blur(24px);
+}
+
+.buddy-chat {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 24px;
+  padding: 14px 16px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 820;
+  line-height: 1.45;
+}
+
+.buddy-chat.user {
+  justify-self: end;
+  background: linear-gradient(135deg, var(--blue), var(--deep));
+  color: white;
+}
+
+.buddy-chat.buddy {
+  justify-self: start;
+}
+
+.draft-card {
+  border-radius: 26px;
+  padding: 18px;
+}
+
+.draft-card span {
+  color: var(--deep);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.draft-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.draft-card p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 760;
 }
 
 .inventory-v2,
@@ -1292,6 +1393,7 @@ a {
   }
 
   .why-v2,
+  .buddy-draft-v2,
   .features-v2,
   .inventory-v2,
   .security-v2,
@@ -1303,6 +1405,7 @@ a {
   }
 
   .why-v2,
+  .buddy-draft-v2,
   .features-v2,
   .inventory-v2,
   .security-v2,
@@ -1320,6 +1423,7 @@ a {
   }
 
   .why-v2-statement h2,
+  .buddy-draft-copy h2,
   .section-heading h2,
   .story-v2-header h2,
   .story-v2-cta h2,
@@ -1337,6 +1441,7 @@ a {
   }
 
   .comparison-row,
+  .buddy-draft-panel,
   .feature-grid-v2,
   .inventory-grid,
   .market-grid,
@@ -1357,6 +1462,7 @@ a {
   }
 
   .comparison-row article,
+  .buddy-draft-panel,
   .feature-v2-card,
   .inventory-card,
   .market-card,
@@ -1371,6 +1477,7 @@ a {
   }
 
   .comparison-row p,
+  .buddy-draft-copy p,
   .feature-v2-card p,
   .inventory-card p,
   .security-panel p,
@@ -1431,6 +1538,15 @@ a {
   .feature-v2-card h3 {
     margin-top: 20px;
     font-size: 19px;
+  }
+
+  .buddy-draft-panel {
+    gap: 22px;
+    text-align: center;
+  }
+
+  .buddy-draft-demo {
+    width: 100%;
   }
 
   .inventory-card {
