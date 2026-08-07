@@ -103,6 +103,8 @@ class _AtlasShellState extends State<AtlasShell> {
               AtlasAgentLauncher(
                 service: dependencies.atlasAgentService,
                 preferences: dependencies.preferences,
+                repository: dependencies.atlasDataRepository,
+                workoutDraftVersion: dependencies.workoutDraftVersion,
                 screen: destinations[_selectedIndex].label,
               ),
           ],

@@ -7,18 +7,24 @@ import 'package:flutter/services.dart';
 import '../../../app/theme/atlas_colors.dart';
 import '../../../core/services/atlas_preferences.dart';
 import '../../../core/widgets/atlas_feedback.dart';
+import '../../atlas/data/atlas_data_repository.dart';
+import '../../atlas/data/atlas_models.dart';
 import '../data/atlas_agent_service.dart';
 
 class AtlasAgentLauncher extends StatefulWidget {
   const AtlasAgentLauncher({
     required this.service,
     required this.preferences,
+    required this.repository,
+    required this.workoutDraftVersion,
     required this.screen,
     super.key,
   });
 
   final AtlasAgentService service;
   final AtlasPreferences preferences;
+  final AtlasDataRepository repository;
+  final ValueNotifier<int> workoutDraftVersion;
   final String screen;
 
   @override
@@ -78,6 +84,7 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.32),
       sheetAnimationStyle: AnimationStyle(
@@ -87,6 +94,9 @@ class _AtlasAgentLauncherState extends State<AtlasAgentLauncher> {
       builder:
           (context) => AtlasAgentSheet(
             service: widget.service,
+            repository: widget.repository,
+            preferences: widget.preferences,
+            workoutDraftVersion: widget.workoutDraftVersion,
             initialScreen: widget.screen,
           ),
     );
@@ -175,11 +185,17 @@ class _AgentOrb extends StatelessWidget {
 class AtlasAgentSheet extends StatefulWidget {
   const AtlasAgentSheet({
     required this.service,
+    required this.repository,
+    required this.preferences,
+    required this.workoutDraftVersion,
     required this.initialScreen,
     super.key,
   });
 
   final AtlasAgentService service;
+  final AtlasDataRepository repository;
+  final AtlasPreferences preferences;
+  final ValueNotifier<int> workoutDraftVersion;
   final String initialScreen;
 
   @override
@@ -224,11 +240,19 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
         history: _messages,
       );
       if (!mounted) return;
+      final appliedCount =
+          reply.workoutEntries.isEmpty
+              ? 0
+              : await _applyWorkoutEntries(reply.workoutEntries);
+      if (!mounted) return;
       setState(() {
         _messages.add(
           AtlasAgentMessage(
             role: AtlasAgentRole.assistant,
-            content: reply.message,
+            content:
+                appliedCount == 0
+                    ? reply.message
+                    : '${reply.message}\n\nAdded $appliedCount exercise${appliedCount == 1 ? '' : 's'} to today\'s workout draft. Open Train to review and edit before saving.',
           ),
         );
       });
@@ -254,6 +278,70 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
     }
+  }
+
+  Future<int> _applyWorkoutEntries(List<AtlasAgentWorkoutEntry> entries) async {
+    final snapshot = await widget.repository.loadSnapshot();
+    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    if (workout == null || snapshot.completedToday) return 0;
+
+    final userId = widget.repository.currentUserId;
+    final draft = widget.preferences.workoutDraftFor(userId);
+    final rawEntries =
+        draft != null && draft['dayNumber'] == workout.dayNumber
+            ? draft['entries']
+            : null;
+    final byId = {
+      for (final exercise in snapshot.exerciseLibrary) exercise.id: exercise,
+    };
+    final merged = <Map<String, dynamic>>[];
+    if (rawEntries is List) {
+      for (final item in rawEntries) {
+        if (item is! Map) continue;
+        final exerciseId = item['exerciseId'];
+        if (exerciseId is! String || byId[exerciseId] == null) continue;
+        merged.add({
+          'exerciseId': exerciseId,
+          'sets': _safeInt(item['sets'], fallback: 3),
+          'reps': _safeInt(item['reps'], fallback: 15),
+          'weight': _safeDouble(item['weight']),
+        });
+      }
+    }
+
+    var applied = 0;
+    for (final entry in entries) {
+      final exercise = _matchExercise(entry, snapshot.exerciseLibrary);
+      if (exercise == null) continue;
+      final next = {
+        'exerciseId': exercise.id,
+        'sets': (entry.sets ?? exercise.defaultSets).clamp(1, 99),
+        'reps': (entry.reps ?? _firstNumber(exercise.defaultReps)).clamp(
+          1,
+          999,
+        ),
+        'weight': (entry.weight ?? 0).clamp(0, 9999),
+      };
+      final existingIndex = merged.indexWhere(
+        (item) => item['exerciseId'] == exercise.id,
+      );
+      if (existingIndex >= 0) {
+        merged[existingIndex] = next;
+      } else {
+        merged.add(next);
+      }
+      applied += 1;
+    }
+
+    if (applied == 0) return 0;
+    await widget.preferences.setWorkoutDraft(userId, {
+      'dayNumber': workout.dayNumber,
+      'workoutName': workout.name,
+      'savedAt': DateTime.now().toIso8601String(),
+      'entries': merged,
+    });
+    widget.workoutDraftVersion.value += 1;
+    return applied;
   }
 
   void _scrollToBottom() {
@@ -319,15 +407,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
                 top: false,
                 child: Column(
                   children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 44,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: AtlasColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
+                    const SizedBox(height: 14),
                     _BuddyHeader(screen: widget.initialScreen),
                     const SizedBox(height: 6),
                     Expanded(
@@ -844,17 +924,185 @@ class _PlateBuddyPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _ThinkingIndicator extends StatelessWidget {
+class _ThinkingIndicator extends StatefulWidget {
   const _ThinkingIndicator();
 
   @override
+  State<_ThinkingIndicator> createState() => _ThinkingIndicatorState();
+}
+
+class _ThinkingIndicatorState extends State<_ThinkingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 880),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Text(
-      'Atlas is reading your logs...',
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: AtlasColors.inkMuted,
-        fontWeight: FontWeight.w700,
-      ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = Curves.easeInOut.transform(_controller.value);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Transform.rotate(
+              angle: math.sin(value * math.pi * 2) * 0.22,
+              child: const Icon(
+                Icons.fitness_center_rounded,
+                size: 18,
+                color: AtlasColors.accent,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Buddy is matching your workout...',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AtlasColors.inkMuted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 28,
+              height: 16,
+              child: CustomPaint(painter: _CurlLoaderPainter(value)),
+            ),
+          ],
+        );
+      },
     );
   }
+}
+
+class _CurlLoaderPainter extends CustomPainter {
+  const _CurlLoaderPainter(this.phase);
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = AtlasColors.accent
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke;
+    final y = size.height * (0.56 + math.sin(phase * math.pi * 2) * 0.16);
+    canvas.drawLine(Offset(4, y), Offset(size.width - 4, y), paint);
+    final platePaint =
+        Paint()
+          ..color = AtlasColors.accentDeep
+          ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(4, y), 3.2, platePaint);
+    canvas.drawCircle(Offset(size.width - 4, y), 3.2, platePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurlLoaderPainter oldDelegate) {
+    return oldDelegate.phase != phase;
+  }
+}
+
+AtlasExercise? _matchExercise(
+  AtlasAgentWorkoutEntry entry,
+  List<AtlasExercise> library,
+) {
+  final wanted = _normalize(entry.name);
+  if (wanted.isEmpty) return null;
+  AtlasExercise? best;
+  var bestScore = 0;
+  for (final exercise in library) {
+    final score = _exerciseMatchScore(entry, exercise, wanted);
+    if (score > bestScore) {
+      bestScore = score;
+      best = exercise;
+    }
+  }
+  return bestScore >= 5 ? best : null;
+}
+
+int _exerciseMatchScore(
+  AtlasAgentWorkoutEntry entry,
+  AtlasExercise exercise,
+  String wanted,
+) {
+  final name = _normalize(exercise.name);
+  final wantedTokens = _tokens(wanted);
+  final nameTokens = _tokens(name);
+  var score = 0;
+  if (name == wanted) score += 20;
+  if (name.contains(wanted) || wanted.contains(name)) score += 10;
+  for (final token in wantedTokens) {
+    if (nameTokens.contains(token)) score += 5;
+    if (token.length > 3 &&
+        nameTokens.any(
+          (candidate) =>
+              candidate.startsWith(token) || token.startsWith(candidate),
+        )) {
+      score += 3;
+    }
+  }
+  final muscle = _normalize(entry.muscle ?? '');
+  if (muscle.isNotEmpty) {
+    final primary = _normalize(exercise.primaryMuscle);
+    final secondary = exercise.secondaryMuscles.map(_normalize).join(' ');
+    if (primary.contains(muscle) || muscle.contains(primary)) score += 5;
+    if (secondary.contains(muscle)) score += 3;
+  }
+  final equipment = _normalize(entry.equipment ?? '');
+  if (equipment.isNotEmpty &&
+      _normalize(exercise.equipment).contains(equipment)) {
+    score += 3;
+  }
+  if (wanted.contains('shrug') && name.contains('shrug')) score += 12;
+  return score;
+}
+
+Set<String> _tokens(String value) {
+  return value
+      .split(' ')
+      .where((token) => token.length > 1)
+      .map(
+        (token) =>
+            token.endsWith('s') ? token.substring(0, token.length - 1) : token,
+      )
+      .toSet();
+}
+
+String _normalize(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'\s+'), ' ');
+}
+
+int _firstNumber(String value) {
+  final match = RegExp(r'\d+').firstMatch(value);
+  return int.tryParse(match?.group(0) ?? '') ?? 15;
+}
+
+int _safeInt(Object? value, {required int fallback}) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return fallback;
+}
+
+double _safeDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  return 0;
 }

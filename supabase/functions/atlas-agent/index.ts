@@ -564,6 +564,9 @@ function normalizeAgentReply(reply: Record<string, unknown>, context: { contextU
   const suggestions = Array.isArray(reply.suggestions)
     ? reply.suggestions.filter((item) => typeof item === "string").slice(0, 4)
     : defaultSuggestions();
+  const rawWorkoutEntries = Array.isArray(reply.workoutEntries)
+    ? reply.workoutEntries
+    : [];
   return {
     message:
       typeof reply.message === "string" && reply.message.trim().length > 0
@@ -571,10 +574,41 @@ function normalizeAgentReply(reply: Record<string, unknown>, context: { contextU
         : "I read your Atlas data, but could not form a useful response.",
     mode: typeof reply.mode === "string" ? reply.mode : "Coach",
     suggestions,
+    workoutEntries: rawWorkoutEntries
+      .map(normalizeWorkoutEntry)
+      .filter((item) => item.name.length > 0)
+      .slice(0, 12),
     contextUsed: Array.isArray(reply.contextUsed)
       ? reply.contextUsed.filter((item) => typeof item === "string")
       : context.contextUsed,
   };
+}
+
+function normalizeWorkoutEntry(item: unknown) {
+  const source = typeof item === "object" && item !== null
+    ? item as Record<string, unknown>
+    : {};
+  return {
+    name: String(source.name ?? source.exercise ?? "").trim(),
+    muscle: typeof source.muscle === "string"
+      ? source.muscle
+      : typeof source.targetMuscle === "string"
+      ? source.targetMuscle
+      : undefined,
+    equipment: typeof source.equipment === "string" ? source.equipment : undefined,
+    sets: numberOrUndefined(source.sets),
+    reps: numberOrUndefined(source.reps),
+    weight: numberOrUndefined(source.weight ?? source.kg),
+  };
+}
+
+function numberOrUndefined(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function parseAgentText(
@@ -634,8 +668,37 @@ function localCoachReply(message: string, context: Awaited<ReturnType<typeof bui
     message: answer,
     mode: "Coach",
     suggestions: [],
+    workoutEntries: localWorkoutEntries(message),
     contextUsed: context.contextUsed,
   };
+}
+
+function localWorkoutEntries(message: string) {
+  const lower = message.toLowerCase();
+  if (!/\b(did|done|add|log|enter|today)\b/.test(lower)) return [];
+  const parts = message
+    .split(/\n|,|;|\band\b/gi)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts
+    .map((part) => {
+      const setsReps = part.match(/(\d+)\s*(?:x|sets?\s*(?:of)?)\s*(\d+)/i);
+      const kg = part.match(/(\d+(?:\.\d+)?)\s*(?:kg|kgs|kilograms?)/i);
+      const cleanedName = part
+        .replace(/i\s+(did|done|logged|added|entered)\s+/i, "")
+        .replace(/\d+\s*(?:x|sets?\s*(?:of)?)\s*\d+/i, "")
+        .replace(/\d+(?:\.\d+)?\s*(?:kg|kgs|kilograms?)/i, "")
+        .replace(/\b(today|for|with|reps?|sets?)\b/gi, "")
+        .trim();
+      return {
+        name: cleanedName,
+        sets: setsReps ? Number(setsReps[1]) : undefined,
+        reps: setsReps ? Number(setsReps[2]) : undefined,
+        weight: kg ? Number(kg[1]) : undefined,
+      };
+    })
+    .filter((item) => item.name.length > 1)
+    .slice(0, 8);
 }
 
 function defaultSuggestions(screen = "Atlas") {
@@ -651,12 +714,16 @@ Never claim to save, delete, or modify app data. You may recommend actions and s
 Prioritize the user's actual logs, current workout, goals, streak, hydration, weight logs, and exercise library.
 If the user asks about a specific date, yesterday, or today, answer from requestedDateSummary. Include workouts, exercises, cardio, sport, hydration sips, and weight when present. If nothing is saved for that date, say that clearly.
 When comparing workouts, mention dates, exercises, sets, reps, and weight when available.
+When the user says they did exercises today and wants you to enter/add/log them, extract those movements into "workoutEntries". Include one object per exercise:
+{ "name": "shrugs", "muscle": "Back or Shoulders if implied", "equipment": "Dumbbell if implied", "sets": 3, "reps": 15, "weight": 20 }.
+If the exact exercise name may not exist, still return the user's best movement name plus muscle/equipment context so the app can match the closest exercise locally. Do not mark the workout complete or final-save anything.
 Keep responses concise enough for a mobile overlay. Avoid long paragraphs.
 Return strict JSON:
 {
   "message": "useful gym buddy response",
   "mode": "Coach | Workout | Review | Recovery | Data",
   "suggestions": ["next prompt", "next prompt", "next prompt"],
+  "workoutEntries": [],
   "contextUsed": ["today workout", "recent workout logs"]
 }
 `;

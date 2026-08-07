@@ -65,6 +65,7 @@ class AppDependencies {
   int _handledHydrationTapCount = 0;
   bool _listeningForHydrationTaps = false;
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
+  final ValueNotifier<int> workoutDraftVersion = ValueNotifier(0);
 
   Future<void> initializeLocalServices() async {
     _preferences ??= AtlasPreferences(await SharedPreferences.getInstance());

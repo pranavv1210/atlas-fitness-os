@@ -30,6 +30,7 @@ class _TrainScreenState extends State<TrainScreen> {
   AppDependencies? _dependencies;
   List<_CustomWorkoutPlanDay> _customPlan = _defaultCustomPlan();
   final List<_EditableWorkoutEntry> _entries = [];
+  ValueNotifier<int>? _draftVersionNotifier;
   bool _saving = false;
 
   @override
@@ -37,7 +38,26 @@ class _TrainScreenState extends State<TrainScreen> {
     super.didChangeDependencies();
     _dependencies = AppScope.maybeRead(context);
     _repository = _dependencies?.atlasDataRepository;
+    final nextNotifier = _dependencies?.workoutDraftVersion;
+    if (_draftVersionNotifier != nextNotifier) {
+      _draftVersionNotifier?.removeListener(_handleExternalDraftChanged);
+      _draftVersionNotifier = nextNotifier;
+      _draftVersionNotifier?.addListener(_handleExternalDraftChanged);
+    }
     _future ??= _load();
+  }
+
+  @override
+  void dispose() {
+    _draftVersionNotifier?.removeListener(_handleExternalDraftChanged);
+    super.dispose();
+  }
+
+  void _handleExternalDraftChanged() {
+    if (!mounted) return;
+    setState(() {
+      _future = _load();
+    });
   }
 
   Future<AtlasDashboardSnapshot> _load() async {

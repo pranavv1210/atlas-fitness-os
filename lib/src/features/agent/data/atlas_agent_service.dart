@@ -33,7 +33,7 @@ class AtlasAgentService {
           data is String && data.trim().isNotEmpty
               ? data
               : 'Atlas Agent could not read the response. Try again.',
-      suggestions: const ['What should I train today?', 'Review my week'],
+      suggestions: const [],
     );
   }
 }
@@ -44,11 +44,13 @@ class AtlasAgentReply {
     required this.suggestions,
     this.mode = 'Coach',
     this.contextUsed = const [],
+    this.workoutEntries = const [],
   });
 
   factory AtlasAgentReply.fromJson(Map<String, dynamic> json) {
     final rawSuggestions = json['suggestions'];
     final rawContext = json['contextUsed'];
+    final rawWorkoutEntries = json['workoutEntries'];
     return AtlasAgentReply(
       message: json['message'] as String? ?? 'I could not generate a reply.',
       mode: json['mode'] as String? ?? 'Coach',
@@ -63,6 +65,15 @@ class AtlasAgentReply {
           for (final item in rawContext)
             if (item is String && item.trim().isNotEmpty) item.trim(),
       ],
+      workoutEntries: [
+        if (rawWorkoutEntries is List)
+          for (final item in rawWorkoutEntries)
+            if (item is Map)
+              AtlasAgentWorkoutEntry.fromJson({
+                for (final entry in item.entries)
+                  if (entry.key is String) entry.key as String: entry.value,
+              }),
+      ],
     );
   }
 
@@ -70,6 +81,7 @@ class AtlasAgentReply {
   final String mode;
   final List<String> suggestions;
   final List<String> contextUsed;
+  final List<AtlasAgentWorkoutEntry> workoutEntries;
 }
 
 class AtlasAgentMessage {
@@ -80,3 +92,45 @@ class AtlasAgentMessage {
 }
 
 enum AtlasAgentRole { user, assistant }
+
+class AtlasAgentWorkoutEntry {
+  const AtlasAgentWorkoutEntry({
+    required this.name,
+    this.muscle,
+    this.equipment,
+    this.sets,
+    this.reps,
+    this.weight,
+  });
+
+  factory AtlasAgentWorkoutEntry.fromJson(Map<String, dynamic> json) {
+    return AtlasAgentWorkoutEntry(
+      name: json['name'] as String? ?? json['exercise'] as String? ?? '',
+      muscle: json['muscle'] as String? ?? json['targetMuscle'] as String?,
+      equipment: json['equipment'] as String?,
+      sets: _intFromJson(json['sets']),
+      reps: _intFromJson(json['reps']),
+      weight: _doubleFromJson(json['weight'] ?? json['kg']),
+    );
+  }
+
+  final String name;
+  final String? muscle;
+  final String? equipment;
+  final int? sets;
+  final int? reps;
+  final double? weight;
+}
+
+int? _intFromJson(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  if (value is String) return int.tryParse(value.trim());
+  return null;
+}
+
+double? _doubleFromJson(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim());
+  return null;
+}
