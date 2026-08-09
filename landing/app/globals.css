@@ -1234,11 +1234,28 @@ a {
 
   .site-nav {
     padding: 5px;
+    gap: 8px;
   }
 
-  .brand-mark span,
   .nav-actions > .icon-link {
     display: none;
+  }
+
+  .brand-mark {
+    min-width: 0;
+    gap: 8px;
+    padding-left: 2px;
+    font-size: 13px;
+  }
+
+  .brand-mark img {
+    width: 34px;
+    height: 34px;
+    border-radius: 13px;
+  }
+
+  .nav-actions {
+    gap: 6px;
   }
 
   .mini-cta {
@@ -1404,6 +1421,11 @@ a {
     width: min(100% - 32px, 430px);
   }
 
+  .eyebrow,
+  .section-kicker {
+    font-size: 10px;
+  }
+
   .why-v2,
   .buddy-draft-v2,
   .features-v2,
@@ -1470,6 +1492,12 @@ a {
   .chapter-card {
     border-radius: 22px;
     padding: 18px;
+  }
+
+  .buddy-chat {
+    width: 100%;
+    font-size: 13px;
+    text-align: left;
   }
 
   .comparison-row article {

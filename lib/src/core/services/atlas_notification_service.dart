@@ -129,6 +129,20 @@ class AtlasNotificationService {
     );
   }
 
+  Future<void> showWorkoutCompletedMotivation({
+    required String workoutName,
+  }) async {
+    if (!await notificationsEnabled()) {
+      return;
+    }
+    await _plugin.show(
+      _workoutNotificationBaseId + 2,
+      'Workout saved',
+      '$workoutName is locked in. Good going. Keep the streak alive.',
+      _generalDetails,
+    );
+  }
+
   Future<void> scheduleAtlasReminders({
     required int hydrationIntervalMinutes,
   }) async {

@@ -27,6 +27,30 @@ class AtlasShell extends StatefulWidget {
 class _AtlasShellState extends State<AtlasShell> {
   int _selectedIndex = 0;
   DateTime? _lastBackPress;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _selectIndex(int index, {Duration? duration}) {
+    if (index == _selectedIndex) return;
+    HapticFeedback.selectionClick();
+    setState(() => _selectedIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: duration ?? const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   Future<bool> _handleBack() async {
     if (Navigator.of(context).canPop()) {
@@ -34,7 +58,7 @@ class _AtlasShellState extends State<AtlasShell> {
       return false;
     }
     if (_selectedIndex != 0) {
-      setState(() => _selectedIndex = 0);
+      _selectIndex(0, duration: const Duration(milliseconds: 260));
       return false;
     }
     final now = DateTime.now();
@@ -71,33 +95,17 @@ class _AtlasShellState extends State<AtlasShell> {
         extendBody: true,
         body: Stack(
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 360),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final curved = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                );
-                final offset = Tween<Offset>(
-                  begin: const Offset(0.03, 0.015),
-                  end: Offset.zero,
-                ).animate(curved);
-
-                return FadeTransition(
-                  opacity: curved,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
-                    child: SlideTransition(position: offset, child: child),
-                  ),
-                );
+            PageView(
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedIndex = index);
               },
-              child: KeyedSubtree(
-                key: ValueKey(_selectedIndex),
-                child: _buildScreen(destinations[_selectedIndex]),
-              ),
+              children: [
+                for (final destination in destinations)
+                  _buildScreen(destination),
+              ],
             ),
             if (dependencies != null)
               AtlasAgentLauncher(
@@ -112,12 +120,7 @@ class _AtlasShellState extends State<AtlasShell> {
         bottomNavigationBar: _FloatingDock(
           destinations: destinations,
           selectedIndex: _selectedIndex,
-          onSelected: (index) {
-            if (index != _selectedIndex) {
-              HapticFeedback.selectionClick();
-            }
-            setState(() => _selectedIndex = index);
-          },
+          onSelected: _selectIndex,
         ),
       ),
     );
@@ -128,9 +131,7 @@ class _AtlasShellState extends State<AtlasShell> {
       case AtlasDestination.today:
         return TodayScreen(
           profile: widget.profile,
-          onOpenTrain:
-              () =>
-                  setState(() => _selectedIndex = AtlasDestination.train.index),
+          onOpenTrain: () => _selectIndex(AtlasDestination.train.index),
         );
       case AtlasDestination.train:
         return const TrainScreen();

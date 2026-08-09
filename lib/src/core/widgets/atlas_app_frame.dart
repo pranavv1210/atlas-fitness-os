@@ -70,7 +70,7 @@ class AtlasAppFrame extends StatelessWidget {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 126),
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 104),
                 sliver: SliverList.separated(
                   itemBuilder:
                       (context, index) => _Entrance(

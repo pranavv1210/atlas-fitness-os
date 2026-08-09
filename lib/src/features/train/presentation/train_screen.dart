@@ -142,6 +142,11 @@ class _TrainScreenState extends State<TrainScreen> {
       );
       if (!mounted) return;
       unawaited(_clearDraft());
+      unawaited(
+        _dependencies?.notificationService.showWorkoutCompletedMotivation(
+          workoutName: workout.name,
+        ),
+      );
       showCompletionCelebration(context);
       setState(() => _future = _load());
     } on AtlasWorkoutAlreadySavedException {
@@ -269,12 +274,8 @@ class _TrainScreenState extends State<TrainScreen> {
             snapshot.data ??
             _repository?.cachedSnapshot ??
             emptyAtlasSnapshot();
-        final workout = data.todayWorkout ?? data.starterWorkout;
         return AtlasAppFrame(
-          subtitle:
-              data.hasWorkoutCycleStarted
-                  ? workout?.name ?? 'Today\'s workout'
-                  : 'Start with Day 1 when you are ready',
+          subtitle: 'Build, log, and complete today\'s session',
           title: 'Train',
           children: [
             _WorkoutHero(
@@ -489,7 +490,7 @@ class _WorkoutHero extends StatelessWidget {
                         ? _durationLabel(report?.duration)
                         : isFirst
                         ? 'Cycle not started'
-                        : 'Day ${workout?.dayNumber ?? 1}',
+                        : '${snapshot.currentStreak} workouts active',
               ),
             ],
           ),

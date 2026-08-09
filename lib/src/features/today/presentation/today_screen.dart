@@ -229,6 +229,7 @@ class _MissionCard extends StatelessWidget {
         snapshot.weeklyTarget == 0
             ? 0.0
             : snapshot.completedThisWeek / snapshot.weeklyTarget;
+    final streak = snapshot.currentStreak;
     return ClipRRect(
       borderRadius: BorderRadius.circular(34),
       child: Stack(
@@ -263,12 +264,35 @@ class _MissionCard extends StatelessWidget {
                       strokeWidth: 8,
                       color: Colors.white,
                       trackColor: Colors.white.withValues(alpha: 0.18),
-                      center: Text(
-                        'Day ${workout.dayNumber}',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      center: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.local_fire_department_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          Text(
+                            '$streak',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                          Text(
+                            streak == 1 ? 'workout' : 'workouts',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.labelSmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -367,15 +391,13 @@ class _MetricsGrid extends StatelessWidget {
           color: AtlasColors.accent,
         ),
         AtlasStatCard(
-          label: 'Workout Streak',
-          value: '${snapshot.currentStreak}',
+          label: 'This Month',
+          value: '${snapshot.monthWorkouts}',
           caption:
-              snapshot.currentStreak == 1
-                  ? 'workout active'
-                  : snapshot.currentStreak == 0
-                  ? 'start today'
-                  : 'workouts active',
-          icon: Icons.local_fire_department_rounded,
+              snapshot.monthWorkouts == 1
+                  ? 'session logged'
+                  : 'sessions logged',
+          icon: Icons.calendar_month_rounded,
           color: AtlasColors.success,
         ),
         AtlasStatCard(
