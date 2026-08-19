@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Atlas</string>
+    <string name="atlas_widget_description">Log water sips and check your Atlas workout streak.</string>
+</resources>

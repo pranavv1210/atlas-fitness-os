@@ -230,13 +230,24 @@ class AtlasDataRepository {
                 .single();
 
         final sessionExerciseId = sessionExercise['id'] as String;
+        final setLogs =
+            entry.setLogs.isEmpty
+                ? [
+                  for (var set = 1; set <= entry.sets; set++)
+                    AtlasWorkoutSetDraft(
+                      setNumber: set,
+                      reps: entry.reps,
+                      weight: entry.weight,
+                    ),
+                ]
+                : entry.setLogs;
         await _client.from('workout_sets').insert([
-          for (var set = 1; set <= entry.sets; set++)
+          for (final set in setLogs)
             {
               'workout_session_exercise_id': sessionExerciseId,
-              'set_number': set,
-              'reps': entry.reps,
-              'weight': entry.weight,
+              'set_number': set.setNumber,
+              'reps': set.reps,
+              'weight': set.weight,
               'weight_unit': 'kg',
               'is_completed': true,
             },

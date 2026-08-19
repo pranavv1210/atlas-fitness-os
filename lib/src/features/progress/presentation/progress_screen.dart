@@ -242,9 +242,7 @@ class _DailyActivityReportCard extends StatelessWidget {
               _ReportSummaryBand(
                 icon: Icons.fitness_center_rounded,
                 title: 'Workout',
-                lines: [
-                  '${_durationLabel(report.workout!.duration)} / ${report.workout!.totalSets} sets / ${report.workout!.totalVolume.toStringAsFixed(0)} kg volume',
-                ],
+                lines: [_workoutSummaryLine(report.workout!)],
               ),
               const SizedBox(height: 10),
               for (final exercise in report.workout!.exercises) ...[
@@ -751,6 +749,29 @@ String _reportSubtitle(AtlasDailyActivityReport report) {
   if (report.sports.isNotEmpty) parts.add('sport logged');
   if (report.weight != null) parts.add('weight logged');
   return parts.isEmpty ? 'No saved activity' : parts.join(' / ');
+}
+
+String _workoutSummaryLine(AtlasWorkoutReport report) {
+  final strengthSets = report.exercises
+      .where((exercise) => !_isCardioExerciseLog(exercise))
+      .fold<int>(0, (sum, exercise) => sum + exercise.totalSets);
+  final cardioMinutes = report.exercises
+      .where(_isCardioExerciseLog)
+      .fold<int>(
+        0,
+        (sum, exercise) =>
+            sum + exercise.sets.fold(0, (setSum, set) => setSum + set.reps),
+      );
+  final parts = [_durationLabel(report.duration)];
+  if (strengthSets > 0) parts.add('$strengthSets sets');
+  final strengthVolume = report.exercises
+      .where((exercise) => !_isCardioExerciseLog(exercise))
+      .fold<double>(0, (sum, exercise) => sum + exercise.totalVolume);
+  if (strengthVolume > 0) {
+    parts.add('${strengthVolume.toStringAsFixed(0)} kg volume');
+  }
+  if (cardioMinutes > 0) parts.add('$cardioMinutes cardio min');
+  return parts.join(' / ');
 }
 
 String _setReportLine(

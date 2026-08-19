@@ -137,6 +137,21 @@ class _TrainScreenState extends State<TrainScreen> {
               sets: _isCardioStyleExercise(entry.exercise) ? 1 : entry.sets,
               reps: entry.reps,
               weight: entry.weight,
+              setLogs: [
+                if (_isCardioStyleExercise(entry.exercise))
+                  AtlasWorkoutSetDraft(
+                    setNumber: 1,
+                    reps: entry.reps,
+                    weight: entry.weight,
+                  )
+                else
+                  for (final set in entry.setRows)
+                    AtlasWorkoutSetDraft(
+                      setNumber: set.setNumber,
+                      reps: set.reps,
+                      weight: set.weight,
+                    ),
+              ],
             ),
         ],
       );
@@ -288,7 +303,9 @@ class _TrainScreenState extends State<TrainScreen> {
               library: data.exerciseLibrary,
               entries: _entries,
               completedReport: data.todayReport,
+              saving: _saving,
               onChanged: () => _handleEntriesChanged(data),
+              onSave: () => _saveWorkout(data),
               onAdd:
                   data.completedToday || data.exerciseLibrary.isEmpty
                       ? null
@@ -359,6 +376,7 @@ class _TrainScreenState extends State<TrainScreen> {
           sets: rawEntry['sets'],
           reps: rawEntry['reps'],
           weight: rawEntry['weight'],
+          setRows: rawEntry['setRows'],
         ),
       );
     }
@@ -387,6 +405,14 @@ class _TrainScreenState extends State<TrainScreen> {
             'sets': entry.sets,
             'reps': entry.reps,
             'weight': entry.weight,
+            'setRows': [
+              for (final set in entry.setRows)
+                {
+                  'setNumber': set.setNumber,
+                  'reps': set.reps,
+                  'weight': set.weight,
+                },
+            ],
           },
       ],
     });
@@ -423,10 +449,31 @@ class _WorkoutHero extends StatelessWidget {
       (sum, item) => sum + item.targetSets,
     );
 
-    return AtlasCard(
-      isGlass: true,
-      radius: 30,
+    return Container(
       padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors:
+              savedToday
+                  ? const [AtlasColors.success, AtlasColors.accent]
+                  : const [
+                    Color(0xFF121212),
+                    AtlasColors.accentDeep,
+                    AtlasColors.lilac,
+                  ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (savedToday ? AtlasColors.success : AtlasColors.accent)
+                .withValues(alpha: 0.2),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -444,12 +491,16 @@ class _WorkoutHero extends StatelessWidget {
                           : isFirst
                           ? 'First workout'
                           : 'Today\'s workout',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.78),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       report?.title ?? workout?.name ?? 'Choose your workout',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(color: Colors.white, height: 1.02),
                     ),
                   ],
                 ),
@@ -463,7 +514,10 @@ class _WorkoutHero extends StatelessWidget {
                 : isFirst
                 ? 'Save this session to start Atlas. The next planned day unlocks only after you complete this workout.'
                 : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -479,9 +533,9 @@ class _WorkoutHero extends StatelessWidget {
               _HeroChip(
                 label:
                     savedToday
-                        ? '${report?.totalSets ?? 0} sets'
+                        ? _reportLoadChip(report)
                         : totalSets == 0
-                        ? 'Manual build'
+                        ? 'Custom builder'
                         : '$totalSets target sets',
               ),
               _HeroChip(
@@ -489,46 +543,19 @@ class _WorkoutHero extends StatelessWidget {
                     savedToday
                         ? _durationLabel(report?.duration)
                         : isFirst
-                        ? 'Cycle not started'
-                        : '${snapshot.currentStreak} workouts active',
+                        ? 'Ready to start'
+                        : '${snapshot.currentStreak} day streak',
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: AtlasGradientButton(
-                  label:
-                      savedToday
-                          ? 'Workout Saved Today'
-                          : saving
-                          ? 'Saving'
-                          : isFirst
-                          ? 'Save First Workout'
-                          : 'Complete Workout',
-                  icon:
-                      savedToday
-                          ? Icons.verified_rounded
-                          : saving
-                          ? Icons.sync_rounded
-                          : Icons.check_rounded,
-                  colors: const [AtlasColors.success, AtlasColors.accent],
-                  onPressed:
-                      savedToday && report != null
-                          ? () => _showWorkoutReportSheet(context, report)
-                          : saving
-                          ? null
-                          : onSave,
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.filledTonal(
-                onPressed: onEditPlan,
-                icon: const Icon(Icons.edit_calendar_rounded),
-                tooltip: 'Edit workout plan',
-              ),
-            ],
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton.filledTonal(
+              onPressed: onEditPlan,
+              icon: const Icon(Icons.edit_calendar_rounded),
+              tooltip: 'Edit workout plan',
+            ),
           ),
         ],
       ),
@@ -560,15 +587,19 @@ class _ExerciseLogger extends StatelessWidget {
     required this.library,
     required this.entries,
     required this.completedReport,
+    required this.saving,
     required this.onChanged,
     required this.onAdd,
+    required this.onSave,
   });
 
   final List<AtlasExercise> library;
   final List<_EditableWorkoutEntry> entries;
   final AtlasWorkoutReport? completedReport;
+  final bool saving;
   final VoidCallback onChanged;
   final VoidCallback? onAdd;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -602,9 +633,41 @@ class _ExerciseLogger extends StatelessWidget {
             if (index != entries.length - 1) const SizedBox(height: 14),
             if (index == entries.length - 1) ...[
               const SizedBox(height: 12),
-              _BottomAddExerciseButton(onPressed: onAdd),
+              _ExerciseFooterActions(
+                saving: saving,
+                onAdd: onAdd,
+                onSave: onSave,
+              ),
             ],
           ],
+      ],
+    );
+  }
+}
+
+class _ExerciseFooterActions extends StatelessWidget {
+  const _ExerciseFooterActions({
+    required this.saving,
+    required this.onAdd,
+    required this.onSave,
+  });
+
+  final bool saving;
+  final VoidCallback? onAdd;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _BottomAddExerciseButton(onPressed: onAdd),
+        const SizedBox(height: 10),
+        AtlasGradientButton(
+          label: saving ? 'Saving Workout' : 'Complete Workout',
+          icon: saving ? Icons.sync_rounded : Icons.check_rounded,
+          colors: const [AtlasColors.success, AtlasColors.accent],
+          onPressed: saving ? null : onSave,
+        ),
       ],
     );
   }
@@ -956,7 +1019,7 @@ class _CompletedWorkoutExerciseList extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${exercise.totalSets} sets / ${exercise.totalReps} reps / ${exercise.totalVolume.toStringAsFixed(0)} kg',
+                        _exerciseSummaryLabel(exercise),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -1031,11 +1094,12 @@ class _WorkoutReportSheet extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _HeroChip(label: '${report.totalExercises} exercises'),
-                _HeroChip(label: '${report.totalSets} sets'),
-                _HeroChip(label: '${report.totalReps} reps'),
-                _HeroChip(
-                  label: '${report.totalVolume.toStringAsFixed(0)} kg volume',
-                ),
+                _HeroChip(label: _reportLoadChip(report)),
+                if (_strengthVolume(report) > 0)
+                  _HeroChip(
+                    label:
+                        '${_strengthVolume(report).toStringAsFixed(0)} kg volume',
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1156,6 +1220,64 @@ String _reportSetLabel(
   return 'Set ${set.setNumber}: ${set.reps} reps x ${_weightLabel(set)}';
 }
 
+String _exerciseSummaryLabel(AtlasWorkoutExerciseLog exercise) {
+  final atlasExercise = exercise.exercise;
+  final isCardio =
+      atlasExercise != null && _isCardioStyleExercise(atlasExercise);
+  if (isCardio) {
+    final minutes = exercise.sets.fold(0, (sum, set) => sum + set.reps);
+    final distance = exercise.sets.fold<double>(
+      0,
+      (sum, set) => sum + set.weight,
+    );
+    return '$minutes min${distance == 0 ? '' : ' / ${_compactDouble(distance)} km'}';
+  }
+  return '${exercise.totalSets} sets / ${exercise.totalReps} reps / ${exercise.totalVolume.toStringAsFixed(0)} kg';
+}
+
+String _reportLoadChip(AtlasWorkoutReport? report) {
+  if (report == null) return 'Saved session';
+  final cardioMinutes = report.exercises
+      .where(
+        (exercise) =>
+            exercise.exercise != null &&
+            _isCardioStyleExercise(exercise.exercise!),
+      )
+      .fold<int>(
+        0,
+        (sum, exercise) =>
+            sum + exercise.sets.fold(0, (setSum, set) => setSum + set.reps),
+      );
+  final strengthSets = report.exercises
+      .where(
+        (exercise) =>
+            exercise.exercise == null ||
+            !_isCardioStyleExercise(exercise.exercise!),
+      )
+      .fold<int>(0, (sum, exercise) => sum + exercise.totalSets);
+  if (strengthSets > 0 && cardioMinutes > 0) {
+    return '$strengthSets sets / $cardioMinutes min';
+  }
+  if (cardioMinutes > 0) return '$cardioMinutes cardio min';
+  return '$strengthSets sets';
+}
+
+double _strengthVolume(AtlasWorkoutReport report) {
+  return report.exercises
+      .where(
+        (exercise) =>
+            exercise.exercise == null ||
+            !_isCardioStyleExercise(exercise.exercise!),
+      )
+      .fold<double>(0, (sum, exercise) => sum + exercise.totalVolume);
+}
+
+String _compactDouble(double value) {
+  return value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(1);
+}
+
 class _ExerciseEditor extends StatelessWidget {
   const _ExerciseEditor({
     required this.index,
@@ -1250,6 +1372,7 @@ class _ExerciseEditor extends StatelessWidget {
     if (_isCardioStyleExercise(picked)) {
       entry.weight = 0;
     }
+    entry._syncSetRows();
     onChanged();
   }
 }
@@ -1839,118 +1962,271 @@ class _SetInputPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCardio = _isCardioStyleExercise(entry.exercise);
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AtlasColors.hairline),
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              if (!isCardio) ...[
-                Expanded(
-                  child: Text(
-                    'Sets',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: Text(
-                  isCardio ? 'Minutes' : 'Reps',
-                  textAlign: isCardio ? TextAlign.start : TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isCardio ? 'Distance' : 'Kg',
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (!isCardio) ...[
-                _CompactStepper(
-                  value: entry.sets,
-                  onChanged: (value) {
-                    entry.sets = value;
-                    onChanged();
-                  },
-                ),
-                const SizedBox(width: 10),
-              ],
-              _CompactStepper(
-                value: entry.reps,
-                onChanged: (value) {
-                  entry.reps = value;
-                  onChanged();
-                },
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _InlineNumberField(
-                  label: isCardio ? 'km' : '',
-                  value: entry.weight,
-                  onChanged: (value) {
-                    entry.weight = value;
-                    onChanged();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child:
+          isCardio
+              ? _CardioInputRows(entry: entry, onChanged: onChanged)
+              : _StrengthSetRows(entry: entry, onChanged: onChanged),
     );
   }
 }
 
-class _CompactStepper extends StatelessWidget {
-  const _CompactStepper({required this.value, required this.onChanged});
+class _StrengthSetRows extends StatelessWidget {
+  const _StrengthSetRows({required this.entry, required this.onChanged});
+
+  final _EditableWorkoutEntry entry;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text('Set', style: Theme.of(context).textTheme.labelLarge),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
+              child: Text(
+                'Reps',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
+              child: Text('Kg', style: Theme.of(context).textTheme.labelLarge),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final set in entry.setRows) ...[
+          _StrengthSetRow(
+            set: set,
+            onChanged: () {
+              entry.reps =
+                  entry.setRows.isEmpty ? entry.reps : entry.setRows.first.reps;
+              entry.weight =
+                  entry.setRows.isEmpty
+                      ? entry.weight
+                      : entry.setRows.first.weight;
+              onChanged();
+            },
+          ),
+          if (set != entry.setRows.last) const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  entry.setSetCount(entry.sets + 1);
+                  onChanged();
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Set'),
+              ),
+            ),
+            if (entry.sets > 1) ...[
+              const SizedBox(width: 10),
+              IconButton.filledTonal(
+                onPressed: () {
+                  entry.setSetCount(entry.sets - 1);
+                  onChanged();
+                },
+                icon: const Icon(Icons.remove_rounded),
+                tooltip: 'Remove last set',
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StrengthSetRow extends StatelessWidget {
+  const _StrengthSetRow({required this.set, required this.onChanged});
+
+  final _EditableSetRow set;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: Container(
+            height: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AtlasColors.accentSoft.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AtlasColors.hairline),
+            ),
+            child: Text(
+              '${set.setNumber}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AtlasColors.accent,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 3,
+          child: _InlineIntField(
+            value: set.reps,
+            onChanged: (value) {
+              set.reps = value;
+              onChanged();
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 3,
+          child: _InlineNumberField(
+            label: '',
+            value: set.weight,
+            onChanged: (value) {
+              set.weight = value;
+              onChanged();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CardioInputRows extends StatelessWidget {
+  const _CardioInputRows({required this.entry, required this.onChanged});
+
+  final _EditableWorkoutEntry entry;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _LabeledInput(
+            label: 'Minutes',
+            child: _InlineIntField(
+              value: entry.reps,
+              onChanged: (value) {
+                entry.reps = value;
+                onChanged();
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _LabeledInput(
+            label: 'Distance km',
+            child: _InlineNumberField(
+              label: '',
+              value: entry.weight,
+              onChanged: (value) {
+                entry.weight = value;
+                onChanged();
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LabeledInput extends StatelessWidget {
+  const _LabeledInput({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+}
+
+class _InlineIntField extends StatefulWidget {
+  const _InlineIntField({required this.value, required this.onChanged});
 
   final int value;
   final ValueChanged<int> onChanged;
 
   @override
+  State<_InlineIntField> createState() => _InlineIntFieldState();
+}
+
+class _InlineIntFieldState extends State<_InlineIntField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineIntField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AtlasColors.hairline),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-              padding: EdgeInsets.zero,
-              onPressed: () => onChanged((value - 1).clamp(1, 999)),
-              icon: const Icon(Icons.remove_rounded),
-            ),
-            Text('$value', style: Theme.of(context).textTheme.titleMedium),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-              padding: EdgeInsets.zero,
-              onPressed: () => onChanged((value + 1).clamp(1, 999)),
-              icon: const Icon(Icons.add_rounded),
-            ),
-          ],
-        ),
+    return TextFormField(
+      controller: _controller,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.titleMedium,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        hintText: '0',
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
       ),
+      onTap: () {
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      },
+      onChanged:
+          (value) => widget.onChanged(
+            (int.tryParse(value.trim()) ?? 0).clamp(0, 999).toInt(),
+          ),
     );
   }
 }
@@ -2066,13 +2342,16 @@ class _EditableWorkoutEntry {
   _EditableWorkoutEntry(this.exercise)
     : sets = _defaultSetsFor(exercise),
       reps = _defaultRepsFor(exercise),
-      weight = 0;
+      weight = 0 {
+    _syncSetRows();
+  }
 
   _EditableWorkoutEntry.fromDraft(
     this.exercise, {
     required Object? sets,
     required Object? reps,
     required Object? weight,
+    required Object? setRows,
   }) : sets =
            sets is num
                ? sets.round().clamp(1, 99).toInt()
@@ -2081,10 +2360,76 @@ class _EditableWorkoutEntry {
            reps is num
                ? reps.round().clamp(1, 999).toInt()
                : _defaultRepsFor(exercise),
-       weight = weight is num ? weight.toDouble().clamp(0, 9999).toDouble() : 0;
+       weight =
+           weight is num ? weight.toDouble().clamp(0, 9999).toDouble() : 0 {
+    if (setRows is List && setRows.isNotEmpty) {
+      this.setRows.addAll([
+        for (final row in setRows)
+          if (row is Map)
+            _EditableSetRow(
+              setNumber:
+                  row['setNumber'] is num
+                      ? (row['setNumber'] as num).round().clamp(1, 99).toInt()
+                      : this.setRows.length + 1,
+              reps:
+                  row['reps'] is num
+                      ? (row['reps'] as num).round().clamp(1, 999).toInt()
+                      : this.reps,
+              weight:
+                  row['weight'] is num
+                      ? (row['weight'] as num)
+                          .toDouble()
+                          .clamp(0, 9999)
+                          .toDouble()
+                      : this.weight,
+            ),
+      ]);
+    }
+    _syncSetRows();
+  }
 
   AtlasExercise exercise;
   int sets;
+  int reps;
+  double weight;
+  final List<_EditableSetRow> setRows = [];
+
+  void setSetCount(int value) {
+    sets = value.clamp(1, 99);
+    _syncSetRows();
+  }
+
+  void _syncSetRows() {
+    if (_isCardioStyleExercise(exercise)) {
+      setRows.clear();
+      return;
+    }
+    while (setRows.length < sets) {
+      setRows.add(
+        _EditableSetRow(
+          setNumber: setRows.length + 1,
+          reps: reps,
+          weight: weight,
+        ),
+      );
+    }
+    if (setRows.length > sets) {
+      setRows.removeRange(sets, setRows.length);
+    }
+    for (var index = 0; index < setRows.length; index++) {
+      setRows[index].setNumber = index + 1;
+    }
+  }
+}
+
+class _EditableSetRow {
+  _EditableSetRow({
+    required this.setNumber,
+    required this.reps,
+    required this.weight,
+  });
+
+  int setNumber;
   int reps;
   double weight;
 }

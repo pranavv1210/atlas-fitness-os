@@ -16,6 +16,8 @@ class AtlasPreferences {
   static const _dashboardSnapshotKey = 'atlas.dashboard_snapshot';
   static const _agentOrbXKey = 'atlas.agent_orb_x';
   static const _agentOrbYKey = 'atlas.agent_orb_y';
+  static const _widgetPendingHydrationSipsKey =
+      'atlas.widget_pending_hydration_sips';
 
   final SharedPreferences _prefs;
 
@@ -131,6 +133,13 @@ class AtlasPreferences {
       _dashboardSnapshotKey,
       jsonEncode({'userId': userId, ...value}),
     );
+  }
+
+  int get widgetPendingHydrationSips =>
+      _prefs.getInt(_widgetPendingHydrationSipsKey) ?? 0;
+
+  Future<void> clearWidgetPendingHydrationSips() {
+    return _prefs.remove(_widgetPendingHydrationSipsKey);
   }
 
   double? get agentOrbX => _prefs.getDouble(_agentOrbXKey);

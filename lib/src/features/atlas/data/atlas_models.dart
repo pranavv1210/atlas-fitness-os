@@ -88,10 +88,24 @@ class AtlasWorkoutEntry {
     required this.sets,
     required this.reps,
     required this.weight,
+    this.setLogs = const [],
   });
 
   final AtlasExercise exercise;
   final int sets;
+  final int reps;
+  final double weight;
+  final List<AtlasWorkoutSetDraft> setLogs;
+}
+
+class AtlasWorkoutSetDraft {
+  const AtlasWorkoutSetDraft({
+    required this.setNumber,
+    required this.reps,
+    required this.weight,
+  });
+
+  final int setNumber;
   final int reps;
   final double weight;
 }

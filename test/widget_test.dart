@@ -59,7 +59,8 @@ void main() {
     expect(find.text('Chest + Triceps'), findsOneWidget);
     expect(find.text('Exercises'), findsOneWidget);
     expect(find.textContaining('Tap Add'), findsOneWidget);
-    expect(find.text('Save First Workout'), findsOneWidget);
+    expect(find.text('Add Exercise'), findsOneWidget);
+    expect(find.text('Complete Workout'), findsNothing);
 
     await tester.ensureVisible(find.text('Add Exercise'));
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -140));

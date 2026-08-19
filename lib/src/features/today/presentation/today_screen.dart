@@ -225,10 +225,6 @@ class _MissionCard extends StatelessWidget {
         ),
       );
     }
-    final progress =
-        snapshot.weeklyTarget == 0
-            ? 0.0
-            : snapshot.completedThisWeek / snapshot.weeklyTarget;
     final streak = snapshot.currentStreak;
     return ClipRRect(
       borderRadius: BorderRadius.circular(34),
@@ -258,42 +254,10 @@ class _MissionCard extends StatelessWidget {
                   children: [
                     const _FloatingWorkoutGlyph(),
                     const Spacer(),
-                    AnimatedProgressRing(
-                      progress: progress.clamp(0, 1),
-                      size: 86,
-                      strokeWidth: 8,
-                      color: Colors.white,
-                      trackColor: Colors.white.withValues(alpha: 0.18),
-                      center: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.local_fire_department_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          Text(
-                            '$streak',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                            ),
-                          ),
-                          Text(
-                            streak == 1 ? 'workout' : 'workouts',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.labelSmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.78),
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StreakBadge(
+                      streak: streak,
+                      completedThisWeek: snapshot.completedThisWeek,
+                      weeklyTarget: snapshot.weeklyTarget,
                     ),
                   ],
                 ),
@@ -323,6 +287,71 @@ class _MissionCard extends StatelessWidget {
                   onPressed: onOpenTrain,
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StreakBadge extends StatelessWidget {
+  const _StreakBadge({
+    required this.streak,
+    required this.completedThisWeek,
+    required this.weeklyTarget,
+  });
+
+  final int streak;
+  final int completedThisWeek;
+  final int weeklyTarget;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.local_fire_department_rounded,
+                color: Colors.white,
+                size: 19,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '$streak',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'day streak',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$completedThisWeek/$weeklyTarget this week',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],

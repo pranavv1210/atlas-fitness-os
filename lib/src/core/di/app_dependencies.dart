@@ -146,6 +146,7 @@ class AppDependencies {
     );
     _atlasAgentService = AtlasAgentService(client);
     _startHydrationTapListener();
+    _syncWidgetHydrationSips();
   }
 
   void _startHydrationTapListener() {
@@ -167,6 +168,27 @@ class AppDependencies {
       repository.saveHydration().catchError((Object error, StackTrace stack) {
         logger.warning(
           'Hydration notification tap could not be saved',
+          error: error,
+          stackTrace: stack,
+        );
+      }),
+    );
+  }
+
+  void _syncWidgetHydrationSips() {
+    final pendingSips = preferences.widgetPendingHydrationSips;
+    final repository = _atlasDataRepository;
+    if (pendingSips <= 0 || repository == null) return;
+    unawaited(
+      () async {
+        for (var index = 0; index < pendingSips; index++) {
+          await repository.saveHydration();
+        }
+        await preferences.clearWidgetPendingHydrationSips();
+        await repository.loadSnapshot();
+      }().catchError((Object error, StackTrace stack) {
+        logger.warning(
+          'Widget hydration sips could not be synced',
           error: error,
           stackTrace: stack,
         );

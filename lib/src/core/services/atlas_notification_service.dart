@@ -90,7 +90,7 @@ class AtlasNotificationService {
     final end = DateTime(2000, 1, 1, _hydrationEndHour);
     for (
       var slot = start;
-      !slot.isAfter(end);
+      slot.isBefore(end);
       slot = slot.add(Duration(minutes: safeInterval))
     ) {
       await _scheduleDailyNotification(
@@ -115,6 +115,13 @@ class AtlasNotificationService {
       _nextDailyOccurrence(hour: 9),
       id: _dailyNotificationBaseId,
       details: _generalDetails,
+    );
+    await _scheduleDailyNotification(
+      'Atlas daily report',
+      'Your 10 PM report is ready. Review training, water, cardio, and body logs.',
+      _nextDailyOccurrence(hour: 22, minute: 30),
+      id: _dailyNotificationBaseId + 1,
+      details: _reportDetails,
     );
   }
 
@@ -270,6 +277,18 @@ class AtlasNotificationService {
       'atlas_reminders_default_v2',
       'Atlas reminders',
       channelDescription: 'Workout and daily Atlas reminders.',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    ),
+  );
+
+  static const _reportDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'atlas_daily_reports_v1',
+      'Daily reports',
+      channelDescription: '10:30 PM Atlas daily report notifications.',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,

@@ -10,32 +10,53 @@ class AtlasAgentService {
     required String screen,
     required List<AtlasAgentMessage> history,
   }) async {
-    final response = await _client.functions.invoke(
-      'atlas-agent',
-      body: {
-        'message': message,
-        'screen': screen,
-        'history': [
-          for (final item in history.take(10))
-            {'role': item.role.name, 'content': item.content},
-        ],
-      },
-    );
-    final data = response.data;
-    if (data is Map) {
-      return AtlasAgentReply.fromJson({
-        for (final entry in data.entries)
-          if (entry.key is String) entry.key as String: entry.value,
-      });
+    try {
+      final response = await _client.functions
+          .invoke(
+            'atlas-agent',
+            body: {
+              'message': message,
+              'screen': screen,
+              'history': [
+                for (final item in history.take(10))
+                  {'role': item.role.name, 'content': item.content},
+              ],
+            },
+          )
+          .timeout(const Duration(seconds: 22));
+      final data = response.data;
+      if (data is Map) {
+        return AtlasAgentReply.fromJson({
+          for (final entry in data.entries)
+            if (entry.key is String) entry.key as String: entry.value,
+        });
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return AtlasAgentReply(message: data.trim(), suggestions: const []);
+      }
+    } catch (_) {
+      return _localFallbackReply(message);
     }
-    return AtlasAgentReply(
+    return _localFallbackReply(message);
+  }
+}
+
+AtlasAgentReply _localFallbackReply(String message) {
+  final lower = message.toLowerCase();
+  if (lower.contains('rest')) {
+    return const AtlasAgentReply(
       message:
-          data is String && data.trim().isNotEmpty
-              ? data
-              : 'Atlas Agent could not read the response. Try again.',
-      suggestions: const [],
+          'Buddy fallback: keep today easy. Walk 20-30 minutes, stretch, hydrate, and do not force heavy sets on a recovery day.',
+      suggestions: [],
+      mode: 'Recovery',
     );
   }
+  return const AtlasAgentReply(
+    message:
+        'Buddy fallback is active because the coach backend did not answer. You can still ask training questions, and Atlas will keep the chat usable while the server catches up.',
+    suggestions: [],
+    mode: 'Coach',
+  );
 }
 
 class AtlasAgentReply {
