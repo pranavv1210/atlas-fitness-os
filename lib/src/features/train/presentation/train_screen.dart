@@ -18,7 +18,9 @@ import '../../atlas/data/atlas_models.dart';
 import '../../today/presentation/today_screen.dart';
 
 class TrainScreen extends StatefulWidget {
-  const TrainScreen({super.key});
+  const TrainScreen({this.onBack, super.key});
+
+  final VoidCallback? onBack;
 
   @override
   State<TrainScreen> createState() => _TrainScreenState();
@@ -290,8 +292,9 @@ class _TrainScreenState extends State<TrainScreen> {
             _repository?.cachedSnapshot ??
             emptyAtlasSnapshot();
         return AtlasAppFrame(
-          subtitle: 'Build, log, and complete today\'s session',
+          subtitle: '',
           title: 'Train',
+          onBack: widget.onBack,
           children: [
             _WorkoutHero(
               snapshot: data,
@@ -449,38 +452,17 @@ class _WorkoutHero extends StatelessWidget {
       (sum, item) => sum + item.targetSets,
     );
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors:
-              savedToday
-                  ? const [AtlasColors.success, AtlasColors.accent]
-                  : const [
-                    Color(0xFF121212),
-                    AtlasColors.accentDeep,
-                    AtlasColors.lilac,
-                  ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (savedToday ? AtlasColors.success : AtlasColors.accent)
-                .withValues(alpha: 0.2),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
+    return AtlasCard(
+      isGlass: true,
+      radius: 28,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const _AnimatedExerciseGlyph(size: 58),
-              const SizedBox(width: 14),
+              _WorkoutDayGlyph(workout: workout, size: 54),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,72 +473,70 @@ class _WorkoutHero extends StatelessWidget {
                           : isFirst
                           ? 'First workout'
                           : 'Today\'s workout',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.78),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AtlasColors.inkMuted,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       report?.title ?? workout?.name ?? 'Choose your workout',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(color: Colors.white, height: 1.02),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(height: 1.02),
                     ),
                   ],
                 ),
               ),
+              IconButton.filledTonal(
+                onPressed: onEditPlan,
+                icon: const Icon(Icons.edit_calendar_rounded),
+                tooltip: 'Edit workout plan',
+              ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            savedToday
-                ? 'Saved, locked, and available in Workout History.'
-                : isFirst
-                ? 'Save this session to start Atlas. The next planned day unlocks only after you complete this workout.'
-                : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontWeight: FontWeight.w700,
+          if (!savedToday) ...[
+            const SizedBox(height: 8),
+            Text(
+              isFirst
+                  ? 'Save this session to start Atlas.'
+                  : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          ],
+          const SizedBox(height: 12),
+          Row(
             children: [
-              _HeroChip(
-                label:
-                    savedToday
-                        ? '${report?.totalExercises ?? 0} exercises'
-                        : '${snapshot.templateExercises.length} moves',
+              Expanded(
+                child: _HeroChip(
+                  label:
+                      savedToday
+                          ? '${report?.totalExercises ?? 0} exercise${(report?.totalExercises ?? 0) == 1 ? '' : 's'}'
+                          : '${snapshot.templateExercises.length} moves',
+                ),
               ),
-              _HeroChip(
-                label:
-                    savedToday
-                        ? _reportLoadChip(report)
-                        : totalSets == 0
-                        ? 'Custom builder'
-                        : '$totalSets target sets',
-              ),
-              _HeroChip(
-                label:
-                    savedToday
-                        ? _durationLabel(report?.duration)
-                        : isFirst
-                        ? 'Ready to start'
-                        : '${snapshot.currentStreak} day streak',
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroChip(
+                  label:
+                      savedToday
+                          ? _reportLoadChip(report)
+                          : totalSets == 0
+                          ? 'Custom builder'
+                          : '$totalSets target sets',
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton.filledTonal(
-              onPressed: onEditPlan,
-              icon: const Icon(Icons.edit_calendar_rounded),
-              tooltip: 'Edit workout plan',
+          if (!savedToday) ...[
+            const SizedBox(height: 10),
+            _HeroChip(
+              label:
+                  isFirst
+                      ? 'Ready to start'
+                      : '${snapshot.currentStreak} day streak',
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -577,9 +557,61 @@ class _HeroChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AtlasColors.hairline),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.labelLarge,
+      ),
     );
   }
+}
+
+class _WorkoutDayGlyph extends StatelessWidget {
+  const _WorkoutDayGlyph({required this.workout, required this.size});
+
+  final AtlasWorkoutDay? workout;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = _workoutDayIcon(workout);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AtlasColors.accent, AtlasColors.lilac],
+        ),
+        borderRadius: BorderRadius.circular(size * 0.34),
+        boxShadow: [
+          BoxShadow(
+            color: AtlasColors.accent.withValues(alpha: 0.2),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: size * 0.42),
+    );
+  }
+}
+
+IconData _workoutDayIcon(AtlasWorkoutDay? workout) {
+  final text = '${workout?.name ?? ''} ${workout?.focus ?? ''}'.toLowerCase();
+  if (workout?.isRestDay == true ||
+      text.contains('rest') ||
+      text.contains('recovery')) {
+    return Icons.self_improvement_rounded;
+  }
+  if (text.contains('leg')) return Icons.directions_run_rounded;
+  if (text.contains('abs') || text.contains('core')) {
+    return Icons.all_inclusive_rounded;
+  }
+  return Icons.fitness_center_rounded;
 }
 
 class _ExerciseLogger extends StatelessWidget {

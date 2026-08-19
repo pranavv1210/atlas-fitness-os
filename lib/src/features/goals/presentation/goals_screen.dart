@@ -13,7 +13,9 @@ import '../../atlas/data/atlas_data_repository.dart';
 import '../../atlas/data/atlas_models.dart';
 
 class GoalsScreen extends StatefulWidget {
-  const GoalsScreen({super.key});
+  const GoalsScreen({this.onBack, super.key});
+
+  final VoidCallback? onBack;
 
   @override
   State<GoalsScreen> createState() => _GoalsScreenState();
@@ -50,8 +52,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 : goals.map((goal) => goal.progress).reduce((a, b) => a + b) /
                     goals.length;
         return AtlasAppFrame(
-          subtitle: 'Quiet accountability',
+          subtitle: '',
           title: 'Goals',
+          onBack: widget.onBack,
           children: [
             _GoalHero(
               progress: avg,

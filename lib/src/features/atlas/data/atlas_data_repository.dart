@@ -15,6 +15,7 @@ class AtlasDataRepository {
   final SupabaseClient _client;
   final AtlasPreferences? _preferences;
   AtlasDashboardSnapshot? _cachedSnapshot;
+  static const _widgetChannel = MethodChannel('com.pranav.atlas/widget');
 
   String get _userId => _client.auth.currentUser!.id;
   String get currentUserId => _userId;
@@ -78,6 +79,7 @@ class AtlasDataRepository {
       _userId,
       _snapshotToJson(snapshot),
     );
+    await _notifyWidgetUpdate();
     return snapshot;
   }
 
@@ -129,6 +131,14 @@ class AtlasDataRepository {
       );
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<void> _notifyWidgetUpdate() async {
+    try {
+      await _widgetChannel.invokeMethod<void>('updateAtlasWidget');
+    } catch (_) {
+      // Native widgets exist only on Android; other targets can ignore this.
     }
   }
 
@@ -281,6 +291,7 @@ class AtlasDataRepository {
 
   Future<void> saveHydration() async {
     await _client.from('hydration_events').insert({'user_id': _userId});
+    await loadSnapshot();
   }
 
   Future<void> saveCardio({
@@ -299,6 +310,7 @@ class AtlasDataRepository {
       'intensity': 'moderate',
       'notes': calories == null ? null : 'Calories: ${calories.round()}',
     });
+    await _notifyWidgetUpdate();
   }
 
   Future<void> saveSport({
@@ -312,6 +324,7 @@ class AtlasDataRepository {
       'duration_minutes': durationMinutes,
       'intensity': 'moderate',
     });
+    await _notifyWidgetUpdate();
   }
 
   Future<void> saveGoal({
@@ -643,7 +656,9 @@ class AtlasDataRepository {
           .eq('is_active', true)
           .order('name');
       final remote = [for (final row in rows) _exerciseFromRow(row)];
-      return _mergeExerciseLibraries(remote, await loadBundledExercises());
+      return _exercisesWithMedia(
+        _mergeExerciseLibraries(remote, await loadBundledExercises()),
+      );
     } catch (_) {
       try {
         final rows = await _client
@@ -652,9 +667,11 @@ class AtlasDataRepository {
             .eq('is_active', true)
             .order('name');
         final remote = [for (final row in rows) _exerciseFromRow(row)];
-        return _mergeExerciseLibraries(remote, await loadBundledExercises());
+        return _exercisesWithMedia(
+          _mergeExerciseLibraries(remote, await loadBundledExercises()),
+        );
       } catch (_) {
-        return loadBundledExercises();
+        return _exercisesWithMedia(await loadBundledExercises());
       }
     }
   }
@@ -1007,6 +1024,23 @@ List<AtlasExercise> _mergeExerciseLibraries(
 ) {
   return _dedupeExercises([...primary, ...secondary])
     ..sort((a, b) => a.name.compareTo(b.name));
+}
+
+List<AtlasExercise> _exercisesWithMedia(List<AtlasExercise> exercises) {
+  return [
+    for (final exercise in exercises)
+      if (_exerciseHasMedia(exercise)) exercise,
+  ];
+}
+
+bool _exerciseHasMedia(AtlasExercise exercise) {
+  final media =
+      exercise.previewGif ??
+      exercise.gifUrl ??
+      exercise.thumbnail ??
+      exercise.previewImage ??
+      exercise.imageUrl;
+  return media != null && media.trim().isNotEmpty;
 }
 
 List<AtlasExercise> _dedupeExercises(List<AtlasExercise> exercises) {

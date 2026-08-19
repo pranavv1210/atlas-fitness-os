@@ -10,6 +10,7 @@ class AtlasAppFrame extends StatelessWidget {
     required this.subtitle,
     required this.children,
     this.trailing,
+    this.onBack,
     this.titleStyle,
     super.key,
   });
@@ -18,6 +19,7 @@ class AtlasAppFrame extends StatelessWidget {
   final String subtitle;
   final List<Widget> children;
   final Widget? trailing;
+  final VoidCallback? onBack;
   final TextStyle? titleStyle;
 
   @override
@@ -30,35 +32,26 @@ class AtlasAppFrame extends StatelessWidget {
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
                 sliver: SliverToBoxAdapter(
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      if (onBack != null) ...[
+                        IconButton.filledTonal(
+                          onPressed: onBack,
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          tooltip: 'Back',
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (subtitle.isNotEmpty) ...[
-                              Text(
-                                subtitle,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyLarge?.copyWith(
-                                  color: AtlasColors.inkMuted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                            ],
-                            Text(
-                              title,
-                              style:
-                                  titleStyle ??
-                                  Theme.of(context).textTheme.displayMedium
-                                      ?.copyWith(fontSize: 52, height: 0.98),
-                            ),
-                          ],
+                        child: Text(
+                          title,
+                          style:
+                              titleStyle ??
+                              Theme.of(context).textTheme.displayMedium
+                                  ?.copyWith(fontSize: 52, height: 0.98),
                         ),
                       ),
                       if (trailing != null) ...[

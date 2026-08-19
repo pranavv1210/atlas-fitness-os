@@ -6,7 +6,7 @@
     android:background="@drawable/atlas_widget_background"
     android:gravity="center"
     android:orientation="horizontal"
-    android:padding="14dp">
+    android:padding="8dp">
 
     <LinearLayout
         android:id="@+id/atlas_widget_water_button"
@@ -17,82 +17,84 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:orientation="vertical"
-        android:padding="10dp">
+        android:orientation="horizontal"
+        android:padding="8dp">
 
         <TextView
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:background="@drawable/atlas_widget_water_glass"
+            android:id="@+id/atlas_widget_water_glass"
+            android:layout_width="44dp"
+            android:layout_height="58dp"
+            android:background="@drawable/atlas_widget_water_glass_0"
             android:gravity="center"
-            android:text="+"
             android:textColor="#FFFFFF"
-            android:textSize="26sp"
+            android:textSize="0sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/atlas_widget_sips"
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="0"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:gravity="center"
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="sips"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/atlas_widget_water_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0%"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="water"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_marginStart="10dp"
+        android:layout_marginStart="8dp"
         android:layout_weight="1"
         android:background="@drawable/atlas_widget_streak_panel"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="10dp">
+        android:padding="8dp">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="FIRE"
-            android:textColor="#FFFFD166"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="🔥"
+            android:textColor="#33FFD166"
+            android:textSize="52sp" />
 
-        <TextView
-            android:id="@+id/atlas_widget_streak"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="0"
-            android:textColor="#FFFFFF"
-            android:textSize="34sp"
-            android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="day streak"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/atlas_widget_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="#FFFFFF"
+                android:textSize="30sp"
+                android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/atlas_widget_workouts"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="0 workouts"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/atlas_widget_streak_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="day streak"
+                android:textColor="#DDFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

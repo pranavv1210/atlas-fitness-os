@@ -14,7 +14,9 @@ import '../../atlas/presentation/atlas_log_sheets.dart';
 import '../../today/presentation/today_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key});
+  const ProgressScreen({this.onBack, super.key});
+
+  final VoidCallback? onBack;
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
@@ -59,8 +61,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
             _repository?.cachedSnapshot ??
             emptyAtlasSnapshot();
         return AtlasAppFrame(
-          subtitle: 'Trends from your logs',
+          subtitle: '',
           title: 'Progress',
+          onBack: widget.onBack,
           children: [
             _ProgressHero(
               snapshot: data,

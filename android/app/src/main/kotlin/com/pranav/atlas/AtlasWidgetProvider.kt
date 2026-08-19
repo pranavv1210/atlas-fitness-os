@@ -33,6 +33,7 @@ class AtlasWidgetProvider : AppWidgetProvider() {
         private const val PREFS = "FlutterSharedPreferences"
         private const val SNAPSHOT_KEY = "flutter.atlas.dashboard_snapshot"
         private const val PENDING_SIPS_KEY = "flutter.atlas.widget_pending_hydration_sips"
+        private const val DAILY_SIP_TARGET = 12
 
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -52,12 +53,17 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val hydration = (json?.optInt("hydrationToday", 0) ?: 0) +
                 prefs.getInt(PENDING_SIPS_KEY, 0)
             val streak = json?.optInt("currentStreak", 0) ?: 0
-            val workouts = json?.optInt("totalWorkouts", 0) ?: 0
+            val percent = ((hydration * 100) / DAILY_SIP_TARGET).coerceIn(0, 100)
 
             val views = RemoteViews(context.packageName, R.layout.atlas_home_widget)
-            views.setTextViewText(R.id.atlas_widget_sips, "$hydration")
+            views.setTextViewText(R.id.atlas_widget_water_percent, "$percent%")
             views.setTextViewText(R.id.atlas_widget_streak, "$streak")
-            views.setTextViewText(R.id.atlas_widget_workouts, "$workouts workouts")
+            views.setTextViewText(R.id.atlas_widget_streak_label, "day streak")
+            views.setInt(
+                R.id.atlas_widget_water_glass,
+                "setBackgroundResource",
+                waterGlassFor(percent),
+            )
 
             val waterIntent = Intent(context, AtlasWidgetProvider::class.java).apply {
                 action = ACTION_WATER_TAP
@@ -85,6 +91,16 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val pending = prefs.getInt(PENDING_SIPS_KEY, 0)
             prefs.edit().putInt(PENDING_SIPS_KEY, pending + 1).apply()
+        }
+
+        private fun waterGlassFor(percent: Int): Int {
+            return when {
+                percent >= 90 -> R.drawable.atlas_widget_water_glass_100
+                percent >= 65 -> R.drawable.atlas_widget_water_glass_75
+                percent >= 40 -> R.drawable.atlas_widget_water_glass_50
+                percent >= 15 -> R.drawable.atlas_widget_water_glass_25
+                else -> R.drawable.atlas_widget_water_glass_0
+            }
         }
     }
 }

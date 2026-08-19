@@ -66,9 +66,6 @@ class _TodayScreenState extends State<TodayScreen> {
             height: 1.05,
             fontWeight: FontWeight.w900,
           ),
-          trailing: _StatusPill(
-            text: '${data.completedThisWeek}/${data.weeklyTarget} week',
-          ),
           children: [
             _FocusCard(snapshot: data),
             _MissionCard(snapshot: data, onOpenTrain: widget.onOpenTrain),
@@ -101,30 +98,6 @@ class _TodayScreenState extends State<TodayScreen> {
       return 'Good Afternoon';
     }
     return 'Good Evening';
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AtlasColors.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AtlasColors.accent.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(
-          context,
-        ).textTheme.labelLarge?.copyWith(color: AtlasColors.accent),
-      ),
-    );
   }
 }
 
@@ -169,7 +142,7 @@ class _MissionCard extends StatelessWidget {
     final workout = snapshot.todayWorkout;
     if (workout == null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(28),
         child: Stack(
           children: [
             Positioned.fill(
@@ -188,12 +161,14 @@ class _MissionCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _FloatingWorkoutGlyph(),
-                  const SizedBox(height: 34),
+                  const _FloatingWorkoutGlyph(
+                    icon: Icons.fitness_center_rounded,
+                  ),
+                  const SizedBox(height: 22),
                   Text(
                     'Start your journey',
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
@@ -208,7 +183,7 @@ class _MissionCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.74),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
                   AtlasGradientButton(
                     label: 'Start in Train',
                     icon: Icons.play_arrow_rounded,
@@ -227,7 +202,7 @@ class _MissionCard extends StatelessWidget {
     }
     final streak = snapshot.currentStreak;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(34),
+      borderRadius: BorderRadius.circular(28),
       child: Stack(
         children: [
           Positioned.fill(
@@ -246,45 +221,53 @@ class _MissionCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const _FloatingWorkoutGlyph(),
+                    _FloatingWorkoutGlyph(icon: _workoutIcon(workout)),
                     const Spacer(),
-                    _StreakBadge(
-                      streak: streak,
-                      completedThisWeek: snapshot.completedThisWeek,
-                      weeklyTarget: snapshot.weeklyTarget,
-                    ),
+                    _StreakBadge(streak: streak),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 Text(
                   workout.name,
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     color: Colors.white,
+                    fontSize: 44,
                     height: 1,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   workout.focus,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.white.withValues(alpha: 0.74),
                   ),
                 ),
-                const SizedBox(height: 24),
-                AtlasGradientButton(
-                  label: 'Log in Train',
-                  icon: Icons.play_arrow_rounded,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.24),
-                    Colors.white.withValues(alpha: 0.12),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AtlasGradientButton(
+                        label: 'Log in Train',
+                        icon: Icons.play_arrow_rounded,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.24),
+                          Colors.white.withValues(alpha: 0.12),
+                        ],
+                        onPressed: onOpenTrain,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _WeekPill(
+                      completedThisWeek: snapshot.completedThisWeek,
+                      weeklyTarget: snapshot.weeklyTarget,
+                    ),
                   ],
-                  onPressed: onOpenTrain,
                 ),
               ],
             ),
@@ -296,27 +279,23 @@ class _MissionCard extends StatelessWidget {
 }
 
 class _StreakBadge extends StatelessWidget {
-  const _StreakBadge({
-    required this.streak,
-    required this.completedThisWeek,
-    required this.weeklyTarget,
-  });
+  const _StreakBadge({required this.streak});
 
   final int streak;
-  final int completedThisWeek;
-  final int weeklyTarget;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      width: 84,
+      height: 84,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(22),
+        shape: BoxShape.circle,
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
@@ -341,17 +320,10 @@ class _StreakBadge extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'day streak',
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.78),
               fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$completedThisWeek/$weeklyTarget this week',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -360,8 +332,39 @@ class _StreakBadge extends StatelessWidget {
   }
 }
 
+class _WeekPill extends StatelessWidget {
+  const _WeekPill({
+    required this.completedThisWeek,
+    required this.weeklyTarget,
+  });
+
+  final int completedThisWeek;
+  final int weeklyTarget;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        '$completedThisWeek/$weeklyTarget this week',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class _FloatingWorkoutGlyph extends StatelessWidget {
-  const _FloatingWorkoutGlyph();
+  const _FloatingWorkoutGlyph({required this.icon});
+
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -381,14 +384,25 @@ class _FloatingWorkoutGlyph extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
-        child: const Icon(
-          Icons.fitness_center_rounded,
-          color: Colors.white,
-          size: 27,
-        ),
+        child: Icon(icon, color: Colors.white, size: 27),
       ),
     );
   }
+}
+
+IconData _workoutIcon(AtlasWorkoutDay workout) {
+  final text = '${workout.name} ${workout.focus}'.toLowerCase();
+  if (workout.isRestDay || text.contains('rest') || text.contains('recovery')) {
+    return Icons.self_improvement_rounded;
+  }
+  if (text.contains('leg')) return Icons.directions_run_rounded;
+  if (text.contains('abs') || text.contains('core')) {
+    return Icons.all_inclusive_rounded;
+  }
+  if (text.contains('back') || text.contains('biceps')) {
+    return Icons.fitness_center_rounded;
+  }
+  return Icons.fitness_center_rounded;
 }
 
 class _MetricsGrid extends StatelessWidget {

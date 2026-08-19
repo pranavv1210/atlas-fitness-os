@@ -1032,7 +1032,7 @@ AtlasExercise? _matchExercise(
       best = exercise;
     }
   }
-  return bestScore >= 5 ? best : null;
+  return bestScore >= 3 ? best : null;
 }
 
 int _exerciseMatchScore(
@@ -1069,6 +1069,10 @@ int _exerciseMatchScore(
     score += 3;
   }
   if (wanted.contains('shrug') && name.contains('shrug')) score += 12;
+  if (wanted.contains('treadmill') && name.contains('run')) score += 8;
+  if (wanted.contains('run') && name.contains('treadmill')) score += 8;
+  if (wanted.contains('lat') && name.contains('pulldown')) score += 8;
+  if (wanted.contains('bench') && name.contains('press')) score += 5;
   return score;
 }
 

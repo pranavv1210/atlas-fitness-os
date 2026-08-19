@@ -10,16 +10,23 @@ import '../../../core/widgets/section_title.dart';
 import '../../profile/domain/models/user_profile.dart';
 
 class MeScreen extends StatelessWidget {
-  const MeScreen({required this.profile, required this.onSignOut, super.key});
+  const MeScreen({
+    required this.profile,
+    required this.onSignOut,
+    this.onBack,
+    super.key,
+  });
 
   final UserProfile profile;
   final Future<void> Function() onSignOut;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     return AtlasAppFrame(
-      subtitle: 'Personal settings',
+      subtitle: '',
       title: 'Me',
+      onBack: onBack,
       children: [
         _ProfileCard(profile: profile, onSignOut: onSignOut),
         const _WorkoutCycleCard(),

@@ -134,13 +134,23 @@ class _AtlasShellState extends State<AtlasShell> {
           onOpenTrain: () => _selectIndex(AtlasDestination.train.index),
         );
       case AtlasDestination.train:
-        return const TrainScreen();
+        return TrainScreen(
+          onBack: () => _selectIndex(AtlasDestination.today.index),
+        );
       case AtlasDestination.progress:
-        return const ProgressScreen();
+        return ProgressScreen(
+          onBack: () => _selectIndex(AtlasDestination.today.index),
+        );
       case AtlasDestination.goals:
-        return const GoalsScreen();
+        return GoalsScreen(
+          onBack: () => _selectIndex(AtlasDestination.today.index),
+        );
       case AtlasDestination.me:
-        return MeScreen(profile: widget.profile, onSignOut: widget.onSignOut);
+        return MeScreen(
+          profile: widget.profile,
+          onSignOut: widget.onSignOut,
+          onBack: () => _selectIndex(AtlasDestination.today.index),
+        );
     }
   }
 }
