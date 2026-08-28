@@ -7,10 +7,10 @@
                 android:bottomRightRadius="14dp"
                 android:topLeftRadius="7dp"
                 android:topRightRadius="7dp" />
-            <solid android:color="#2218A0FF" />
+            <solid android:color="#22BFDFFF" />
             <stroke
                 android:width="2dp"
-                android:color="#CCFFFFFF" />
+                android:color="#8AB6F0" />
         </shape>
     </item>
 </layer-list>

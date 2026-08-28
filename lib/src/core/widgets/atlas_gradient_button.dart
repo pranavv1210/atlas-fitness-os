@@ -9,6 +9,9 @@ class AtlasGradientButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.colors = const [AtlasColors.accent, AtlasColors.accentDeep],
+    this.minHeight = 58,
+    this.borderRadius = 30,
+    this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     super.key,
   });
 
@@ -16,6 +19,9 @@ class AtlasGradientButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
   final List<Color> colors;
+  final double minHeight;
+  final double borderRadius;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +31,10 @@ class AtlasGradientButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOutCubic,
-        constraints: const BoxConstraints(minHeight: 58),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        constraints: BoxConstraints(minHeight: minHeight),
+        padding: padding,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(borderRadius),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

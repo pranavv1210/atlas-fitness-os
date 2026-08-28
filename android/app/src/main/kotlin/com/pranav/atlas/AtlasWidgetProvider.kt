@@ -58,7 +58,6 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.atlas_home_widget)
             views.setTextViewText(R.id.atlas_widget_water_percent, "$percent%")
             views.setTextViewText(R.id.atlas_widget_streak, "$streak")
-            views.setTextViewText(R.id.atlas_widget_streak_label, "day streak")
             views.setInt(
                 R.id.atlas_widget_water_glass,
                 "setBackgroundResource",

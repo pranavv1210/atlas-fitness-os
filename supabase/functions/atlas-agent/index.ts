@@ -616,17 +616,34 @@ function parseAgentText(
   context: { contextUsed: string[] },
   screen?: string,
 ) {
+  const candidate = extractJsonObject(text);
   try {
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(candidate ?? text);
     return normalizeAgentReply(parsed, context);
   } catch (_) {
     return {
-      message: text || "Atlas Agent could not format the response.",
+      message: stripJsonNoise(text) || "Buddy could not read that cleanly. Try one exercise per line and I will add it to Train.",
       mode: "Coach",
       suggestions: defaultSuggestions(screen),
       contextUsed: context.contextUsed,
     };
   }
+}
+
+function extractJsonObject(text: string) {
+  const trimmed = text.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fence?.[1]) return fence[1].trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  return null;
+}
+
+function stripJsonNoise(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("```")) return trimmed;
+  return "";
 }
 
 function localCoachReply(message: string, context: Awaited<ReturnType<typeof buildAtlasContext>>) {
@@ -675,7 +692,9 @@ function localCoachReply(message: string, context: Awaited<ReturnType<typeof bui
 
 function localWorkoutEntries(message: string) {
   const lower = message.toLowerCase();
-  if (!/\b(did|done|add|log|enter|today)\b/.test(lower)) return [];
+  if (!/\b(kg|kgs|reps?|sets?|curl|pushdown|crunch|machine|tricep|bicep|abs)\b/.test(lower)) return [];
+  const defaultSets = Number(lower.match(/all\s+(\d+)\s+sets?/)?.[1] ?? 3);
+  const defaultReps = Number(lower.match(/(\d+)\s+reps?/)?.[1] ?? 15);
   const parts = message
     .split(/\n|,|;|\band\b/gi)
     .map((part) => part.trim())
@@ -692,8 +711,8 @@ function localWorkoutEntries(message: string) {
         .trim();
       return {
         name: cleanedName,
-        sets: setsReps ? Number(setsReps[1]) : undefined,
-        reps: setsReps ? Number(setsReps[2]) : undefined,
+        sets: setsReps ? Number(setsReps[1]) : defaultSets,
+        reps: setsReps ? Number(setsReps[2]) : defaultReps,
         weight: kg ? Number(kg[1]) : undefined,
       };
     })

@@ -51,7 +51,7 @@ class AtlasAppFrame extends StatelessWidget {
                           style:
                               titleStyle ??
                               Theme.of(context).textTheme.displayMedium
-                                  ?.copyWith(fontSize: 52, height: 0.98),
+                                  ?.copyWith(fontSize: 42, height: 1),
                         ),
                       ),
                       if (trailing != null) ...[

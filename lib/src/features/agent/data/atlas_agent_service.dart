@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AtlasAgentService {
@@ -26,13 +28,14 @@ class AtlasAgentService {
           .timeout(const Duration(seconds: 22));
       final data = response.data;
       if (data is Map) {
-        return AtlasAgentReply.fromJson({
+        final reply = AtlasAgentReply.fromJson({
           for (final entry in data.entries)
             if (entry.key is String) entry.key as String: entry.value,
         });
+        return _withLocalEntries(reply, message);
       }
       if (data is String && data.trim().isNotEmpty) {
-        return AtlasAgentReply(message: data.trim(), suggestions: const []);
+        return _withLocalEntries(_replyFromString(data), message);
       }
     } catch (_) {
       return _localFallbackReply(message);
@@ -41,7 +44,31 @@ class AtlasAgentService {
   }
 }
 
+AtlasAgentReply _withLocalEntries(AtlasAgentReply reply, String message) {
+  if (reply.workoutEntries.isNotEmpty) return reply;
+  final localEntries = _localWorkoutEntries(message);
+  if (localEntries.isEmpty) return reply;
+  return AtlasAgentReply(
+    message:
+        'Got it. I added ${localEntries.length} exercise${localEntries.length == 1 ? '' : 's'} to today\'s draft. Open Train, check the rows, then save.',
+    suggestions: reply.suggestions,
+    mode: 'Workout',
+    contextUsed: reply.contextUsed,
+    workoutEntries: localEntries,
+  );
+}
+
 AtlasAgentReply _localFallbackReply(String message) {
+  final entries = _localWorkoutEntries(message);
+  if (entries.isNotEmpty) {
+    return AtlasAgentReply(
+      message:
+          'Got it. I added ${entries.length} exercise${entries.length == 1 ? '' : 's'} to today\'s draft. Review the rows in Train, then save when it looks right.',
+      suggestions: const [],
+      mode: 'Workout',
+      workoutEntries: entries,
+    );
+  }
   final lower = message.toLowerCase();
   if (lower.contains('rest')) {
     return const AtlasAgentReply(
@@ -59,6 +86,121 @@ AtlasAgentReply _localFallbackReply(String message) {
   );
 }
 
+AtlasAgentReply _replyFromString(String raw) {
+  final parsed = _jsonMapFromString(raw);
+  if (parsed != null) return AtlasAgentReply.fromJson(parsed);
+  return AtlasAgentReply(message: raw.trim(), suggestions: const []);
+}
+
+Map<String, dynamic>? _jsonMapFromString(String raw) {
+  final trimmed = raw.trim();
+  final candidates = <String>[trimmed];
+  final fenced = RegExp(
+    r'```(?:json)?\s*([\s\S]*?)\s*```',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (fenced != null) candidates.add(fenced.group(1)!.trim());
+  final start = trimmed.indexOf('{');
+  final end = trimmed.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    candidates.add(trimmed.substring(start, end + 1));
+  }
+  for (final candidate in candidates) {
+    try {
+      final decoded = jsonDecode(candidate);
+      if (decoded is Map) {
+        return {
+          for (final entry in decoded.entries)
+            if (entry.key is String) entry.key as String: entry.value,
+        };
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+List<AtlasAgentWorkoutEntry> _localWorkoutEntries(String message) {
+  final lower = message.toLowerCase();
+  if (!RegExp(
+    r'\b(kg|kgs|reps?|sets?|curl|pushdown|crunch|machine|tricep|bicep|abs)\b',
+  ).hasMatch(lower)) {
+    return const [];
+  }
+  final defaultSets =
+      _firstIntMatch(lower, RegExp(r'all\s+(\d+)\s+sets?')) ?? 3;
+  final defaultReps = _firstIntMatch(lower, RegExp(r'(\d+)\s+reps?')) ?? 15;
+  final parts =
+      message
+          .split(RegExp(r',|\band\b', caseSensitive: false))
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty)
+          .toList();
+  return [
+    for (final part in parts)
+      if (_localEntryFromPart(part, defaultSets, defaultReps) != null)
+        _localEntryFromPart(part, defaultSets, defaultReps)!,
+  ].take(10).toList();
+}
+
+AtlasAgentWorkoutEntry? _localEntryFromPart(
+  String part,
+  int defaultSets,
+  int defaultReps,
+) {
+  var source = part.toLowerCase();
+  if (!RegExp(
+    r'\b(kg|kgs|curl|pushdown|crusher|kick\s*backs?|crunch|machine|abs)\b',
+  ).hasMatch(source)) {
+    return null;
+  }
+  final weight = _firstDoubleMatch(source, RegExp(r'(\d+(?:\.\d+)?)\s*kgs?'));
+  final sets = _firstIntMatch(source, RegExp(r'(\d+)\s+sets?')) ?? defaultSets;
+  final reps = _firstIntMatch(source, RegExp(r'(\d+)\s+reps?')) ?? defaultReps;
+  source =
+      source
+          .replaceAll(RegExp(r'\d+(?:\.\d+)?\s*kgs?'), '')
+          .replaceAll(RegExp(r'(all\s+)?\d+\s+sets?'), '')
+          .replaceAll(RegExp(r'\d+\s+reps?'), '')
+          .replaceAll(RegExp(r'\bsame\b'), '')
+          .trim();
+  source = source.replaceAll(RegExp(r'\s+'), ' ');
+  if (source.isEmpty) return null;
+  final muscle =
+      source.contains('tricep')
+          ? 'Triceps'
+          : source.contains('abs') || source.contains('crunch')
+          ? 'Abs'
+          : source.contains('bicep') || source.contains('curl')
+          ? 'Biceps'
+          : null;
+  final equipment =
+      source.contains('barbel') || source.contains('barbell')
+          ? 'Barbell'
+          : source.contains('machine')
+          ? 'Machine'
+          : source.contains('dumble') || source.contains('dumbbell')
+          ? 'Dumbbell'
+          : null;
+  return AtlasAgentWorkoutEntry(
+    name: source,
+    muscle: muscle,
+    equipment: equipment,
+    sets: sets,
+    reps: reps,
+    weight: weight,
+  );
+}
+
+int? _firstIntMatch(String value, RegExp pattern) {
+  final match = pattern.firstMatch(value);
+  return int.tryParse(match?.group(1) ?? '');
+}
+
+double? _firstDoubleMatch(String value, RegExp pattern) {
+  final match = pattern.firstMatch(value);
+  return double.tryParse(match?.group(1) ?? '');
+}
+
 class AtlasAgentReply {
   const AtlasAgentReply({
     required this.message,
@@ -69,6 +211,13 @@ class AtlasAgentReply {
   });
 
   factory AtlasAgentReply.fromJson(Map<String, dynamic> json) {
+    final rawMessage = json['message'];
+    if (rawMessage is String) {
+      final embedded = _jsonMapFromString(rawMessage);
+      if (embedded != null && embedded['message'] != rawMessage) {
+        return AtlasAgentReply.fromJson({...json, ...embedded});
+      }
+    }
     final rawSuggestions = json['suggestions'];
     final rawContext = json['contextUsed'];
     final rawWorkoutEntries = json['workoutEntries'];

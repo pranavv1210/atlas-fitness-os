@@ -194,28 +194,24 @@ class _TrainScreenState extends State<TrainScreen> {
           context: context,
           barrierDismissible: true,
           barrierLabel: 'Cancel save',
-          barrierColor: Colors.black.withValues(alpha: 0.28),
-          transitionDuration: const Duration(milliseconds: 240),
+          barrierColor: Colors.black.withValues(alpha: 0.22),
+          transitionDuration: const Duration(milliseconds: 200),
           pageBuilder:
               (context, animation, secondaryAnimation) => Center(
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    width: MediaQuery.sizeOf(context).width - 42,
-                    padding: const EdgeInsets.all(22),
+                    width: MediaQuery.sizeOf(context).width - 48,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
                     decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surface.withValues(alpha: 0.94),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.52),
-                      ),
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: AtlasColors.hairline),
                       boxShadow: [
                         BoxShadow(
-                          color: AtlasColors.ink.withValues(alpha: 0.14),
-                          blurRadius: 34,
-                          offset: const Offset(0, 18),
+                          color: AtlasColors.ink.withValues(alpha: 0.12),
+                          blurRadius: 26,
+                          offset: const Offset(0, 14),
                         ),
                       ],
                     ),
@@ -224,26 +220,28 @@ class _TrainScreenState extends State<TrainScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 50,
-                          height: 50,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
-                            color: AtlasColors.successSoft,
-                            borderRadius: BorderRadius.circular(18),
+                            color: AtlasColors.accentSoft,
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: const Icon(
-                            Icons.verified_rounded,
-                            color: AtlasColors.success,
+                            Icons.check_circle_rounded,
+                            color: AtlasColors.accent,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         Text(
                           'Save today\'s workout?',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
-                          'Atlas will lock $workoutName with $exerciseCount exercises for today and add it to Workout History.',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          '$workoutName - $exerciseCount exercise${exerciseCount == 1 ? '' : 's'} - Workout History',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AtlasColors.inkMuted),
                         ),
                         const SizedBox(height: 18),
                         Row(
@@ -251,6 +249,12 @@ class _TrainScreenState extends State<TrainScreen> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () => Navigator.pop(context, false),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
                                 child: const Text('Cancel'),
                               ),
                             ),
@@ -258,8 +262,16 @@ class _TrainScreenState extends State<TrainScreen> {
                             Expanded(
                               child: FilledButton.icon(
                                 onPressed: () => Navigator.pop(context, true),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
+                                  backgroundColor: AtlasColors.ink,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
                                 icon: const Icon(Icons.check_rounded),
-                                label: const Text('Save Workout'),
+                                label: const Text('Save'),
                               ),
                             ),
                           ],
@@ -274,7 +286,7 @@ class _TrainScreenState extends State<TrainScreen> {
                   ScaleTransition(
                     scale: CurvedAnimation(
                       parent: animation,
-                      curve: Curves.easeOutBack,
+                      curve: Curves.easeOutCubic,
                     ),
                     child: FadeTransition(opacity: animation, child: child),
                   ),
@@ -694,11 +706,17 @@ class _ExerciseFooterActions extends StatelessWidget {
       children: [
         _BottomAddExerciseButton(onPressed: onAdd),
         const SizedBox(height: 10),
-        AtlasGradientButton(
-          label: saving ? 'Saving Workout' : 'Complete Workout',
-          icon: saving ? Icons.sync_rounded : Icons.check_rounded,
-          colors: const [AtlasColors.success, AtlasColors.accent],
-          onPressed: saving ? null : onSave,
+        SizedBox(
+          width: double.infinity,
+          child: AtlasGradientButton(
+            label: saving ? 'Saving Workout' : 'Complete Workout',
+            icon: saving ? Icons.sync_rounded : Icons.check_rounded,
+            colors: const [Color(0xFF1F2937), AtlasColors.accentDeep],
+            minHeight: 66,
+            borderRadius: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 19),
+            onPressed: saving ? null : onSave,
+          ),
         ),
       ],
     );
