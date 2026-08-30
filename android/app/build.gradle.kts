@@ -1,8 +1,52 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val requiredReleaseDartDefines = listOf(
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "GOOGLE_WEB_CLIENT_ID",
+)
+
+fun releaseDartDefineKeys(): Set<String> {
+    val encodedDefines = project.findProperty("dart-defines") as? String
+    if (encodedDefines.isNullOrBlank()) {
+        return emptySet()
+    }
+
+    return encodedDefines
+        .split(",")
+        .mapNotNull { encoded ->
+            runCatching {
+                Base64.getDecoder().decode(encoded).toString(Charsets.UTF_8)
+            }.getOrNull()
+        }
+        .mapNotNull { decoded ->
+            decoded.substringBefore("=", missingDelimiterValue = "")
+                .takeIf { it.isNotBlank() }
+        }
+        .toSet()
+}
+
+tasks.register("verifyReleaseDartDefines") {
+    group = "verification"
+    description = "Fails release builds that would ship without required Dart defines."
+
+    doLast {
+        val presentKeys = releaseDartDefineKeys()
+        val missingKeys = requiredReleaseDartDefines.filterNot { it in presentKeys }
+        if (missingKeys.isNotEmpty()) {
+            throw GradleException(
+                "Release build is missing Dart defines: ${missingKeys.joinToString(", ")}. " +
+                    "Use scripts/build-release-apk.ps1 or pass --dart-define-from-file=config/env/atlas.local.json."
+            )
+        }
+    }
 }
 
 android {
@@ -37,6 +81,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn("verifyReleaseDartDefines")
 }
 
 flutter {

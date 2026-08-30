@@ -197,18 +197,21 @@ flutter run --dart-define-from-file=config/env/atlas.local.json
 Build release APK:
 
 ```powershell
-flutter build apk --release --dart-define-from-file=config/env/atlas.local.json
+.\scripts\build-release-apk.ps1
 ```
 
 Release output:
 
 ```text
 build/app/outputs/flutter-apk/app-release.apk
+landing/public/downloads/atlas-release.apk
 ```
 
 ## Configuration
 
 Atlas reads runtime secrets through Dart defines. Do not hardcode credentials.
+Keep local release values in `config/env/atlas.local.json`; this file is ignored by git.
+Use `config/env/atlas.example.json` as the template.
 
 Required values:
 
@@ -231,7 +234,8 @@ Recommended validation before shipping:
 ```powershell
 flutter analyze
 flutter test
-flutter build apk --release --dart-define-from-file=config/env/atlas.local.json
+.\scripts\check-release-env.ps1
+.\scripts\build-release-apk.ps1
 cd landing
 npm run build
 npm audit --audit-level=high
