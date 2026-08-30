@@ -154,7 +154,7 @@ export default function Home() {
               <span className="section-kicker">New In Atlas Buddy</span>
               <h2>Say what you did. Atlas builds the draft.</h2>
               <p>
-                No more searching every movement while your pump is fading. Tell Atlas Buddy something like “shrugs 3x15 at 20 kg, pulldown 4x12, treadmill 20 minutes” and it matches the closest exercises from the library into today’s workout draft.
+                No more searching every movement while your focus is fading. Tell Atlas Buddy something like &quot;shrugs 3x15 at 20 kg, pulldown 4x12, treadmill 20 minutes&quot; and it matches the closest exercises from the library into today&apos;s workout draft.
               </p>
               <p>
                 Buddy does not complete the workout for you. It prepares the list, then you review, edit sets, reps, weight, or distance, and save only when it looks right.
@@ -288,7 +288,7 @@ export default function Home() {
             <Image src="/brand/atlas-logo.png" alt="" width={28} height={28} />
             <span>Atlas</span>
           </a>
-          <span>© 2026 Atlas Fitness. Personal fitness operating system.</span>
+          <span>Copyright 2026 Atlas Fitness. Personal fitness operating system.</span>
           <a className="icon-link" href={repoUrl} target="_blank" rel="noreferrer" aria-label="Open Atlas GitHub repository">
             <Github size={17} />
           </a>

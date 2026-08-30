@@ -306,13 +306,22 @@ class _ReportSummaryBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.055)
+                : AtlasColors.surfaceWarm.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +330,10 @@ class _ReportSummaryBand extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AtlasColors.accentSoft,
+              color:
+                  isDark
+                      ? AtlasColors.accent.withValues(alpha: 0.14)
+                      : AtlasColors.accentSoft,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: AtlasColors.accent, size: 20),
@@ -357,12 +369,21 @@ class _ReportChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
-        color: AtlasColors.accentSoft,
+        color:
+            isDark
+                ? AtlasColors.accent.withValues(alpha: 0.14)
+                : AtlasColors.accentSoft,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? AtlasColors.accent.withValues(alpha: 0.18)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Text(label, style: Theme.of(context).textTheme.labelLarge),
     );
@@ -660,13 +681,22 @@ class _EmptyChartMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 150,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AtlasColors.surfaceWarm,
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.055)
+                : AtlasColors.surfaceWarm,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),

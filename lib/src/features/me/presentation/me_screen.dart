@@ -238,27 +238,10 @@ class _PreferenceCardState extends State<_PreferenceCard> {
           const SectionTitle('Preferences'),
           const SizedBox(height: 14),
           _PreferenceRow(
-            icon: Icons.straighten_outlined,
-            title: 'Units',
-            value: 'Metric',
-            onTap:
-                () => showAtlasSnack(context, message: 'Metric units active.'),
-          ),
-          _PreferenceRow(
             icon: Icons.palette_outlined,
             title: 'Appearance',
             value: _themeModeLabel(_themeMode),
             onTap: _showAppearanceSheet,
-          ),
-          _PreferenceRow(
-            icon: Icons.cloud_done_outlined,
-            title: 'Sync',
-            value: 'Configured',
-            onTap:
-                () => showAtlasSnack(
-                  context,
-                  message: 'Supabase configuration is present.',
-                ),
           ),
           _PreferenceRow(
             icon: Icons.notifications_active_outlined,
@@ -730,6 +713,7 @@ class _PreferenceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         AtlasPressable(
@@ -742,11 +726,26 @@ class _PreferenceRow extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: AtlasColors.surfaceWarm,
+                    color:
+                        isDark
+                            ? Colors.white.withValues(alpha: 0.055)
+                            : AtlasColors.surfaceWarm,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AtlasColors.hairline),
+                    border: Border.all(
+                      color:
+                          isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : AtlasColors.hairline,
+                    ),
                   ),
-                  child: Icon(icon, size: 19, color: AtlasColors.inkMuted),
+                  child: Icon(
+                    icon,
+                    size: 19,
+                    color:
+                        isDark
+                            ? Theme.of(context).colorScheme.primary
+                            : AtlasColors.inkMuted,
+                  ),
                 ),
                 const SizedBox(width: 13),
                 Expanded(

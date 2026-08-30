@@ -131,9 +131,9 @@ class _AtmospherePainter extends CustomPainter {
             end: Alignment.bottomRight,
             colors: [
               isDark
-                  ? const Color(0xFF24304A).withValues(alpha: 0.52)
+                  ? const Color(0xFF182033).withValues(alpha: 0.34)
                   : Colors.white.withValues(alpha: 0.52),
-              AtlasColors.accent.withValues(alpha: isDark ? 0.1 : 0.035),
+              AtlasColors.accent.withValues(alpha: isDark ? 0.055 : 0.035),
               isDark
                   ? const Color(0xFF0D1118).withValues(alpha: 0)
                   : Colors.white.withValues(alpha: 0),
@@ -164,7 +164,9 @@ class _AtmospherePainter extends CustomPainter {
     canvas.drawPath(path, bandPaint);
 
     final grain =
-        Paint()..color = Colors.white.withValues(alpha: isDark ? 0.035 : 0.07);
+        Paint()
+          ..color = (isDark ? const Color(0xFF7EA6FF) : Colors.white)
+              .withValues(alpha: isDark ? 0.018 : 0.07);
     const step = 19.0;
     for (var y = 0.0; y < size.height; y += step) {
       for (var x = 0.0; x < size.width; x += step) {

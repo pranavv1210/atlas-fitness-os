@@ -39,7 +39,7 @@ class AtlasCard extends StatelessWidget {
                 : AtlasColors.hairline);
     final gradientColors =
         isDark
-            ? [const Color(0xF0161B24), const Color(0xEA0D1118)]
+            ? [const Color(0xF0141820), const Color(0xF00A0D13)]
             : [
               Colors.white.withValues(alpha: 0.92),
               fill.withValues(alpha: 0.78),
@@ -58,13 +58,12 @@ class AtlasCard extends StatelessWidget {
             blurRadius: isGlass ? 34 : 26,
             offset: const Offset(0, 18),
           ),
-          BoxShadow(
-            color: Colors.white.withValues(
-              alpha: isDark ? 0.03 : (isGlass ? 0.86 : 0.42),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.white.withValues(alpha: isGlass ? 0.86 : 0.42),
+              blurRadius: 10,
+              offset: const Offset(-4, -5),
             ),
-            blurRadius: 10,
-            offset: const Offset(-4, -5),
-          ),
         ],
         gradient:
             isGlass

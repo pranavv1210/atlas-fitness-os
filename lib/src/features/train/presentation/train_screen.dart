@@ -33,6 +33,7 @@ class _TrainScreenState extends State<TrainScreen> {
   List<_CustomWorkoutPlanDay> _customPlan = _defaultCustomPlan();
   final List<_EditableWorkoutEntry> _entries = [];
   ValueNotifier<int>? _draftVersionNotifier;
+  int? _sessionDayOverrideNumber;
   bool _saving = false;
 
   @override
@@ -73,18 +74,23 @@ class _TrainScreenState extends State<TrainScreen> {
     );
     final effectiveSnapshot = _applyCustomWorkoutPlan(snapshot, _customPlan);
     _entries.clear();
-    final workout =
-        effectiveSnapshot.todayWorkout ?? effectiveSnapshot.starterWorkout;
     if (effectiveSnapshot.completedToday) {
+      _sessionDayOverrideNumber = null;
       await _clearDraft();
       return effectiveSnapshot;
     }
-    final restored = _restoreDraft(workout, effectiveSnapshot.exerciseLibrary);
+    final activeWorkout = _activeWorkoutFor(effectiveSnapshot);
+    final restored = _restoreDraft(
+      activeWorkout,
+      effectiveSnapshot.exerciseLibrary,
+    );
     if (restored) {
       return effectiveSnapshot;
     }
     final plannedDay =
-        workout == null ? null : _customPlan[workout.dayNumber.clamp(1, 5) - 1];
+        activeWorkout == null
+            ? null
+            : _customPlan[activeWorkout.dayNumber.clamp(1, 5) - 1];
     if (plannedDay != null && !plannedDay.isRestDay) {
       _entries.addAll([
         for (final exercise in plannedDay.exercises)
@@ -97,7 +103,7 @@ class _TrainScreenState extends State<TrainScreen> {
   Future<void> _saveWorkout(AtlasDashboardSnapshot snapshot) async {
     if (_saving) return;
     final repository = _repository;
-    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final workout = _activeWorkoutFor(snapshot);
     if (repository == null || workout == null) {
       showAtlasSnack(
         context,
@@ -159,6 +165,7 @@ class _TrainScreenState extends State<TrainScreen> {
       );
       if (!mounted) return;
       unawaited(_clearDraft());
+      _sessionDayOverrideNumber = null;
       unawaited(
         _dependencies?.notificationService.showWorkoutCompletedMotivation(
           workoutName: workout.name,
@@ -303,6 +310,7 @@ class _TrainScreenState extends State<TrainScreen> {
             snapshot.data ??
             _repository?.cachedSnapshot ??
             emptyAtlasSnapshot();
+        final activeWorkout = _activeWorkoutFor(data);
         return AtlasAppFrame(
           subtitle: '',
           title: 'Train',
@@ -310,8 +318,10 @@ class _TrainScreenState extends State<TrainScreen> {
           children: [
             _WorkoutHero(
               snapshot: data,
+              sessionWorkout: activeWorkout,
               saving: _saving,
               onSave: () => _saveWorkout(data),
+              onChooseWorkout: () => _showSessionWorkoutChooser(data),
               onEditPlan: () => _showPlanEditor(data.exerciseLibrary),
             ),
             _ExerciseLogger(
@@ -362,6 +372,57 @@ class _TrainScreenState extends State<TrainScreen> {
     });
   }
 
+  Future<void> _showSessionWorkoutChooser(
+    AtlasDashboardSnapshot snapshot,
+  ) async {
+    final activeWorkout = _activeWorkoutFor(snapshot);
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              22,
+              4,
+              22,
+              MediaQuery.paddingOf(context).bottom + 18,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionTitle('Log Which Workout?'),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose the workout you actually performed. Atlas will save the report with this title and keep the cycle moving after save.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 14),
+                for (final day in _customPlan)
+                  _SessionWorkoutOption(
+                    day: day,
+                    selected: activeWorkout?.dayNumber == day.dayNumber,
+                    onTap: () => Navigator.pop(context, day.dayNumber),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (selected == null || !mounted) return;
+    final day = _customPlan[selected.clamp(1, 5) - 1];
+    setState(() {
+      _sessionDayOverrideNumber = selected;
+      _entries
+        ..clear()
+        ..addAll([
+          if (!day.isRestDay)
+            for (final exercise in day.exercises)
+              _EditableWorkoutEntry(exercise),
+        ]);
+    });
+    await _saveDraft(snapshot);
+  }
+
   void _handleEntriesChanged(AtlasDashboardSnapshot snapshot) {
     setState(() {});
     _saveDraft(snapshot);
@@ -402,7 +463,7 @@ class _TrainScreenState extends State<TrainScreen> {
 
   Future<void> _saveDraft(AtlasDashboardSnapshot snapshot) async {
     final userId = _repository?.currentUserId;
-    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final workout = _activeWorkoutFor(snapshot);
     final preferences = _dependencies?.preferences;
     if (userId == null || preferences == null || workout == null) return;
     if (snapshot.completedToday || _entries.isEmpty) {
@@ -438,24 +499,41 @@ class _TrainScreenState extends State<TrainScreen> {
     if (userId == null) return;
     await _dependencies?.preferences.clearWorkoutDraft(userId);
   }
+
+  AtlasWorkoutDay? _activeWorkoutFor(AtlasDashboardSnapshot snapshot) {
+    final base = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final override = _sessionDayOverrideNumber;
+    if (override == null) return base;
+    final index = override.clamp(1, 5) - 1;
+    return _workoutFromPlanDay(_customPlan[index], base: base);
+  }
 }
 
 class _WorkoutHero extends StatelessWidget {
   const _WorkoutHero({
     required this.snapshot,
+    required this.sessionWorkout,
     required this.saving,
     required this.onSave,
+    required this.onChooseWorkout,
     required this.onEditPlan,
   });
 
   final AtlasDashboardSnapshot snapshot;
+  final AtlasWorkoutDay? sessionWorkout;
   final bool saving;
   final VoidCallback onSave;
+  final VoidCallback onChooseWorkout;
   final VoidCallback onEditPlan;
 
   @override
   Widget build(BuildContext context) {
-    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final plannedWorkout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final workout = sessionWorkout ?? plannedWorkout;
+    final hasSessionOverride =
+        plannedWorkout != null &&
+        workout != null &&
+        plannedWorkout.dayNumber != workout.dayNumber;
     final isFirst = !snapshot.hasWorkoutCycleStarted;
     final savedToday = snapshot.completedToday;
     final report = snapshot.todayReport;
@@ -503,6 +581,12 @@ class _WorkoutHero extends StatelessWidget {
                 ),
               ),
               IconButton.filledTonal(
+                onPressed: onChooseWorkout,
+                icon: const Icon(Icons.swap_horiz_rounded),
+                tooltip: 'Choose workout for this log',
+              ),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
                 onPressed: onEditPlan,
                 icon: const Icon(Icons.edit_calendar_rounded),
                 tooltip: 'Edit workout plan',
@@ -512,7 +596,9 @@ class _WorkoutHero extends StatelessWidget {
           if (!savedToday) ...[
             const SizedBox(height: 7),
             Text(
-              isFirst
+              hasSessionOverride
+                  ? 'Manual log selection. Save this session, then the cycle continues with the next workout.'
+                  : isFirst
                   ? 'Save this session to start Atlas.'
                   : workout?.focus ?? 'Log clean sets, reps, weight, and rest.',
               style: Theme.of(context).textTheme.bodyMedium,
@@ -944,6 +1030,80 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
   }
 }
 
+class _SessionWorkoutOption extends StatelessWidget {
+  const _SessionWorkoutOption({
+    required this.day,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _CustomWorkoutPlanDay day;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AtlasPressable(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color:
+              selected
+                  ? AtlasColors.accent.withValues(alpha: isDark ? 0.18 : 0.1)
+                  : isDark
+                  ? Colors.white.withValues(alpha: 0.055)
+                  : AtlasColors.surfaceWarm,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                selected
+                    ? AtlasColors.accent.withValues(alpha: 0.28)
+                    : isDark
+                    ? Colors.white.withValues(alpha: 0.09)
+                    : AtlasColors.hairline,
+          ),
+        ),
+        child: Row(
+          children: [
+            _WorkoutDayGlyph(workout: _workoutFromPlanDay(day), size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Day ${day.dayNumber}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    day.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color:
+                  selected
+                      ? AtlasColors.accent
+                      : isDark
+                      ? Colors.white.withValues(alpha: 0.42)
+                      : AtlasColors.inkSoft,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PlanExerciseTile extends StatelessWidget {
   const _PlanExerciseTile({
     required this.exercise,
@@ -963,12 +1123,21 @@ class _PlanExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.68),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.055)
+                : Colors.white.withValues(alpha: 0.68),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Row(
         children: [
@@ -1048,15 +1217,24 @@ class _CompletedWorkoutExerciseList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         for (final exercise in report.exercises) ...[
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
+              color:
+                  isDark
+                      ? Colors.white.withValues(alpha: 0.055)
+                      : Colors.white.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AtlasColors.hairline),
+              border: Border.all(
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.09)
+                        : AtlasColors.hairline,
+              ),
             ),
             child: Row(
               children: [
@@ -1080,9 +1258,12 @@ class _CompletedWorkoutExerciseList extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.lock_outline_rounded,
-                  color: AtlasColors.inkSoft,
+                  color:
+                      isDark
+                          ? Colors.white.withValues(alpha: 0.42)
+                          : AtlasColors.inkSoft,
                   size: 20,
                 ),
               ],
@@ -1479,6 +1660,7 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filtered =
         widget.library.where((exercise) {
             final query = _query.toLowerCase();
@@ -1579,7 +1761,11 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                                   color:
                                       selectedRow
                                           ? AtlasColors.accent.withValues(
-                                            alpha: 0.08,
+                                            alpha: isDark ? 0.18 : 0.08,
+                                          )
+                                          : isDark
+                                          ? Colors.white.withValues(
+                                            alpha: 0.055,
                                           )
                                           : Colors.white.withValues(
                                             alpha: 0.68,
@@ -1589,7 +1775,11 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                                     color:
                                         selectedRow
                                             ? AtlasColors.accent.withValues(
-                                              alpha: 0.2,
+                                              alpha: isDark ? 0.3 : 0.2,
+                                            )
+                                            : isDark
+                                            ? Colors.white.withValues(
+                                              alpha: 0.09,
                                             )
                                             : AtlasColors.hairline,
                                   ),
@@ -1646,6 +1836,10 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                                       color:
                                           selectedRow
                                               ? AtlasColors.accent
+                                              : isDark
+                                              ? Colors.white.withValues(
+                                                alpha: 0.42,
+                                              )
                                               : AtlasColors.inkSoft,
                                     ),
                                   ],
@@ -1673,14 +1867,23 @@ class _ExerciseSearchEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.72),
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.055)
+                  : Colors.white.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: AtlasColors.hairline),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withValues(alpha: 0.09)
+                    : AtlasColors.hairline,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1758,19 +1961,31 @@ class _ExerciseMetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AtlasColors.surfaceWarm,
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.07)
+                : AtlasColors.surfaceWarm,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Text(
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AtlasColors.inkMuted,
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.78)
+                  : AtlasColors.inkMuted,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -2650,6 +2865,24 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
     latestWeightDate: snapshot.latestWeightDate,
     lastWorkoutTitle: snapshot.lastWorkoutTitle,
     todayReport: snapshot.todayReport,
+  );
+}
+
+AtlasWorkoutDay _workoutFromPlanDay(
+  _CustomWorkoutPlanDay day, {
+  AtlasWorkoutDay? base,
+}) {
+  final canReuseBaseIds = base?.dayNumber == day.dayNumber;
+  return AtlasWorkoutDay(
+    dayNumber: day.dayNumber,
+    name: day.name.isEmpty ? 'Workout' : day.name,
+    focus:
+        day.isRestDay
+            ? 'Recovery, mobility, hydration, and readiness'
+            : 'Selected for this workout log',
+    isRestDay: day.isRestDay,
+    workoutDayId: canReuseBaseIds ? base?.workoutDayId : null,
+    templateId: canReuseBaseIds ? base?.templateId : null,
   );
 }
 

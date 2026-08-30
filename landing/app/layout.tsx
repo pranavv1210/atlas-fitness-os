@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'workout tracker',
     'gym tracker',
     'fitness operating system',
-    'AI fitness coach',
+    'personal fitness app',
     'exercise library',
     'hydration tracking',
     'fitness analytics',
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#FAF8F4',
+  themeColor: '#111214',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

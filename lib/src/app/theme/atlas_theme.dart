@@ -50,10 +50,10 @@ class AtlasTheme {
             ? const Color(0xFF7EA6FF)
             : AtlasColors.accent;
 
-    final baseTextTheme =
-        brightness == Brightness.dark
+    final baseTextTheme = (brightness == Brightness.dark
             ? Typography.whiteCupertino
-            : Typography.blackCupertino;
+            : Typography.blackCupertino)
+        .apply(fontFamily: 'Gilroy');
 
     return ThemeData(
       useMaterial3: true,
