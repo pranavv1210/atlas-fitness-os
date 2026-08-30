@@ -1,52 +1,75 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { SITE } from '@/lib/site';
+
+const description =
+  `Atlas is a personal fitness operating system for Android. Plan workouts, log every set, discover ${SITE.exerciseCount} exercises, and track your history, hydration, and goals within a single, interconnected system.`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://atlas-fitness-os-henna.vercel.app'),
-  title: 'Atlas | Personal Fitness Operating System',
-  description:
-    'Atlas is a premium Android fitness operating system for secure Google login, workout logging, AI workout drafting, 2,069+ exercises, daily reports, hydration, goals, progress analytics, and Atlas Buddy.',
+  metadataBase: new URL(SITE.baseUrl),
+  title: {
+    default: 'Atlas - Your Personal Fitness Operating System',
+    template: '%s - Atlas',
+  },
+  description,
   keywords: [
     'Atlas fitness app',
-    'workout tracker',
-    'gym tracker',
     'fitness operating system',
-    'personal fitness app',
+    'workout tracker',
     'exercise library',
-    'hydration tracking',
-    'fitness analytics',
-    'Google sign in fitness app',
+    'workout logging',
+    'exercise library',
     'workout history',
-    'daily workout report',
-    'AI workout drafting',
-    'AI gym buddy',
+    'fitness progress tracking',
+    'hydration tracking',
+    'fitness goals',
+    'body weight tracking',
+    'Android fitness app',
   ],
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
-    title: 'Atlas | Personal Fitness Operating System',
-    description:
-      'A premium Android fitness app for secure accounts, workout logging, AI workout drafting, 2,069+ exercises, goals, hydration, progress, daily reports, and Atlas Buddy.',
+    title: 'Atlas - Your Personal Fitness Operating System',
+    description,
     type: 'website',
-    url: 'https://atlas-fitness-os-henna.vercel.app',
-    images: ['/brand/atlas-logo.png'],
+    url: SITE.baseUrl,
+    siteName: 'Atlas',
+    locale: 'en_US',
+    images: [
+      {
+        url: '/og/atlas-og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Atlas - Your Personal Fitness Operating System',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Atlas | Personal Fitness Operating System',
-    description:
-      'A premium Android fitness app for secure accounts, workout logging, AI workout drafting, 2,069+ exercises, goals, hydration, progress, daily reports, and Atlas Buddy.',
-    images: ['/brand/atlas-logo.png'],
+    title: 'Atlas - Your Personal Fitness Operating System',
+    description,
+    images: ['/og/atlas-og.png'],
   },
   icons: {
-    icon: '/brand/atlas-logo.png',
-    shortcut: '/brand/atlas-logo.png',
-    apple: '/brand/atlas-logo.png',
+    icon: [
+      { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/favicon-16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    shortcut: '/brand/favicon-32.png',
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  manifest: '/manifest.webmanifest',
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#111214',
+  themeColor: '#FAF8F4',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

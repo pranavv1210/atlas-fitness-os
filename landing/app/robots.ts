@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE } from '@/lib/site';
 
 export const dynamic = 'force-static';
 
@@ -7,7 +8,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
+      disallow: ['/downloads/'],
     },
-    sitemap: 'https://atlas-fitness-os-henna.vercel.app/sitemap.xml',
+    sitemap: `${SITE.baseUrl}/sitemap.xml`,
   };
 }
