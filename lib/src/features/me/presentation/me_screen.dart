@@ -212,7 +212,7 @@ class _PreferenceCard extends StatefulWidget {
 class _PreferenceCardState extends State<_PreferenceCard> {
   bool _notifications = false;
   bool _privacyLock = false;
-  int _hydrationIntervalMinutes = 60;
+  int _hydrationIntervalMinutes = 120;
   ThemeMode _themeMode = ThemeMode.system;
 
   @override
@@ -347,11 +347,11 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                 const SectionTitle('Water interval'),
                 const SizedBox(height: 8),
                 Text(
-                  'Atlas will send gentle hydration nudges between 8 AM and 10 PM.',
+                  'Atlas will send gentle hydration nudges between 7 AM and 11:30 PM.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
-                for (final minutes in [30, 60, 90, 120])
+                for (final minutes in [90, 120, 180, 240])
                   _HydrationIntervalOption(
                     minutes: minutes,
                     selected: minutes == _hydrationIntervalMinutes,
@@ -359,11 +359,11 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                   ),
                 _HydrationIntervalOption.custom(
                   minutes:
-                      [30, 60, 90, 120].contains(_hydrationIntervalMinutes)
+                      [90, 120, 180, 240].contains(_hydrationIntervalMinutes)
                           ? null
                           : _hydrationIntervalMinutes,
                   selected:
-                      ![30, 60, 90, 120].contains(_hydrationIntervalMinutes),
+                      ![90, 120, 180, 240].contains(_hydrationIntervalMinutes),
                   onTap: () async {
                     final custom = await _showCustomHydrationIntervalSheet(
                       context,
@@ -423,7 +423,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
   ) async {
     final controller = TextEditingController(
       text:
-          [30, 60, 90, 120].contains(currentMinutes)
+          [90, 120, 180, 240].contains(currentMinutes)
               ? ''
               : currentMinutes.toString(),
     );
@@ -456,7 +456,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                         autofocus: true,
                         decoration: InputDecoration(
                           labelText: 'Minutes',
-                          helperText: 'Enter 10 to 360 minutes.',
+                          helperText: 'Enter 90 to 360 minutes.',
                           errorText: error,
                           filled: true,
                           fillColor: Theme.of(context).colorScheme.surface,
@@ -468,9 +468,9 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                         child: FilledButton.icon(
                           onPressed: () {
                             final value = int.tryParse(controller.text.trim());
-                            if (value == null || value < 10 || value > 360) {
+                            if (value == null || value < 90 || value > 360) {
                               setSheetState(() {
-                                error = 'Use a value from 10 to 360.';
+                                error = 'Use a value from 90 to 360.';
                               });
                               return;
                             }

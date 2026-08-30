@@ -9,11 +9,11 @@
                 android:topRightRadius="7dp" />
             <gradient
                 android:angle="90"
-                android:endColor="#A8D4FF"
-                android:startColor="#D7EDFF" />
+                android:endColor="#9DCCFF"
+                android:startColor="#D8EEFF" />
             <stroke
                 android:width="2dp"
-                android:color="#8AB6F0" />
+                android:color="#86B8F6" />
         </shape>
     </item>
 </layer-list>

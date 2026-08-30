@@ -467,13 +467,13 @@ class _WorkoutHero extends StatelessWidget {
     return AtlasCard(
       isGlass: true,
       radius: 28,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _WorkoutDayGlyph(workout: workout, size: 54),
+              _WorkoutDayGlyph(workout: workout, size: 50),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -488,14 +488,16 @@ class _WorkoutHero extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AtlasColors.inkMuted,
                         fontWeight: FontWeight.w800,
+                        fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       report?.title ?? workout?.name ?? 'Choose your workout',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(height: 1.02),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        height: 1.02,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ],
                 ),
@@ -508,7 +510,7 @@ class _WorkoutHero extends StatelessWidget {
             ],
           ),
           if (!savedToday) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             Text(
               isFirst
                   ? 'Save this session to start Atlas.'
@@ -516,7 +518,7 @@ class _WorkoutHero extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -540,15 +542,6 @@ class _WorkoutHero extends StatelessWidget {
               ),
             ],
           ),
-          if (!savedToday) ...[
-            const SizedBox(height: 10),
-            _HeroChip(
-              label:
-                  isFirst
-                      ? 'Ready to start'
-                      : '${snapshot.currentStreak} day streak',
-            ),
-          ],
         ],
       ),
     );
@@ -562,19 +555,28 @@ class _HeroChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.74),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AtlasColors.hairline),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.07)
+                : Colors.white.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Text(
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelLarge,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 13),
       ),
     );
   }
@@ -711,10 +713,13 @@ class _ExerciseFooterActions extends StatelessWidget {
           child: AtlasGradientButton(
             label: saving ? 'Saving Workout' : 'Complete Workout',
             icon: saving ? Icons.sync_rounded : Icons.check_rounded,
-            colors: const [Color(0xFF1F2937), AtlasColors.accentDeep],
-            minHeight: 66,
-            borderRadius: 24,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 19),
+            colors:
+                Theme.of(context).brightness == Brightness.dark
+                    ? const [Color(0xFF24324A), Color(0xFF4F7CD8)]
+                    : const [Color(0xFF1E3A5F), Color(0xFF5E86D9)],
+            minHeight: 70,
+            borderRadius: 25,
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 20),
             onPressed: saving ? null : onSave,
           ),
         ),
@@ -1177,12 +1182,21 @@ class _WorkoutReportExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.055)
+                : Colors.white.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2011,12 +2025,21 @@ class _SetInputPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCardio = _isCardioStyleExercise(entry.exercise);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AtlasColors.surfaceWarm.withValues(alpha: 0.78),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.045)
+                : AtlasColors.surfaceWarm.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : AtlasColors.hairline,
+        ),
       ),
       child:
           isCardio
@@ -2112,6 +2135,7 @@ class _StrengthSetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Expanded(
@@ -2120,14 +2144,25 @@ class _StrengthSetRow extends StatelessWidget {
             height: 50,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AtlasColors.accentSoft.withValues(alpha: 0.62),
+              color:
+                  isDark
+                      ? Colors.white.withValues(alpha: 0.07)
+                      : AtlasColors.accentSoft.withValues(alpha: 0.62),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AtlasColors.hairline),
+              border: Border.all(
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : AtlasColors.hairline,
+              ),
             ),
             child: Text(
               '${set.setNumber}',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AtlasColors.accent,
+                color:
+                    isDark
+                        ? Theme.of(context).colorScheme.primary
+                        : AtlasColors.accent,
                 fontWeight: FontWeight.w900,
               ),
             ),

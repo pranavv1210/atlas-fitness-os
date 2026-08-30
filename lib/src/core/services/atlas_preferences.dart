@@ -36,7 +36,7 @@ class AtlasPreferences {
   }
 
   int get hydrationIntervalMinutes =>
-      _prefs.getInt(_hydrationIntervalMinutesKey) ?? 60;
+      _prefs.getInt(_hydrationIntervalMinutesKey) ?? 120;
 
   Future<void> setHydrationIntervalMinutes(int value) {
     return _prefs.setInt(_hydrationIntervalMinutesKey, value);

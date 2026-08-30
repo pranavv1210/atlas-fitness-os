@@ -29,16 +29,26 @@ class AtlasTheme {
     required Color muted,
   }) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AtlasColors.accent,
+      seedColor:
+          brightness == Brightness.dark
+              ? const Color(0xFF7EA6FF)
+              : AtlasColors.accent,
       brightness: brightness,
       surface: surface,
     ).copyWith(
-      primary: AtlasColors.accent,
+      primary:
+          brightness == Brightness.dark
+              ? const Color(0xFF7EA6FF)
+              : AtlasColors.accent,
       secondary: AtlasColors.success,
       error: AtlasColors.error,
       surface: surface,
       onSurface: onSurface,
     );
+    final primary =
+        brightness == Brightness.dark
+            ? const Color(0xFF7EA6FF)
+            : AtlasColors.accent;
 
     final baseTextTheme =
         brightness == Brightness.dark
@@ -50,7 +60,7 @@ class AtlasTheme {
       brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: scaffold,
-      fontFamily: 'Roboto',
+      fontFamily: 'Gilroy',
       textTheme: baseTextTheme.copyWith(
         displayMedium: baseTextTheme.displayMedium?.copyWith(
           fontWeight: FontWeight.w800,
@@ -115,13 +125,13 @@ class AtlasTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 76,
         backgroundColor: surface.withValues(alpha: 0.92),
-        indicatorColor: AtlasColors.accentSoft,
+        indicatorColor:
+            brightness == Brightness.dark
+                ? primary.withValues(alpha: 0.16)
+                : AtlasColors.accentSoft,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
-            color:
-                states.contains(WidgetState.selected)
-                    ? AtlasColors.accent
-                    : AtlasColors.inkMuted,
+            color: states.contains(WidgetState.selected) ? primary : muted,
             fontSize: 12,
             fontWeight:
                 states.contains(WidgetState.selected)
@@ -132,10 +142,7 @@ class AtlasTheme {
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            color:
-                states.contains(WidgetState.selected)
-                    ? AtlasColors.accent
-                    : AtlasColors.inkMuted,
+            color: states.contains(WidgetState.selected) ? primary : muted,
             size: 23,
           ),
         ),
@@ -196,7 +203,7 @@ class AtlasTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: AtlasColors.accent, width: 1.4),
+          borderSide: BorderSide(color: primary, width: 1.4),
         ),
       ),
       snackBarTheme: SnackBarThemeData(

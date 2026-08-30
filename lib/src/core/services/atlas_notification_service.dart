@@ -72,9 +72,10 @@ class AtlasNotificationService {
   static const _dailyNotificationMaxId = 2100;
   static const _workoutNotificationBaseId = 2200;
   static const _workoutNotificationMaxId = 2300;
-  static const _hydrationStartHour = 8;
-  static const _hydrationEndHour = 22;
-  static const _minHydrationIntervalMinutes = 10;
+  static const _hydrationStartHour = 7;
+  static const _hydrationEndHour = 23;
+  static const _hydrationEndMinute = 30;
+  static const _minHydrationIntervalMinutes = 90;
   static const _maxHydrationIntervalMinutes = 360;
 
   Future<void> scheduleHydrationNudges({required int intervalMinutes}) async {
@@ -87,10 +88,10 @@ class AtlasNotificationService {
     );
     var notificationId = _hydrationNotificationBaseId;
     final start = DateTime(2000, 1, 1, _hydrationStartHour);
-    final end = DateTime(2000, 1, 1, _hydrationEndHour);
+    final end = DateTime(2000, 1, 1, _hydrationEndHour, _hydrationEndMinute);
     for (
       var slot = start;
-      slot.isBefore(end);
+      !slot.isAfter(end);
       slot = slot.add(Duration(minutes: safeInterval))
     ) {
       await _scheduleDailyNotification(
@@ -110,17 +111,10 @@ class AtlasNotificationService {
   Future<void> scheduleDailyReminders() async {
     await cancelDailyReminders();
     await _scheduleDailyNotification(
-      'Atlas check-in',
-      'Log today once so your trend stays accurate.',
-      _nextDailyOccurrence(hour: 9),
-      id: _dailyNotificationBaseId,
-      details: _generalDetails,
-    );
-    await _scheduleDailyNotification(
       'Atlas daily report',
-      'Your 10 PM report is ready. Review training, water, cardio, and body logs.',
+      'Your 10:30 PM report is ready. Review training, water, cardio, and body logs.',
       _nextDailyOccurrence(hour: 22, minute: 30),
-      id: _dailyNotificationBaseId + 1,
+      id: _dailyNotificationBaseId,
       details: _reportDetails,
     );
   }
@@ -156,7 +150,7 @@ class AtlasNotificationService {
     await scheduleHydrationNudges(intervalMinutes: hydrationIntervalMinutes);
     await scheduleDailyReminders();
     await scheduleWorkoutReminders();
-    await scheduleMissedWorkoutCheck();
+    await _plugin.cancel(_workoutNotificationBaseId + 1);
   }
 
   Future<void> cancelAtlasReminders() async {
@@ -192,13 +186,7 @@ class AtlasNotificationService {
   }
 
   Future<void> scheduleMissedWorkoutCheck() async {
-    await _scheduleDailyNotification(
-      'Atlas workout check',
-      'If you skipped today, open Atlas and decide whether to train or rest.',
-      _nextDailyOccurrence(hour: 20),
-      id: _workoutNotificationBaseId + 1,
-      details: _generalDetails,
-    );
+    await _plugin.cancel(_workoutNotificationBaseId + 1);
   }
 
   Future<void> _cancelRange(int startInclusive, int endExclusive) async {

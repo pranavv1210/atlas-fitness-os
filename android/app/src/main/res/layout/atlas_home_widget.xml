@@ -6,7 +6,7 @@
     android:background="@drawable/atlas_widget_background"
     android:gravity="center"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <LinearLayout
         android:id="@+id/atlas_widget_water_button"
@@ -17,59 +17,53 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:orientation="horizontal"
-        android:padding="4dp">
+        android:orientation="vertical"
+        android:padding="2dp">
 
-        <TextView
-            android:id="@+id/atlas_widget_water_glass"
-            android:layout_width="48dp"
-            android:layout_height="64dp"
-            android:background="@drawable/atlas_widget_water_glass_0"
-            android:gravity="center"
-            android:textSize="0sp" />
+        <FrameLayout
+            android:layout_width="72dp"
+            android:layout_height="80dp"
+            android:layout_marginBottom="2dp">
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_marginStart="12dp"
-            android:gravity="center"
-            android:orientation="vertical">
+            <TextView
+                android:id="@+id/atlas_widget_water_glass"
+                android:layout_width="60dp"
+                android:layout_height="74dp"
+                android:layout_gravity="center"
+                android:background="@drawable/atlas_widget_water_glass_0"
+                android:gravity="center"
+                android:textSize="0sp" />
 
             <TextView
                 android:id="@+id/atlas_widget_water_percent"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
                 android:text="0%"
                 android:textColor="#203052"
-                android:textSize="24sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="water"
-                android:textColor="#6B7280"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 
     <TextView
         android:layout_width="1dp"
-        android:layout_height="58dp"
-        android:layout_marginHorizontal="14dp"
+        android:layout_height="68dp"
+        android:layout_marginHorizontal="10dp"
         android:background="@drawable/atlas_widget_divider" />
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:background="@drawable/atlas_widget_streak_panel"
-        android:padding="4dp">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -79,15 +73,28 @@
                 android:layout_height="wrap_content"
                 android:text="0"
                 android:textColor="#203052"
-                android:textSize="34sp"
+                android:textSize="38sp"
                 android:textStyle="bold" />
 
             <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="10dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="8dp"
                 android:contentDescription="@string/atlas_widget_streak_icon"
                 android:src="@drawable/atlas_widget_flame" />
         </LinearLayout>
-    </FrameLayout>
+
+        <TextView
+            android:id="@+id/atlas_widget_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-2dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="Missing workout?"
+            android:textColor="#64748B"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

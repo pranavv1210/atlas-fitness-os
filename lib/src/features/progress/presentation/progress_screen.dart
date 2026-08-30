@@ -376,6 +376,7 @@ class _ReportExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final mediaUrl =
         exercise.exercise?.previewGif ??
         exercise.exercise?.gifUrl ??
@@ -385,9 +386,17 @@ class _ReportExerciseTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color:
+            isDark
+                ? Colors.white.withValues(alpha: 0.055)
+                : Colors.white.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AtlasColors.hairline),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : AtlasColors.hairline,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -32,7 +32,7 @@ class AtlasAppFrame extends StatelessWidget {
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
+                padding: const EdgeInsets.fromLTRB(24, 14, 24, 8),
                 sliver: SliverToBoxAdapter(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -42,6 +42,18 @@ class AtlasAppFrame extends StatelessWidget {
                           onPressed: onBack,
                           icon: const Icon(Icons.arrow_back_rounded),
                           tooltip: 'Back',
+                          style: IconButton.styleFrom(
+                            fixedSize: const Size.square(42),
+                            padding: EdgeInsets.zero,
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : AtlasColors.accentSoft,
+                            foregroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : AtlasColors.ink,
+                          ),
                         ),
                         const SizedBox(width: 12),
                       ],
@@ -51,7 +63,7 @@ class AtlasAppFrame extends StatelessWidget {
                           style:
                               titleStyle ??
                               Theme.of(context).textTheme.displayMedium
-                                  ?.copyWith(fontSize: 42, height: 1),
+                                  ?.copyWith(fontSize: 34, height: 1.02),
                         ),
                       ),
                       if (trailing != null) ...[
@@ -63,7 +75,7 @@ class AtlasAppFrame extends StatelessWidget {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 104),
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 104),
                 sliver: SliverList.separated(
                   itemBuilder:
                       (context, index) => _Entrance(
@@ -118,9 +130,13 @@ class _AtmospherePainter extends CustomPainter {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white.withValues(alpha: 0.52),
-              AtlasColors.accent.withValues(alpha: isDark ? 0.12 : 0.035),
-              Colors.white.withValues(alpha: 0),
+              isDark
+                  ? const Color(0xFF24304A).withValues(alpha: 0.52)
+                  : Colors.white.withValues(alpha: 0.52),
+              AtlasColors.accent.withValues(alpha: isDark ? 0.1 : 0.035),
+              isDark
+                  ? const Color(0xFF0D1118).withValues(alpha: 0)
+                  : Colors.white.withValues(alpha: 0),
             ],
           ).createShader(Offset.zero & size);
 

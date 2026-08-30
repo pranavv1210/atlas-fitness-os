@@ -29,7 +29,7 @@ const config: Config = {
         glow: '0 24px 80px rgba(37, 99, 255, 0.24)',
       },
       fontFamily: {
-        sans: ['var(--font-geist-sans)', 'Inter', 'ui-sans-serif', 'system-ui'],
+        sans: ['Gilroy', 'Inter', 'ui-sans-serif', 'system-ui'],
       },
     },
   },

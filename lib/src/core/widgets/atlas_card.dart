@@ -23,11 +23,27 @@ class AtlasCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     final fill =
         color ??
         (isGlass
-            ? (isDark ? const Color(0xD91A1C24) : AtlasColors.glass)
-            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.92));
+            ? (isDark ? const Color(0xE611151D) : AtlasColors.glass)
+            : scheme.surface.withValues(alpha: isDark ? 0.94 : 0.92));
+    final borderColor =
+        isGlass
+            ? (isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.42))
+            : (isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : AtlasColors.hairline);
+    final gradientColors =
+        isDark
+            ? [const Color(0xF0161B24), const Color(0xEA0D1118)]
+            : [
+              Colors.white.withValues(alpha: 0.92),
+              fill.withValues(alpha: 0.78),
+            ];
 
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -35,14 +51,7 @@ class AtlasCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color:
-              isGlass
-                  ? Colors.white.withValues(alpha: isDark ? 0.12 : 0.42)
-                  : (isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : AtlasColors.hairline),
-        ),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.09),
@@ -62,10 +71,7 @@ class AtlasCard extends StatelessWidget {
                 ? LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.92),
-                    fill.withValues(alpha: isDark ? 0.88 : 0.78),
-                  ],
+                  colors: gradientColors,
                 )
                 : null,
       ),

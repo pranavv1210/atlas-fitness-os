@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.widget.RemoteViews
 import org.json.JSONObject
 
@@ -21,11 +23,14 @@ class AtlasWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
         if (intent.action == ACTION_WATER_TAP) {
+            val before = hydrationPercent(context)
             addLocalSip(context)
-            updateAll(context)
+            val after = hydrationPercent(context)
+            animateWaterFill(context, before, after)
+            return
         }
+        super.onReceive(context, intent)
     }
 
     companion object {
@@ -33,7 +38,7 @@ class AtlasWidgetProvider : AppWidgetProvider() {
         private const val PREFS = "FlutterSharedPreferences"
         private const val SNAPSHOT_KEY = "flutter.atlas.dashboard_snapshot"
         private const val PENDING_SIPS_KEY = "flutter.atlas.widget_pending_hydration_sips"
-        private const val DAILY_SIP_TARGET = 12
+        private const val DAILY_SIP_TARGET = 24
 
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -46,6 +51,7 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             context: Context,
             manager: AppWidgetManager,
             widgetId: Int,
+            animatedPercent: Int? = null,
         ) {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val snapshot = prefs.getString(SNAPSHOT_KEY, null)
@@ -54,14 +60,20 @@ class AtlasWidgetProvider : AppWidgetProvider() {
                 prefs.getInt(PENDING_SIPS_KEY, 0)
             val streak = json?.optInt("currentStreak", 0) ?: 0
             val percent = ((hydration * 100) / DAILY_SIP_TARGET).coerceIn(0, 100)
+            val displayPercent = animatedPercent ?: percent
+            val completedToday = json?.optBoolean("completedToday", false) ?: false
 
             val views = RemoteViews(context.packageName, R.layout.atlas_home_widget)
-            views.setTextViewText(R.id.atlas_widget_water_percent, "$percent%")
+            views.setTextViewText(R.id.atlas_widget_water_percent, "$displayPercent%")
             views.setTextViewText(R.id.atlas_widget_streak, "$streak")
+            views.setTextViewText(
+                R.id.atlas_widget_status,
+                if (completedToday) "Workout completed" else "Missing workout?",
+            )
             views.setInt(
                 R.id.atlas_widget_water_glass,
                 "setBackgroundResource",
-                waterGlassFor(percent),
+                waterGlassFor(displayPercent),
             )
 
             val waterIntent = Intent(context, AtlasWidgetProvider::class.java).apply {
@@ -90,6 +102,41 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val pending = prefs.getInt(PENDING_SIPS_KEY, 0)
             prefs.edit().putInt(PENDING_SIPS_KEY, pending + 1).apply()
+        }
+
+        private fun hydrationPercent(context: Context): Int {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val snapshot = prefs.getString(SNAPSHOT_KEY, null)
+            val json = snapshot?.let { runCatching { JSONObject(it) }.getOrNull() }
+            val hydration = (json?.optInt("hydrationToday", 0) ?: 0) +
+                prefs.getInt(PENDING_SIPS_KEY, 0)
+            return ((hydration * 100) / DAILY_SIP_TARGET).coerceIn(0, 100)
+        }
+
+        private fun animateWaterFill(context: Context, startPercent: Int, endPercent: Int) {
+            val manager = AppWidgetManager.getInstance(context)
+            val component = ComponentName(context, AtlasWidgetProvider::class.java)
+            val ids = manager.getAppWidgetIds(component)
+            if (ids.isEmpty()) return
+
+            val safeStart = startPercent.coerceIn(0, 100)
+            val safeEnd = endPercent.coerceIn(0, 100)
+            val steps = listOf(
+                safeStart + ((safeEnd - safeStart) * 0.35f).toInt(),
+                safeStart + ((safeEnd - safeStart) * 0.7f).toInt(),
+                safeEnd,
+            ).map { it.coerceIn(0, 100) }.distinct()
+            val handler = Handler(Looper.getMainLooper())
+            steps.forEachIndexed { index, percent ->
+                handler.postDelayed(
+                    {
+                        for (id in ids) {
+                            updateWidget(context, manager, id, percent)
+                        }
+                    },
+                    (index * 90L),
+                )
+            }
         }
 
         private fun waterGlassFor(percent: Int): Int {

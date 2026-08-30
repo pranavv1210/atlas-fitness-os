@@ -69,6 +69,14 @@ flutter:
     - assets/data/free_exercise_db.json
     - assets/data/exercise_expansion_metadata.json
 
+  fonts:
+    - family: Gilroy
+      fonts:
+        - asset: assets/fonts/Gilroy-Light.otf
+          weight: 300
+        - asset: assets/fonts/Gilroy-ExtraBold.otf
+          weight: 800
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
