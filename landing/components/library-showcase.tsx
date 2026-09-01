@@ -8,8 +8,8 @@ const categories = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardi
 
 export function LibraryShowcase() {
   return (
-    <section className="py-32 bg-atlas-paper relative overflow-hidden">
-      <div className="container-x text-center mb-16 relative z-10">
+    <section id="library" className="relative overflow-hidden bg-atlas-paper py-20 md:py-24">
+      <div className="container-x relative z-10 mb-12 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -26,7 +26,7 @@ export function LibraryShowcase() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-10%' }}
           transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-4xl md:text-6xl font-black leading-tight text-atlas-ink mb-6 tracking-tight max-w-3xl mx-auto"
+          className="mx-auto mb-6 max-w-3xl text-3xl font-black leading-tight tracking-normal text-atlas-ink md:text-6xl"
         >
           {SITE.exerciseCount} exercises.<br/>Filtered in seconds.
         </motion.h2>
@@ -36,7 +36,7 @@ export function LibraryShowcase() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-10%' }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-lg text-atlas-muted max-w-2xl mx-auto"
+          className="mx-auto max-w-2xl text-base leading-7 text-atlas-muted md:text-lg"
         >
           A massive built-in library with deep search. Filter by muscle group, equipment, or movement pattern. Find it, add it, and train.
         </motion.p>
@@ -72,7 +72,7 @@ export function LibraryShowcase() {
         </div>
 
         {/* Exercises Grid Mockup (Decorative) */}
-        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 px-4 max-w-5xl mx-auto opacity-60 [mask-image:linear-gradient(to_bottom,black_20%,transparent_100%)]">
+        <div className="mx-auto mt-10 grid max-w-5xl grid-cols-2 gap-4 px-4 opacity-100 md:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <motion.div
               key={i}

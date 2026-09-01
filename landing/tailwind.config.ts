@@ -14,6 +14,7 @@ const config: Config = {
           graphite3: '#1D2430',
           muted: '#666D77',
           soft: '#9CA3AF',
+          line: 'rgba(18, 18, 18, 0.10)',
           blue: '#1A56DB',
           deep: '#1135A5',
           cyan: '#15B8D6',

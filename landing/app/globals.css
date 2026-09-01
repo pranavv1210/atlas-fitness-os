@@ -57,6 +57,7 @@
 
   /* --- dark surfaces (app dark theme) --- */
   --slate: #08090d;         /* dark scaffold */
+  --graphite: #0e1116;
   --slate-2: #10131a;
   --slate-3: #151823;
   --surface-dark: #14161d;  /* dark card */
@@ -107,6 +108,155 @@
   --z-skip: 60;
 
   color-scheme: light;
+}
+
+.constellation {
+  position: relative;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(60% 70% at 50% 50%, rgba(37, 99, 255, 0.14), transparent 62%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.constellation::before {
+  content: "";
+  position: absolute;
+  inset: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.constellation-core {
+  position: absolute;
+  inset: 50%;
+  width: 118px;
+  height: 118px;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #161b23;
+  box-shadow: var(--shadow-dark);
+}
+
+.constellation-core > div {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.constellation-item {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 17, 22, 0.82);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.constellation-item svg {
+  width: 17px;
+  height: 17px;
+  color: var(--accent-lift);
+}
+
+.constellation-tip {
+  width: min(360px, calc(100% - 32px));
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 17, 22, 0.94);
+  padding: 14px 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.faq-item {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 42px rgba(18, 18, 18, 0.06);
+}
+
+.faq-question {
+  display: flex;
+  width: 100%;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  text-align: left;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.faq-question svg {
+  flex: none;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.faq-item[data-open="true"] .faq-question svg {
+  transform: rotate(45deg);
+}
+
+.faq-answer {
+  padding: 0 20px 20px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  .constellation {
+    display: grid;
+    gap: 10px;
+    min-height: 0 !important;
+    padding: 18px;
+  }
+
+  .constellation::before {
+    display: none;
+  }
+
+  .constellation-core,
+  .constellation-item {
+    position: static;
+    inset: auto;
+    translate: none;
+  }
+
+  .constellation-core {
+    width: 100%;
+    height: auto;
+    min-height: 96px;
+    margin-bottom: 4px;
+  }
+
+  .constellation-item {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .constellation-tip {
+    display: none;
+  }
 }
 
 /* ============================================================

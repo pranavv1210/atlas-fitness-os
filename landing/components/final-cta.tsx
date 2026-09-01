@@ -11,7 +11,7 @@ export function FinalCta() {
   const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
-    <section aria-labelledby="cta-title" className="relative overflow-hidden bg-[var(--graphite)] py-[clamp(84px,11vw,150px)] text-white">
+    <section id="download" aria-labelledby="cta-title" className="relative overflow-hidden bg-atlas-graphite py-20 text-white md:py-28">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -38,7 +38,7 @@ export function FinalCta() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10% 0px' }}
             transition={{ duration: 0.8, delay: 0.08, ease }}
-            className="mt-5 text-[clamp(40px,6vw,84px)] font-black leading-[0.92] tracking-normal"
+            className="mt-5 text-4xl font-black leading-tight tracking-normal md:text-7xl"
           >
             Your next workout
             <br />
@@ -49,7 +49,7 @@ export function FinalCta() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10% 0px' }}
             transition={{ duration: 0.8, delay: 0.16, ease }}
-            className="mx-auto mt-6 max-w-lg text-[17px] leading-[1.7] text-white/60 lg:mx-0"
+            className="mx-auto mt-6 max-w-lg text-base leading-7 text-white/75 lg:mx-0"
           >
             Download Atlas, sign in with Google, and let the first logged set become the start of a
             record that compounds.

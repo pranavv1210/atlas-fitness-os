@@ -72,6 +72,8 @@ class AtlasNotificationService {
   static const _dailyNotificationMaxId = 2100;
   static const _workoutNotificationBaseId = 2200;
   static const _workoutNotificationMaxId = 2300;
+  static const _goalNotificationBaseId = 2400;
+  static const _goalNotificationMaxId = 2500;
   static const _hydrationStartHour = 7;
   static const _hydrationEndHour = 23;
   static const _hydrationEndMinute = 30;
@@ -130,6 +132,21 @@ class AtlasNotificationService {
     );
   }
 
+  Future<void> scheduleGoalReminders({required int activeGoalCount}) async {
+    await cancelGoalReminders();
+    if (activeGoalCount <= 0) {
+      return;
+    }
+    final label = activeGoalCount == 1 ? 'goal' : 'goals';
+    await _scheduleDailyNotification(
+      'Atlas goals',
+      '$activeGoalCount active $label still need progress. Open Atlas and log today.',
+      _nextDailyOccurrence(hour: 20),
+      id: _goalNotificationBaseId,
+      details: _goalDetails,
+    );
+  }
+
   Future<void> showWorkoutCompletedMotivation({
     required String workoutName,
   }) async {
@@ -172,6 +189,10 @@ class AtlasNotificationService {
 
   Future<void> cancelWorkoutReminders() async {
     await _cancelRange(_workoutNotificationBaseId, _workoutNotificationMaxId);
+  }
+
+  Future<void> cancelGoalReminders() async {
+    await _cancelRange(_goalNotificationBaseId, _goalNotificationMaxId);
   }
 
   Future<int> pendingHydrationReminderCount() async {
@@ -277,6 +298,19 @@ class AtlasNotificationService {
       'atlas_daily_reports_v1',
       'Daily reports',
       channelDescription: '10:30 PM Atlas daily report notifications.',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    ),
+  );
+
+  static const _goalDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'atlas_goal_reminders_v1',
+      'Goal reminders',
+      channelDescription:
+          'Reminders for active Atlas goals that are not complete.',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,

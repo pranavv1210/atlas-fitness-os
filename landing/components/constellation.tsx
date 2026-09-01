@@ -40,7 +40,7 @@ export function Constellation() {
   const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
-    <section aria-labelledby="constellation-title" className="relative overflow-hidden bg-[var(--graphite)] py-[clamp(72px,9vw,128px)] text-white">
+    <section id="assistant" aria-labelledby="constellation-title" className="relative overflow-hidden bg-atlas-graphite py-20 text-white md:py-24">
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: 'radial-gradient(50% 56% at 50% 48%, rgba(37, 99, 255, 0.13), transparent 66%)' }}
@@ -64,7 +64,7 @@ export function Constellation() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10% 0px' }}
             transition={{ duration: 0.8, delay: 0.08, ease }}
-            className="mt-5 text-[clamp(38px,5.4vw,76px)] font-black leading-[0.94] tracking-normal"
+            className="mt-5 text-3xl font-black leading-tight tracking-normal md:text-6xl"
           >
             The fitness life,
             <br />
@@ -72,7 +72,7 @@ export function Constellation() {
           </motion.h2>
         </div>
 
-        <div className="constellation mt-16 min-h-[540px]" onMouseLeave={() => setTip(null)}>
+        <div className="constellation mt-12 min-h-[420px] md:min-h-[520px]" onMouseLeave={() => setTip(null)}>
           <div className="constellation-core">
             <div>
               <Image src="/brand/atlas-logo.png" alt="" width={54} height={54} />

@@ -50,7 +50,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final firstName = _firstName(widget.profile);
+    final displayName = _displayName(widget.profile);
     return FutureBuilder<AtlasDashboardSnapshot>(
       future: _future,
       builder: (context, snapshot) {
@@ -60,10 +60,10 @@ class _TodayScreenState extends State<TodayScreen> {
             emptyAtlasSnapshot();
         return AtlasAppFrame(
           subtitle: '',
-          title: '${_greeting(DateTime.now())} $firstName',
+          title: '${_greeting(DateTime.now())} $displayName',
           titleStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontSize: 31,
-            height: 1.05,
+            fontSize: 34,
+            height: 1.02,
             fontWeight: FontWeight.w900,
           ),
           children: [
@@ -81,10 +81,10 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  String _firstName(UserProfile profile) {
+  String _displayName(UserProfile profile) {
     final name = profile.displayName.trim();
     if (name.isNotEmpty) {
-      return name.split(RegExp(r'\s+')).first;
+      return name;
     }
     final emailName = profile.email.split('@').first.trim();
     return emailName.isEmpty ? 'there' : emailName;
@@ -250,11 +250,13 @@ class _MissionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
                       child: AtlasGradientButton(
                         label: 'Log in Train',
                         icon: Icons.play_arrow_rounded,
+                        minHeight: 64,
                         colors: [
                           Colors.white.withValues(alpha: 0.24),
                           Colors.white.withValues(alpha: 0.12),
@@ -286,8 +288,8 @@ class _StreakBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 84,
-      height: 84,
+      width: 96,
+      height: 96,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
@@ -300,16 +302,17 @@ class _StreakBadge extends StatelessWidget {
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Icon(
                 Icons.local_fire_department_rounded,
                 color: Colors.white,
-                size: 19,
+                size: 26,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
               Text(
                 '$streak',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
                   height: 1,
@@ -319,11 +322,12 @@ class _StreakBadge extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'day streak',
+            'day\nstreak',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.78),
               fontWeight: FontWeight.w800,
+              height: 1.05,
             ),
           ),
         ],
@@ -344,6 +348,8 @@ class _WeekPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 64,
+      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),

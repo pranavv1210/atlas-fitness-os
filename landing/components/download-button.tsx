@@ -6,14 +6,16 @@ import { SITE } from '@/lib/site';
 
 type DownloadState = 'idle' | 'downloading' | 'done';
 
-/**
- * Real APK download control with a small state machine.
- * Remains an anchor so the browser performs a native download.
- */
-export function DownloadButton({ className = '', label = 'Download Atlas' }: { className?: string; label?: string }) {
+export function DownloadButton({
+  className = '',
+  label = 'Download Atlas',
+}: {
+  className?: string;
+  label?: string;
+}) {
   const [state, setState] = useState<DownloadState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reduced = useRef(false);
+  const reset = useRef(false);
 
   const icon =
     state === 'downloading' ? (
@@ -24,7 +26,7 @@ export function DownloadButton({ className = '', label = 'Download Atlas' }: { c
       <Download size={18} aria-hidden="true" />
     );
 
-  const text = state === 'idle' ? label : state === 'downloading' ? 'Downloading…' : 'Download started';
+  const text = state === 'idle' ? label : state === 'downloading' ? 'Downloading...' : 'Download started';
 
   return (
     <a
@@ -41,9 +43,9 @@ export function DownloadButton({ className = '', label = 'Download Atlas' }: { c
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           setState('done');
-          reduced.current = true;
+          reset.current = true;
           setTimeout(() => {
-            if (reduced.current) setState('idle');
+            if (reset.current) setState('idle');
           }, 3200);
         }, 900);
       }}

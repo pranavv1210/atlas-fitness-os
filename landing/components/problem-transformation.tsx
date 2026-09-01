@@ -12,7 +12,7 @@ const scattered = [
 
 export function ProblemTransformation() {
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
+    <section id="problem" className="relative overflow-hidden bg-white py-20 md:py-24">
       <div className="container-x grid lg:grid-cols-[1fr_1fr] items-center gap-16">
         
         {/* Left Side: Copy */}
@@ -33,7 +33,7 @@ export function ProblemTransformation() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10%' }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-4xl md:text-5xl font-black leading-tight text-atlas-ink mb-6 tracking-tight"
+            className="mb-6 text-3xl font-black leading-tight tracking-normal text-atlas-ink md:text-5xl"
           >
             Your training shouldn&apos;t live in memory, notes, and screenshots.
           </motion.h2>
@@ -43,7 +43,7 @@ export function ProblemTransformation() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10%' }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg text-atlas-muted"
+            className="text-base leading-7 text-atlas-muted md:text-lg"
           >
             Every set you do is information. Without a system, that information scatters -
             and progress becomes guesswork. Atlas collects the whole signal in one place.

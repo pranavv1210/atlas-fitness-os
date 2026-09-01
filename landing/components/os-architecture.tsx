@@ -16,7 +16,7 @@ const nodes = [
 
 export function OsArchitecture() {
   return (
-    <section id="system" className="relative min-h-[90vh] flex items-center justify-center bg-atlas-graphite text-white overflow-hidden py-24">
+    <section id="system" className="relative flex items-center justify-center overflow-hidden bg-atlas-graphite py-20 text-white md:py-24">
       {/* Background Gradients */}
       <div className="absolute inset-0 bg-gradient-radial from-atlas-blue/10 to-transparent opacity-60" />
       <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at center, rgba(37,99,255,0.15) 0%, transparent 60%)' }} />
@@ -38,7 +38,7 @@ export function OsArchitecture() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-10%' }}
           transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-4xl md:text-6xl font-black leading-tight tracking-tight mb-6"
+          className="mb-6 text-3xl font-black leading-tight tracking-normal md:text-6xl"
         >
           Not a pile of features.<br />
           <span className="text-atlas-cyan">One connected system.</span>
@@ -49,14 +49,14 @@ export function OsArchitecture() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-10%' }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-lg text-white/70 max-w-2xl mx-auto mb-20"
+          className="mx-auto mb-12 max-w-2xl text-base leading-7 text-white/75 md:mb-16 md:text-lg"
         >
           Training, history, progress, hydration, and goals orbit the same core record.
           Every feature reads from - and writes to - one fitness life.
         </motion.p>
 
         {/* Constellation System */}
-        <div className="relative w-full max-w-[800px] aspect-square md:aspect-[16/9] flex items-center justify-center mt-10">
+        <div className="relative mt-6 flex aspect-square w-full max-w-[760px] items-center justify-center md:aspect-[16/9]">
           
           {/* Orbital Rings */}
           <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">

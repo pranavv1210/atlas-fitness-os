@@ -21,23 +21,23 @@ export function HydrationLiquid() {
   });
 
   return (
-    <section ref={containerRef} className="py-32 bg-white relative overflow-hidden">
+    <section ref={containerRef} className="relative overflow-hidden bg-white py-20 md:py-24">
       <div className="container-x flex flex-col items-center justify-center text-center z-10 relative">
         <div className="kicker text-atlas-cyan mb-6">
           <span className="kicker-dot bg-atlas-cyan" />
           Hydration
         </div>
 
-        <h2 className="text-4xl md:text-6xl font-black leading-tight text-atlas-ink mb-6 tracking-tight max-w-2xl mx-auto">
+        <h2 className="mx-auto mb-6 max-w-2xl text-3xl font-black leading-tight tracking-normal text-atlas-ink md:text-6xl">
           Water level, built right in.
         </h2>
 
-        <p className="text-lg text-atlas-muted max-w-xl mx-auto mb-16">
+        <p className="mx-auto mb-10 max-w-xl text-base leading-7 text-atlas-muted md:mb-14 md:text-lg">
           Stop using a separate app for hydration. Set a daily target, tap to log a glass, and view your intake alongside your training history.
         </p>
 
         {/* Liquid Container */}
-        <div className="relative w-64 h-96 mx-auto rounded-[3rem] border-8 border-atlas-paper bg-white shadow-glass overflow-hidden flex items-end justify-center z-20">
+        <div className="relative z-20 mx-auto flex h-80 w-52 items-end justify-center overflow-hidden rounded-[2.5rem] border-8 border-atlas-paper bg-white shadow-glass md:h-96 md:w-64">
           {/* Glass glare */}
           <div className="absolute inset-0 bg-glass-gradient opacity-50 z-20 pointer-events-none" />
           

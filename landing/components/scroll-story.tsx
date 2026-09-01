@@ -1,163 +1,110 @@
 'use client';
 
-import { motion, useScroll, useTransform, MotionValue } from 'framer-motion';
-import { useRef } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { BarChart3, CalendarDays, Droplets, Dumbbell, Sparkles, Target } from 'lucide-react';
 import { PhoneMock, type PhoneScreen } from './phone-mock';
-import { Target, Droplets, Dumbbell, CalendarDays, BarChart3, Sparkles } from 'lucide-react';
 
 const chapters = [
   {
     id: 'train',
     kicker: 'Train',
     title: 'The workout, structured.',
-    body: 'Stop guessing what to do. The 5-day cycle plans your workout. Just start the session.',
+    body: 'The five-day cycle keeps the next session clear. If you miss a day, the next real workout stays waiting.',
     screen: 'train' as PhoneScreen,
     icon: Dumbbell,
   },
   {
     id: 'log',
     kicker: 'Log',
-    title: 'Row-based input. Fast.',
-    body: 'Designed for the gym floor. Tap a set, enter weight and reps. Move on.',
+    title: 'Fast set logging.',
+    body: 'Enter sets, reps, and kilograms in a layout built for the gym floor.',
     screen: 'logger' as PhoneScreen,
     icon: Sparkles,
   },
   {
     id: 'history',
     kicker: 'History',
-    title: 'Your record, permanent.',
-    body: 'Workouts aren\'t lost to the void. Every session is saved in a searchable calendar.',
+    title: 'Every session saved.',
+    body: 'Your completed workouts become dated reports you can reopen later.',
     screen: 'history' as PhoneScreen,
     icon: CalendarDays,
   },
   {
     id: 'progress',
     kicker: 'Progress',
-    title: 'Data that matters.',
-    body: 'Weekly volume, body-weight trends, and fitness score, automatically calculated from your logs.',
+    title: 'Data you can read.',
+    body: 'Weekly volume, body-weight trend, and fitness score come from your own logs.',
     screen: 'progress' as PhoneScreen,
     icon: BarChart3,
   },
   {
     id: 'hydration',
     kicker: 'Hydration',
-    title: 'Water, in the same system.',
-    body: 'Why use a separate app? Log water intake right where you log your workouts.',
+    title: 'Water stays visible.',
+    body: 'Log sips beside training, weight, cardio, and sport reports.',
     screen: 'hydration' as PhoneScreen,
     icon: Droplets,
   },
   {
     id: 'goals',
     kicker: 'Goals',
-    title: 'Targets, attached to work.',
-    body: 'Set a goal. As you log your sessions, your progress towards the goal updates automatically.',
+    title: 'Targets tied to work.',
+    body: 'Create weight, strength, or habit goals and keep progress connected to your record.',
     screen: 'goals' as PhoneScreen,
     icon: Target,
-  }
+  },
 ];
 
-function chapterRange(i: number, total: number, spread: number) {
-  const minStep = 0.001;
-  const start = Math.max(0, (i - spread) / total);
-  const center = Math.min(1, Math.max(start + minStep, i / total));
-  const end = Math.min(1, Math.max(center + minStep, (i + spread) / total));
-  return [start, center, end] as const;
-}
-
-function ChapterText({ chapter, i, total, scrollYProgress }: { chapter: typeof chapters[0]; i: number; total: number; scrollYProgress: MotionValue<number> }) {
-  const [start, center, end] = chapterRange(i, total, 0.5);
-
-  const opacity = useTransform(scrollYProgress, [start, center, end], [0, 1, 0]);
-  const y = useTransform(scrollYProgress, [start, center, end], [40, 0, -40]);
-  const pointerEvents = useTransform(scrollYProgress, (v) => (v >= start && v < end ? 'auto' : 'none'));
-
-  return (
-    <motion.div
-      style={{ opacity, y, pointerEvents }}
-      className="absolute inset-0 flex flex-col justify-center"
-    >
-      <div className="kicker text-atlas-blue mb-4">
-        <span className="kicker-dot" />
-        {chapter.kicker}
-      </div>
-      <h2 className="text-4xl md:text-6xl font-black text-atlas-ink leading-[1.1] mb-6">
-        {chapter.title}
-      </h2>
-      <p className="text-lg text-atlas-muted max-w-md">
-        {chapter.body}
-      </p>
-    </motion.div>
-  );
-}
-
-function ChapterScreen({ chapter, i, total, scrollYProgress }: { chapter: typeof chapters[0]; i: number; total: number; scrollYProgress: MotionValue<number> }) {
-  const [start, center, end] = chapterRange(i, total, 0.5);
-  const opacity = useTransform(scrollYProgress, [start, center, end], [0, 1, 0]);
-
-  return (
-    <motion.div style={{ opacity }} className="absolute inset-0">
-      <PhoneMock mode={chapter.screen} hideFrame={true} />
-    </motion.div>
-  );
-}
-
-function ChapterChip({ chapter, i, total, scrollYProgress }: { chapter: typeof chapters[0]; i: number; total: number; scrollYProgress: MotionValue<number> }) {
-  const [start, center, end] = chapterRange(i, total, 0.3);
-
-  const opacity = useTransform(scrollYProgress, [start, center, end], [0, 1, 0]);
-  const scale = useTransform(scrollYProgress, [start, center, end], [0.8, 1, 0.8]);
-  const Icon = chapter.icon;
-
-  return (
-    <motion.div
-      style={{ opacity, scale }}
-      className="absolute top-1/4 -left-12 bg-white/80 backdrop-blur-xl border border-white/50 shadow-glass rounded-full px-4 py-2 flex items-center gap-2 font-bold text-sm text-atlas-ink"
-    >
-      <Icon size={16} className="text-atlas-blue" />
-      {chapter.kicker} Active
-    </motion.div>
-  );
-}
-
 export function ScrollStory() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end end'],
-  });
+  const reduce = useReducedMotion();
+  const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
-    <section ref={containerRef} className="relative bg-atlas-paper" style={{ height: `${chapters.length * 100}vh` }}>
-      <div className="sticky top-0 h-screen flex items-center overflow-hidden">
-        <div className="container-x grid lg:grid-cols-[1fr_1fr] items-center gap-12 w-full">
-          
-          {/* Left Side: Chapter Content Crossfade */}
-          <div className="relative h-[400px] flex items-center">
-            {chapters.map((chapter, i) => (
-              <ChapterText key={`text-${chapter.id}`} chapter={chapter} i={i} total={chapters.length} scrollYProgress={scrollYProgress} />
-            ))}
-          </div>
+    <section id="training" className="bg-atlas-paper py-20 md:py-28">
+      <div className="container-x">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="kicker kicker-light justify-center">
+            <span className="kicker-dot" />
+            Product Flow
+          </span>
+          <h2 className="mt-5 text-4xl font-black leading-tight text-atlas-ink md:text-6xl">
+            Train, log, review. No wasted screen.
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-atlas-muted md:text-lg">
+            Atlas is organized around real actions, so every section of the app has a clear job.
+          </p>
+        </div>
 
-          {/* Right Side: Sticky Phone with Morphing Screen */}
-          <div className="relative flex justify-center items-center h-full">
-            <div className="w-full max-w-[320px]">
-              <PhoneMock mode="dashboard" />
-              {/* Overlay active screen based on scroll */}
-              <div className="absolute inset-0 pt-[2.8cqw] pb-[3cqw] px-[2.8cqw] z-10 pointer-events-none">
-                <div className="w-full h-full rounded-[10cqw] overflow-hidden bg-atlas-paper relative">
-                  {chapters.map((chapter, i) => (
-                    <ChapterScreen key={`screen-${chapter.id}`} chapter={chapter} i={i} total={chapters.length} scrollYProgress={scrollYProgress} />
-                  ))}
+        <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {chapters.map((chapter, index) => {
+            const Icon = chapter.icon;
+            return (
+              <motion.article
+                key={chapter.id}
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-10%' }}
+                transition={{ duration: 0.65, delay: index * 0.05, ease }}
+                className="grid min-h-[420px] overflow-hidden rounded-[28px] border border-atlas-line bg-white shadow-soft sm:grid-cols-[1fr_180px] md:min-h-[460px] md:grid-cols-1"
+              >
+                <div className="p-6 md:p-7">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-atlas-blue/10 text-atlas-blue">
+                    <Icon size={22} />
+                  </div>
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-atlas-blue">
+                    {chapter.kicker}
+                  </div>
+                  <h3 className="mt-3 text-3xl font-black leading-tight text-atlas-ink">
+                    {chapter.title}
+                  </h3>
+                  <p className="mt-4 text-base leading-7 text-atlas-muted">{chapter.body}</p>
                 </div>
-              </div>
-            </div>
-            
-            {/* Dynamic Chips Around Phone */}
-            {chapters.map((chapter, i) => (
-              <ChapterChip key={`chip-${chapter.id}`} chapter={chapter} i={i} total={chapters.length} scrollYProgress={scrollYProgress} />
-            ))}
-          </div>
-
+                <div className="flex items-end justify-center overflow-hidden px-6 pb-0">
+                  <PhoneMock mode={chapter.screen} className="w-[180px] translate-y-10 md:w-[210px]" />
+                </div>
+              </motion.article>
+            );
+          })}
         </div>
       </div>
     </section>

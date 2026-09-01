@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 export function ConsistencyTimeline() {
   return (
-    <section className="py-32 bg-atlas-graphite relative overflow-hidden text-white">
+    <section className="relative overflow-hidden bg-atlas-graphite py-20 text-white md:py-24">
       {/* Abstract Grid Background */}
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       
@@ -26,7 +26,7 @@ export function ConsistencyTimeline() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10%' }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-4xl md:text-5xl font-black leading-tight mb-6 tracking-tight"
+            className="mb-6 text-3xl font-black leading-tight tracking-normal md:text-5xl"
           >
             One workout. Then another. The data compounds.
           </motion.h2>
@@ -36,7 +36,7 @@ export function ConsistencyTimeline() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-10%' }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg text-atlas-soft"
+            className="text-base leading-7 text-white/75 md:text-lg"
           >
             Atlas is built for the long game. As the days turn into weeks, and weeks into months, your effort transforms into a permanent, undeniable record of progress.
           </motion.p>

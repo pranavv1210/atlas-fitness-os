@@ -19,11 +19,11 @@ export function HeroReimagined() {
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.95]);
 
   return (
-    <section ref={containerRef} className="relative min-h-screen flex items-center pt-24 pb-12 overflow-hidden bg-atlas-paper">
+    <section ref={containerRef} className="relative flex min-h-[calc(100svh-24px)] items-center overflow-hidden bg-atlas-paper pb-14 pt-24 md:pb-16">
       <div className="absolute inset-0 bg-gradient-to-b from-atlas-paper to-white pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] rounded-full bg-atlas-blue/5 blur-[120px] pointer-events-none" />
 
-      <motion.div style={{ y, opacity, scale }} className="container-x relative z-10 w-full grid lg:grid-cols-[1fr_0.9fr] gap-12 items-center">
+      <motion.div style={{ y, opacity, scale }} className="container-x relative z-10 grid w-full items-center gap-10 lg:grid-cols-[1fr_0.9fr] lg:gap-12">
         
         {/* Left Side: Typography & CTA */}
         <div className="max-w-2xl mx-auto lg:mx-0 text-center lg:text-left">
@@ -42,7 +42,7 @@ export function HeroReimagined() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="text-[clamp(44px,7vw,96px)] font-black leading-[0.9] tracking-tighter text-atlas-ink"
+            className="text-[clamp(42px,7vw,88px)] font-black leading-[0.93] tracking-normal text-atlas-ink"
           >
             Your fitness.<br />
             <span className="text-atlas-blue">Finally organized.</span>
@@ -52,7 +52,7 @@ export function HeroReimagined() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 text-lg md:text-xl text-atlas-muted leading-relaxed"
+            className="mt-6 text-base leading-7 text-atlas-muted md:text-xl"
           >
             Atlas is a personal fitness operating system for Android. It plans your training, logs every set, keeps your history, and tracks hydration, goals, and progress - in one calm system.
           </motion.p>
@@ -61,7 +61,7 @@ export function HeroReimagined() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-10 flex flex-col sm:flex-row items-center sm:justify-start gap-4"
+            className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-start"
           >
             <DownloadButton />
             <a href="#system" className="btn btn-secondary">
@@ -129,7 +129,7 @@ export function HeroReimagined() {
         </div>
 
         {/* Mobile Product Hero (Hidden on Desktop) */}
-        <div className="w-full max-w-[280px] mx-auto mt-8 lg:hidden block">
+        <div className="mx-auto mt-8 block w-full max-w-[240px] lg:hidden">
            <PhoneMock mode="dashboard" />
         </div>
 
