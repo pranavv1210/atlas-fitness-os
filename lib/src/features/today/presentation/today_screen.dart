@@ -62,7 +62,7 @@ class _TodayScreenState extends State<TodayScreen> {
           subtitle: '',
           title: '${_greeting(DateTime.now())} $displayName',
           titleStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontSize: 34,
+            fontSize: 30,
             height: 1.02,
             fontWeight: FontWeight.w900,
           ),
@@ -140,13 +140,15 @@ class _MissionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final workout = snapshot.todayWorkout;
-    if (workout == null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
+    if (workout == null || !snapshot.hasWorkoutCycleStarted) {
+      return SizedBox(
+        height: 374,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -159,54 +161,60 @@ class _MissionCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _FloatingWorkoutGlyph(
-                    icon: Icons.fitness_center_rounded,
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    'Start your journey',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: Colors.white,
-                      height: 1,
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _FloatingWorkoutGlyph(
+                      icon: Icons.fitness_center_rounded,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Your workout cycle begins only after you save your first real session.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.74),
+                    const Spacer(),
+                    Text(
+                      'Start your journey',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: Colors.white,
+                        height: 1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  AtlasGradientButton(
-                    label: 'Start in Train',
-                    icon: Icons.play_arrow_rounded,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.24),
-                      Colors.white.withValues(alpha: 0.12),
-                    ],
-                    onPressed: onOpenTrain,
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      'Save your first session to start the workout cycle.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.74),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: AtlasGradientButton(
+                        label: 'Start in Train',
+                        icon: Icons.play_arrow_rounded,
+                        minHeight: 58,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.24),
+                          Colors.white.withValues(alpha: 0.12),
+                        ],
+                        onPressed: onOpenTrain,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
     final streak = snapshot.currentStreak;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
+    return SizedBox(
+      height: 334,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -219,62 +227,69 @@ class _MissionCard extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _FloatingWorkoutGlyph(icon: _workoutIcon(workout)),
-                    const Spacer(),
-                    _StreakBadge(streak: streak),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  workout.name,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: Colors.white,
-                    fontSize: 44,
-                    height: 1,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _FloatingWorkoutGlyph(icon: _workoutIcon(workout)),
+                      const Spacer(),
+                      _StreakBadge(streak: streak),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  workout.focus,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.74),
+                  const Spacer(),
+                  Text(
+                    workout.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: Colors.white,
+                      fontSize: 42,
+                      height: 0.98,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: AtlasGradientButton(
-                        label: 'Log in Train',
-                        icon: Icons.play_arrow_rounded,
-                        minHeight: 64,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.24),
-                          Colors.white.withValues(alpha: 0.12),
-                        ],
-                        onPressed: onOpenTrain,
+                  const SizedBox(height: 8),
+                  Text(
+                    workout.focus,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.74),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 64,
+                          child: AtlasGradientButton(
+                            label: 'Log in Train',
+                            icon: Icons.play_arrow_rounded,
+                            minHeight: 64,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.24),
+                              Colors.white.withValues(alpha: 0.12),
+                            ],
+                            onPressed: onOpenTrain,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _WeekPill(
-                      completedThisWeek: snapshot.completedThisWeek,
-                      weeklyTarget: snapshot.weeklyTarget,
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      _WeekPill(
+                        completedThisWeek: snapshot.completedThisWeek,
+                        weeklyTarget: snapshot.weeklyTarget,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
