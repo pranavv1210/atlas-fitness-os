@@ -66,6 +66,24 @@ const goalTypes = [
   },
 ];
 
+const privacySignals = [
+  {
+    icon: ShieldCheck,
+    title: 'Row-level security',
+    body: 'Supabase policies scope each table row to the signed-in user.',
+  },
+  {
+    icon: Fingerprint,
+    title: 'Biometric lock',
+    body: 'Optional device authentication protects the app before it opens.',
+  },
+  {
+    icon: Flag,
+    title: 'Private goals',
+    body: 'Goals, workouts, weight, hydration, and reports stay on your account.',
+  },
+];
+
 const faqData = [
   {
     question: 'What is Atlas?',
@@ -325,11 +343,16 @@ export default function Home() {
                 training record scoped to the person who owns it.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {[ShieldCheck, Fingerprint, Flag].map((Icon, index) => (
-                  <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                    <Icon className="text-atlas-cyan" size={24} />
-                  </div>
-                ))}
+                {privacySignals.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                      <Icon className="text-atlas-cyan" size={24} />
+                      <h3 className="mt-4 text-sm font-black text-white">{item.title}</h3>
+                      <p className="mt-2 text-xs leading-5 text-white/65">{item.body}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

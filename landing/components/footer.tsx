@@ -37,11 +37,21 @@ export function Footer() {
             </div>
             <div className="flex flex-col gap-4">
               <span className="text-xs font-bold uppercase tracking-widest text-atlas-soft">Legal</span>
-              <a href="/privacy" className="text-sm font-bold text-atlas-muted transition-colors hover:text-atlas-ink">
-                Privacy
+              <a href="/privacy" className="group max-w-[190px] text-sm transition-colors hover:text-atlas-ink">
+                <span className="block font-black text-atlas-muted group-hover:text-atlas-ink">
+                  Privacy
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-atlas-soft">
+                  How Atlas handles account, workout, goal, and device data.
+                </span>
               </a>
-              <a href="/terms" className="text-sm font-bold text-atlas-muted transition-colors hover:text-atlas-ink">
-                Terms
+              <a href="/terms" className="group max-w-[190px] text-sm transition-colors hover:text-atlas-ink">
+                <span className="block font-black text-atlas-muted group-hover:text-atlas-ink">
+                  Terms
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-atlas-soft">
+                  Direct APK use, availability, and non-medical guidance.
+                </span>
               </a>
             </div>
           </div>
