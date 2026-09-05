@@ -64,6 +64,11 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val completedToday = json?.optBoolean("completedToday", false) ?: false
 
             val views = RemoteViews(context.packageName, R.layout.atlas_home_widget)
+            views.setInt(
+                R.id.atlas_widget_root,
+                "setBackgroundResource",
+                if (completedToday) R.drawable.atlas_widget_background_done else R.drawable.atlas_widget_background,
+            )
             views.setTextViewText(R.id.atlas_widget_water_percent, "$displayPercent%")
             views.setTextViewText(R.id.atlas_widget_streak, "$streak")
             views.setTextViewText(

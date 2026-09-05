@@ -23,19 +23,28 @@ class AtlasDataRepository {
       _cachedSnapshot ?? _loadCachedSnapshot();
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
-    final completedToday = await _hasCompletedWorkoutOn(DateTime.now());
+    final now = DateTime.now();
+    final completedToday = await _hasCompletedWorkoutOn(now);
     final totalWorkouts = await _countAllWorkouts();
     final hasStarted = totalWorkouts > 0;
-    final todayWorkout =
+    final cycleLength = _localCycleLength();
+    final plannedDayNumber =
         hasStarted
-            ? await _loadWorkoutDay(
-              _cycleDayForCompletedCount(
-                totalWorkouts,
-                completedToday: completedToday,
-              ),
+            ? await _cycleDayForLastCompletedWorkout(
+              cycleLength,
+              completedToday: completedToday,
             )
-            : null;
-    final starterWorkout = hasStarted ? null : await _loadWorkoutDay(1);
+            : 1;
+    final selectedDayNumber =
+        completedToday
+            ? null
+            : _preferences?.selectedWorkoutDayFor(_userId, _date(now));
+    final effectiveDayNumber =
+        (selectedDayNumber ?? plannedDayNumber).clamp(1, cycleLength).toInt();
+    final todayWorkout =
+        hasStarted ? await _loadWorkoutDay(effectiveDayNumber) : null;
+    final starterWorkout =
+        hasStarted ? null : await _loadWorkoutDay(effectiveDayNumber);
     final library = await _loadExerciseLibrary();
     const templateExercises = <AtlasWorkoutExercise>[];
     final completedThisWeek = await _countWorkouts(
@@ -643,7 +652,9 @@ class AtlasDataRepository {
         );
       }
     } catch (_) {}
-    return fallbackCycle.first;
+    final custom = _localWorkoutDay(dayNumber);
+    if (custom != null) return custom;
+    return fallbackCycle[(dayNumber - 1).clamp(0, fallbackCycle.length - 1)];
   }
 
   Future<List<AtlasExercise>> _loadExerciseLibrary() async {
@@ -798,6 +809,74 @@ class AtlasDataRepository {
     return rows.first['title'] as String?;
   }
 
+  int _localCycleLength() {
+    final plan = _preferences?.customWorkoutPlan ?? const [];
+    return plan.isEmpty
+        ? fallbackCycle.length
+        : plan.length.clamp(1, 14).toInt();
+  }
+
+  AtlasWorkoutDay? _localWorkoutDay(int dayNumber) {
+    final plan = _preferences?.customWorkoutPlan ?? const [];
+    if (plan.isEmpty || dayNumber < 1 || dayNumber > plan.length) return null;
+    final raw = plan[dayNumber - 1];
+    final isRestDay = raw['isRestDay'] as bool? ?? false;
+    final fallback =
+        fallbackCycle[(dayNumber - 1).clamp(0, fallbackCycle.length - 1)];
+    return AtlasWorkoutDay(
+      dayNumber: dayNumber,
+      name:
+          (raw['name'] as String?)?.trim().isNotEmpty == true
+              ? (raw['name'] as String).trim()
+              : fallback.name,
+      focus:
+          isRestDay
+              ? 'Recovery, mobility, hydration, and readiness'
+              : 'Custom workout plan',
+      isRestDay: isRestDay,
+    );
+  }
+
+  Future<int> _cycleDayForLastCompletedWorkout(
+    int cycleLength, {
+    required bool completedToday,
+  }) async {
+    final lastDay = await _lastCompletedWorkoutDayNumber();
+    if (lastDay == null) return 1;
+    if (completedToday) return lastDay.clamp(1, cycleLength).toInt();
+    return (lastDay % cycleLength) + 1;
+  }
+
+  Future<int?> _lastCompletedWorkoutDayNumber() async {
+    try {
+      final rows = await _client
+          .from('workout_sessions')
+          .select('title, workout_day_id, workout_days(day_number)')
+          .eq('user_id', _userId)
+          .eq('status', 'completed')
+          .order('session_date', ascending: false)
+          .order('completed_at', ascending: false)
+          .limit(1);
+      if (rows.isEmpty) return null;
+      final row = rows.first;
+      final joinedDay = row['workout_days'];
+      if (joinedDay is Map && joinedDay['day_number'] is num) {
+        return (joinedDay['day_number'] as num).round();
+      }
+      final title = (row['title'] as String?)?.trim().toLowerCase();
+      if (title == null || title.isEmpty) return null;
+      final plan = _preferences?.customWorkoutPlan ?? const [];
+      for (var index = 0; index < plan.length; index++) {
+        final name = (plan[index]['name'] as String?)?.trim().toLowerCase();
+        if (name == title) return index + 1;
+      }
+      for (final day in fallbackCycle) {
+        if (day.name.toLowerCase() == title) return day.dayNumber;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   double _goalProgress(double current, double target) {
     if (target <= 0) {
       return 0;
@@ -839,18 +918,6 @@ String _date(DateTime value) {
 DateTime _startOfWeek(DateTime date) {
   final local = DateTime(date.year, date.month, date.day);
   return local.subtract(Duration(days: local.weekday - 1));
-}
-
-int _cycleDayForCompletedCount(
-  int completedWorkouts, {
-  required bool completedToday,
-}) {
-  if (completedWorkouts <= 0) {
-    return 1;
-  }
-  final completedBeforeToday =
-      completedToday ? completedWorkouts - 1 : completedWorkouts;
-  return (completedBeforeToday % fallbackCycle.length) + 1;
 }
 
 const fallbackCycle = [

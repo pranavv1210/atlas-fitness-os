@@ -165,6 +165,7 @@ class _TrainScreenState extends State<TrainScreen> {
       );
       if (!mounted) return;
       unawaited(_clearDraft());
+      unawaited(_clearSelectedWorkout());
       _sessionDayOverrideNumber = null;
       unawaited(
         _dependencies?.notificationService.showWorkoutCompletedMotivation(
@@ -355,21 +356,32 @@ class _TrainScreenState extends State<TrainScreen> {
   }
 
   Future<void> _showPlanEditor(List<AtlasExercise> library) async {
-    final saved = await _showWorkoutPlanEditorSheet(
+    await _showWorkoutPlanEditorSheet(
       context,
       library: library,
       initialPlan: _customPlan,
+      onChanged: (plan) async {
+        await _persistWorkoutPlan(plan);
+        if (!mounted) return;
+        setState(() {
+          _customPlan = plan;
+          if (_sessionDayOverrideNumber != null &&
+              _sessionDayOverrideNumber! > _customPlan.length) {
+            _sessionDayOverrideNumber = _customPlan.length;
+          }
+          _future = _load();
+        });
+      },
     );
-    if (saved == null) return;
+  }
+
+  Future<void> _persistWorkoutPlan(List<_CustomWorkoutPlanDay> plan) async {
     await _dependencies?.preferences.setCustomWorkoutPlan([
-      for (final day in saved) day.toJson(),
+      for (var index = 0; index < plan.length; index++)
+        plan[index].copyWith(dayNumber: index + 1).toJson(),
     ]);
     if (!mounted) return;
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _customPlan = saved;
-      _future = _load();
-    });
+    HapticFeedback.selectionClick();
   }
 
   Future<void> _showSessionWorkoutChooser(
@@ -409,7 +421,8 @@ class _TrainScreenState extends State<TrainScreen> {
           ),
     );
     if (selected == null || !mounted) return;
-    final day = _customPlan[selected.clamp(1, 5) - 1];
+    await _persistSelectedWorkout(selected);
+    final day = _customPlan[selected.clamp(1, _customPlan.length) - 1];
     setState(() {
       _sessionDayOverrideNumber = selected;
       _entries
@@ -421,6 +434,8 @@ class _TrainScreenState extends State<TrainScreen> {
         ]);
     });
     await _saveDraft(snapshot);
+    final draftVersion = _dependencies?.workoutDraftVersion;
+    if (draftVersion != null) draftVersion.value += 1;
   }
 
   void _handleEntriesChanged(AtlasDashboardSnapshot snapshot) {
@@ -500,11 +515,28 @@ class _TrainScreenState extends State<TrainScreen> {
     await _dependencies?.preferences.clearWorkoutDraft(userId);
   }
 
+  Future<void> _persistSelectedWorkout(int dayNumber) async {
+    final userId = _repository?.currentUserId;
+    final preferences = _dependencies?.preferences;
+    if (userId == null || preferences == null) return;
+    await preferences.setSelectedWorkoutDay(
+      userId,
+      _dateKey(DateTime.now()),
+      dayNumber,
+    );
+  }
+
+  Future<void> _clearSelectedWorkout() async {
+    final userId = _repository?.currentUserId;
+    if (userId == null) return;
+    await _dependencies?.preferences.clearSelectedWorkoutDay(userId);
+  }
+
   AtlasWorkoutDay? _activeWorkoutFor(AtlasDashboardSnapshot snapshot) {
     final base = snapshot.todayWorkout ?? snapshot.starterWorkout;
     final override = _sessionDayOverrideNumber;
     if (override == null) return base;
-    final index = override.clamp(1, 5) - 1;
+    final index = override.clamp(1, _customPlan.length) - 1;
     return _workoutFromPlanDay(_customPlan[index], base: base);
   }
 }
@@ -821,12 +853,45 @@ class _BottomAddExerciseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add Exercise'),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  isDark
+                      ? AtlasColors.accent.withValues(alpha: 0.28)
+                      : AtlasColors.ink.withValues(alpha: 0.08),
+              blurRadius: isDark ? 26 : 16,
+              spreadRadius: isDark ? -4 : -8,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: OutlinedButton.icon(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(58),
+            backgroundColor:
+                isDark
+                    ? AtlasColors.accent.withValues(alpha: 0.14)
+                    : Colors.white.withValues(alpha: 0.82),
+            side: BorderSide(
+              color:
+                  isDark
+                      ? AtlasColors.accent.withValues(alpha: 0.34)
+                      : AtlasColors.hairline,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Add Exercise'),
+        ),
       ),
     );
   }
@@ -847,18 +912,22 @@ class _EmptyExerciseCard extends StatelessWidget {
   }
 }
 
-Future<List<_CustomWorkoutPlanDay>?> _showWorkoutPlanEditorSheet(
+Future<void> _showWorkoutPlanEditorSheet(
   BuildContext context, {
   required List<AtlasExercise> library,
   required List<_CustomWorkoutPlanDay> initialPlan,
+  required Future<void> Function(List<_CustomWorkoutPlanDay> plan) onChanged,
 }) {
-  return showModalBottomSheet<List<_CustomWorkoutPlanDay>>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder:
-        (context) =>
-            _WorkoutPlanEditorSheet(library: library, initialPlan: initialPlan),
+        (context) => _WorkoutPlanEditorSheet(
+          library: library,
+          initialPlan: initialPlan,
+          onChanged: onChanged,
+        ),
   );
 }
 
@@ -866,10 +935,12 @@ class _WorkoutPlanEditorSheet extends StatefulWidget {
   const _WorkoutPlanEditorSheet({
     required this.library,
     required this.initialPlan,
+    required this.onChanged,
   });
 
   final List<AtlasExercise> library;
   final List<_CustomWorkoutPlanDay> initialPlan;
+  final Future<void> Function(List<_CustomWorkoutPlanDay> plan) onChanged;
 
   @override
   State<_WorkoutPlanEditorSheet> createState() =>
@@ -910,11 +981,15 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
               children: [
                 const Expanded(child: SectionTitle('Workout Plan')),
                 TextButton.icon(
-                  onPressed: () => Navigator.pop(context, _plan),
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Save'),
+                  onPressed: _addDay,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add day'),
                 ),
               ],
+            ),
+            Text(
+              'Auto-saved as you edit. Delete or add days to match your cycle.',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -941,7 +1016,15 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
                 labelText: 'Workout day name',
                 prefixIcon: Icon(Icons.edit_rounded),
               ),
-              onChanged: (value) => day.name = value.trim(),
+              onChanged: (value) {
+                day.name = value.trim();
+                _commit();
+              },
+              onFieldSubmitted: (_) => _commit(),
+              onEditingComplete: () {
+                FocusScope.of(context).unfocus();
+                _commit();
+              },
             ),
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
@@ -951,6 +1034,7 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
                   (value) => setState(() {
                     day.isRestDay = value;
                     if (value) day.exercises.clear();
+                    _commit();
                   }),
               title: Text(
                 'Rest day',
@@ -965,6 +1049,12 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
+                if (_plan.length > 1)
+                  TextButton.icon(
+                    onPressed: _deleteSelectedDay,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Delete day'),
+                  ),
                 TextButton.icon(
                   onPressed: day.isRestDay ? null : _addExercise,
                   icon: const Icon(Icons.add_rounded),
@@ -998,6 +1088,7 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
                             onDelete:
                                 () => setState(() {
                                   day.exercises.removeAt(index);
+                                  _commit();
                                 }),
                           );
                         },
@@ -1016,7 +1107,10 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
       selected: _plan[_selectedDay].exercises.lastOrNull,
     );
     if (picked == null) return;
-    setState(() => _plan[_selectedDay].exercises.add(picked));
+    setState(() {
+      _plan[_selectedDay].exercises.add(picked);
+      _commit();
+    });
   }
 
   void _moveExercise(int index, int direction) {
@@ -1026,7 +1120,46 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
     setState(() {
       final exercise = day.exercises.removeAt(index);
       day.exercises.insert(target, exercise);
+      _commit();
     });
+  }
+
+  void _addDay() {
+    if (_plan.length >= 14) return;
+    setState(() {
+      final nextNumber = _plan.length + 1;
+      final fallback =
+          fallbackCycle[(nextNumber - 1).clamp(0, fallbackCycle.length - 1)];
+      _plan.add(
+        _CustomWorkoutPlanDay(
+          dayNumber: nextNumber,
+          name:
+              nextNumber <= fallbackCycle.length
+                  ? fallback.name
+                  : 'Workout Day $nextNumber',
+          isRestDay: false,
+          exercises: [],
+        ),
+      );
+      _selectedDay = _plan.length - 1;
+      _commit();
+    });
+  }
+
+  void _deleteSelectedDay() {
+    if (_plan.length <= 1) return;
+    setState(() {
+      _plan.removeAt(_selectedDay);
+      if (_selectedDay >= _plan.length) _selectedDay = _plan.length - 1;
+      _commit();
+    });
+  }
+
+  void _commit() {
+    widget.onChanged([
+      for (var index = 0; index < _plan.length; index++)
+        _plan[index].copyWith(dayNumber: index + 1),
+    ]);
   }
 }
 
@@ -2756,6 +2889,20 @@ class _CustomWorkoutPlanDay {
     );
   }
 
+  _CustomWorkoutPlanDay copyWith({
+    int? dayNumber,
+    String? name,
+    bool? isRestDay,
+    List<AtlasExercise>? exercises,
+  }) {
+    return _CustomWorkoutPlanDay(
+      dayNumber: dayNumber ?? this.dayNumber,
+      name: name ?? this.name,
+      isRestDay: isRestDay ?? this.isRestDay,
+      exercises: exercises ?? [...this.exercises],
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'dayNumber': dayNumber,
@@ -2788,17 +2935,19 @@ List<_CustomWorkoutPlanDay> _loadCustomWorkoutPlan(
   final byId = {for (final exercise in library) exercise.id: exercise};
   final defaults = _defaultCustomPlan();
   final loaded = <_CustomWorkoutPlanDay>[];
-  for (var index = 0; index < 5; index++) {
+  final length = rawPlan.length.clamp(1, 14).toInt();
+  for (var index = 0; index < length; index++) {
     final raw = rawPlan.firstWhere(
       (item) => item['dayNumber'] == index + 1,
       orElse: () => const {},
     );
     final exerciseIds = raw['exerciseIds'];
+    final fallback = defaults[index.clamp(0, defaults.length - 1)];
     loaded.add(
       _CustomWorkoutPlanDay(
         dayNumber: index + 1,
-        name: raw['name'] as String? ?? defaults[index].name,
-        isRestDay: raw['isRestDay'] as bool? ?? defaults[index].isRestDay,
+        name: raw['name'] as String? ?? fallback.name,
+        isRestDay: raw['isRestDay'] as bool? ?? fallback.isRestDay,
         exercises: [
           if (exerciseIds is List)
             for (final id in exerciseIds)
@@ -2816,7 +2965,7 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
 ) {
   AtlasWorkoutDay? mapDay(AtlasWorkoutDay? source) {
     if (source == null) return null;
-    final index = source.dayNumber.clamp(1, 5) - 1;
+    final index = source.dayNumber.clamp(1, plan.length) - 1;
     final custom = plan[index];
     return AtlasWorkoutDay(
       dayNumber: source.dayNumber,
@@ -2837,7 +2986,7 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
           ? const <AtlasWorkoutExercise>[]
           : [
             for (final exercise
-                in plan[workout.dayNumber.clamp(1, 5) - 1].exercises)
+                in plan[workout.dayNumber.clamp(1, plan.length) - 1].exercises)
               AtlasWorkoutExercise(
                 exercise: exercise,
                 targetSets: exercise.defaultSets,
@@ -2915,4 +3064,9 @@ bool _isCardioStyleExercise(AtlasExercise exercise) {
       text.contains('stair') ||
       text.contains('jump rope') ||
       text.contains('walking');
+}
+
+String _dateKey(DateTime value) {
+  final local = value.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
 }

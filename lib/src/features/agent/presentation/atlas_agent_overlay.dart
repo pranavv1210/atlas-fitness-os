@@ -454,11 +454,11 @@ class _BuddyHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -489,65 +489,40 @@ class _BuddyHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color:
-                    isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.03),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.62),
-                ),
-              ),
-              child: const _PlateBuddyFace(size: 56),
+            IconButton.filledTonal(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Open Buddy menu',
+              onPressed: () {},
+              icon: const Icon(Icons.menu_rounded),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'Atlas Buddy',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.headlineSmall?.copyWith(height: 1),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AtlasColors.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
                   Text(
-                    'Ask about any date, lift, log, or trend',
+                    'Buddy',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AtlasColors.inkMuted,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AtlasColors.success,
+                      shape: BoxShape.circle,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Atlas Buddy listens to your typed questions',
+            IconButton.filledTonal(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Voice input',
               onPressed: null,
               icon: const Icon(
                 Icons.graphic_eq_rounded,

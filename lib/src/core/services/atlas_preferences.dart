@@ -12,6 +12,7 @@ class AtlasPreferences {
   static const _biometricEnabledKey = 'atlas.biometric_enabled';
   static const _themeModeKey = 'atlas.theme_mode';
   static const _customWorkoutPlanKey = 'atlas.custom_workout_plan';
+  static const _selectedWorkoutDayKey = 'atlas.selected_workout_day';
   static const _workoutDraftKey = 'atlas.workout_draft';
   static const _dashboardSnapshotKey = 'atlas.dashboard_snapshot';
   static const _agentOrbXKey = 'atlas.agent_orb_x';
@@ -79,6 +80,44 @@ class AtlasPreferences {
 
   Future<void> setCustomWorkoutPlan(List<Map<String, dynamic>> value) {
     return _prefs.setString(_customWorkoutPlanKey, jsonEncode(value));
+  }
+
+  int? selectedWorkoutDayFor(String userId, String dateKey) {
+    final raw = _prefs.getString(_selectedWorkoutDayKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map ||
+          decoded['userId'] != userId ||
+          decoded['date'] != dateKey) {
+        return null;
+      }
+      final dayNumber = decoded['dayNumber'];
+      return dayNumber is num ? dayNumber.round() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setSelectedWorkoutDay(
+    String userId,
+    String dateKey,
+    int dayNumber,
+  ) {
+    return _prefs.setString(
+      _selectedWorkoutDayKey,
+      jsonEncode({'userId': userId, 'date': dateKey, 'dayNumber': dayNumber}),
+    );
+  }
+
+  Future<void> clearSelectedWorkoutDay(String userId) async {
+    final raw = _prefs.getString(_selectedWorkoutDayKey);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map && decoded['userId'] != userId) return;
+    } catch (_) {}
+    await _prefs.remove(_selectedWorkoutDayKey);
   }
 
   Map<String, dynamic>? workoutDraftFor(String userId) {

@@ -145,30 +145,36 @@ Future<bool> showAtlasCardioLogSheet(
             if (context.mounted) Navigator.pop(context, true);
           },
           children: [
-            _PremiumTextField(
-              controller: minutesController,
-              label: 'Minutes',
-              keyboardType: TextInputType.number,
+            _FieldPanel(
+              child: _PremiumTextField(
+                controller: minutesController,
+                label: 'Minutes',
+                keyboardType: TextInputType.number,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: _PremiumTextField(
-                    controller: distanceController,
-                    label: 'Distance',
-                    suffix: 'km',
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                  child: _FieldPanel(
+                    child: _PremiumTextField(
+                      controller: distanceController,
+                      label: 'Distance',
+                      suffix: 'km',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _PremiumTextField(
-                    controller: caloriesController,
-                    label: 'Calories',
-                    keyboardType: TextInputType.number,
+                  child: _FieldPanel(
+                    child: _PremiumTextField(
+                      controller: caloriesController,
+                      label: 'Calories',
+                      keyboardType: TextInputType.number,
+                    ),
                   ),
                 ),
               ],
@@ -274,14 +280,39 @@ Future<String?> showAtlasOptionPicker(
                       itemBuilder: (context, index) {
                         final option = filtered[index];
                         final icon = iconForOption(option);
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
                         return AtlasPressable(
                           onTap: () => Navigator.pop(context, option),
                           child: Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 13,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
+                              color:
+                                  isDark
+                                      ? Colors.white.withValues(alpha: 0.065)
+                                      : Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(22),
-                              border: Border.all(color: AtlasColors.hairline),
+                              border: Border.all(
+                                color:
+                                    isDark
+                                        ? Colors.white.withValues(alpha: 0.12)
+                                        : AtlasColors.hairline,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      isDark
+                                          ? Colors.black.withValues(alpha: 0.36)
+                                          : AtlasColors.ink.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
@@ -289,9 +320,14 @@ Future<String?> showAtlasOptionPicker(
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: AtlasColors.accent.withValues(
-                                      alpha: 0.1,
-                                    ),
+                                    color:
+                                        isDark
+                                            ? AtlasColors.accent.withValues(
+                                              alpha: 0.16,
+                                            )
+                                            : AtlasColors.accent.withValues(
+                                              alpha: 0.1,
+                                            ),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Icon(icon, color: AtlasColors.accent),
@@ -406,6 +442,33 @@ class _AtlasLogSheet extends StatelessWidget {
   }
 }
 
+class _FieldPanel extends StatelessWidget {
+  const _FieldPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color:
+                isDark
+                    ? Colors.black.withValues(alpha: 0.34)
+                    : AtlasColors.ink.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
 class _PremiumTextField extends StatelessWidget {
   const _PremiumTextField({
     required this.controller,
@@ -423,6 +486,9 @@ class _PremiumTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.14) : AtlasColors.hairline;
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -431,18 +497,28 @@ class _PremiumTextField extends StatelessWidget {
         labelText: label,
         suffixText: suffix,
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
+        fillColor:
+            isDark
+                ? Colors.white.withValues(alpha: 0.065)
+                : Theme.of(context).colorScheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 15,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: AtlasColors.hairline),
+          borderSide: BorderSide(color: borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: AtlasColors.hairline),
+          borderSide: BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: AtlasColors.accent.withValues(alpha: isDark ? 0.72 : 0.46),
+            width: 1.4,
+          ),
         ),
       ),
     );
