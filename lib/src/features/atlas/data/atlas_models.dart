@@ -41,6 +41,26 @@ class AtlasExercise {
   final String? previewVideo;
   final String? thumbnail;
 
+  AtlasExercise withMediaFrom(AtlasExercise source) => AtlasExercise(
+    id: id,
+    name: name,
+    pattern: pattern,
+    defaultSets: defaultSets,
+    defaultReps: defaultReps,
+    primaryMuscle: primaryMuscle,
+    equipment: equipment,
+    difficulty: difficulty,
+    secondaryMuscles: secondaryMuscles,
+    movementType: movementType,
+    instructions: instructions,
+    imageUrl: source.imageUrl,
+    gifUrl: source.gifUrl,
+    previewImage: source.previewImage,
+    previewGif: source.previewGif,
+    previewVideo: source.previewVideo,
+    thumbnail: source.thumbnail,
+  );
+
   @override
   bool operator ==(Object other) {
     return other is AtlasExercise && other.id == id && other.name == name;

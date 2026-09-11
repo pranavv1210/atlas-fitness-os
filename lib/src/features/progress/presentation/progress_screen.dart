@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/atlas_exercise_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
@@ -432,7 +432,7 @@ class _ReportExerciseTile extends StatelessWidget {
                       color: AtlasColors.accentSoft,
                       child: const Icon(Icons.fitness_center_rounded),
                     )
-                    : CachedNetworkImage(
+                    : AtlasExerciseImage(
                       imageUrl: mediaUrl,
                       width: 58,
                       height: 58,

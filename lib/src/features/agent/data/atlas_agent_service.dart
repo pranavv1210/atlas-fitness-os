@@ -12,6 +12,23 @@ class AtlasAgentService {
     required String screen,
     required List<AtlasAgentMessage> history,
   }) async {
+    if (!message.contains('?') &&
+        !RegExp(
+          r'\b(should|could|recommend|suggest|plan)\b',
+          caseSensitive: false,
+        ).hasMatch(message) &&
+        RegExp(r'\d+\s+sets?', caseSensitive: false).hasMatch(message) &&
+        RegExp(r'\d+\s+reps?', caseSensitive: false).hasMatch(message)) {
+      final entries = parseWorkoutEntries(message);
+      if (entries.isNotEmpty) {
+        return AtlasAgentReply(
+          message: '',
+          suggestions: const [],
+          mode: 'Workout',
+          workoutEntries: entries,
+        );
+      }
+    }
     try {
       final response = await _client.functions
           .invoke(
@@ -46,7 +63,7 @@ class AtlasAgentService {
 
 AtlasAgentReply _withLocalEntries(AtlasAgentReply reply, String message) {
   if (reply.workoutEntries.isNotEmpty) return reply;
-  final localEntries = _localWorkoutEntries(message);
+  final localEntries = parseWorkoutEntries(message);
   if (localEntries.isEmpty) return reply;
   return AtlasAgentReply(
     message:
@@ -59,7 +76,7 @@ AtlasAgentReply _withLocalEntries(AtlasAgentReply reply, String message) {
 }
 
 AtlasAgentReply _localFallbackReply(String message) {
-  final entries = _localWorkoutEntries(message);
+  final entries = parseWorkoutEntries(message);
   if (entries.isNotEmpty) {
     return AtlasAgentReply(
       message:
@@ -119,10 +136,10 @@ Map<String, dynamic>? _jsonMapFromString(String raw) {
   return null;
 }
 
-List<AtlasAgentWorkoutEntry> _localWorkoutEntries(String message) {
+List<AtlasAgentWorkoutEntry> parseWorkoutEntries(String message) {
   final lower = message.toLowerCase();
   if (!RegExp(
-    r'\b(kg|kgs|reps?|sets?|curl|pushdown|crunch|machine|tricep|bicep|abs)\b',
+    r'\d\s*kgs?\b|\b(reps?|sets?|curl|pushdown|crunch|machine|tricep|bicep|abs)\b',
   ).hasMatch(lower)) {
     return const [];
   }
@@ -149,10 +166,11 @@ AtlasAgentWorkoutEntry? _localEntryFromPart(
 ) {
   var source = part.toLowerCase();
   if (!RegExp(
-    r'\b(kg|kgs|curl|pushdown|crusher|kick\s*backs?|crunch|machine|abs)\b',
+    r'\d\s*kgs?\b|\d+\s*(sets?|reps?)\b|\b(curl|pushdown|crusher|kick\s*backs?|crunch|machine|abs|pulldown|squat|press|plank|row)\b',
   ).hasMatch(source)) {
     return null;
   }
+  if (RegExp(r'\b(no|skip|without)\b').hasMatch(source)) return null;
   final weight = _firstDoubleMatch(source, RegExp(r'(\d+(?:\.\d+)?)\s*kgs?'));
   final sets = _firstIntMatch(source, RegExp(r'(\d+)\s+sets?')) ?? defaultSets;
   final reps = _firstIntMatch(source, RegExp(r'(\d+)\s+reps?')) ?? defaultReps;

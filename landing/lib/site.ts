@@ -10,8 +10,8 @@
  *   - workout duration (started_at and completed_at are written
  *     from the same timestamp, so every session is 0 seconds)
  *   - personal records, 1RM, RPE, rest timers (no implementation)
- *   - offline use (exercise imagery is remote; reads/writes hit the
- *     network; there is no sync queue)
+ *   - offline workout syncing (logs still require the network, while
+ *     the 873 reference exercise thumbnails are bundled in the APK)
  *   - automatic goal progress (one snapshot is written at creation
  *     and never recalculated)
  *   - hydration in ml or litres (it is an uncapped "sips" counter)
@@ -29,11 +29,11 @@ export const SITE = {
   baseUrl: 'https://atlas-fitness-os-henna.vercel.app',
   repoUrl: 'https://github.com/pranavv1210/atlas-fitness-os',
 
-  /** Verified: landing/public/downloads/atlas-release.apk, 57,318,622 bytes. */
+  /** Verified: landing/public/downloads/atlas-release.apk, 61,103,539 bytes. */
   apkUrl: '/downloads/atlas-release.apk',
-  apkVersion: '1.0.0',
-  apkSize: '55 MB',
-  apkBytes: 57_318_622,
+  apkVersion: '1.0.1',
+  apkSize: '58 MB',
+  apkBytes: 61_103_539,
 
   /** android/app/build.gradle.kts */
   packageId: 'com.pranav.atlas',

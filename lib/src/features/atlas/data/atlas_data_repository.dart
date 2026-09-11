@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,17 +16,43 @@ class AtlasDataRepository {
   final SupabaseClient _client;
   final AtlasPreferences? _preferences;
   AtlasDashboardSnapshot? _cachedSnapshot;
+  final ValueNotifier<int> changes = ValueNotifier(0);
+  Future<List<AtlasExercise>>? _libraryFuture;
+  Future<void>? _widgetSync;
+  String? _cachedDate;
   static const _widgetChannel = MethodChannel('com.pranav.atlas/widget');
 
   String get _userId => _client.auth.currentUser!.id;
   String get currentUserId => _userId;
   AtlasDashboardSnapshot? get cachedSnapshot =>
-      _cachedSnapshot ?? _loadCachedSnapshot();
+      _cachedDate == _date(DateTime.now())
+          ? _cachedSnapshot
+          : _loadCachedSnapshot();
 
   Future<AtlasDashboardSnapshot> loadSnapshot() async {
+    await syncWidgetHydration();
     final now = DateTime.now();
-    final completedToday = await _hasCompletedWorkoutOn(now);
-    final totalWorkouts = await _countAllWorkouts();
+    final (completedToday, totalWorkouts) =
+        await (_hasCompletedWorkoutOn(now), _countAllWorkouts()).wait;
+    final (
+      library,
+      completedThisWeek,
+      monthWorkouts,
+      latestWeight,
+      hydrationToday,
+      activeGoals,
+      lastWorkoutTitle,
+      currentStreak,
+    ) = await (
+          _loadExerciseLibrary(),
+          _countWorkouts(_startOfWeek(now), now),
+          _countWorkouts(DateTime(now.year, now.month), now),
+          _latestWeight(),
+          _hydrationToday(),
+          loadGoals(),
+          _lastWorkoutTitle(),
+          _currentWorkoutStreak(),
+        ).wait;
     final hasStarted = totalWorkouts > 0;
     final cycleLength = _localCycleLength();
     final plannedDayNumber =
@@ -45,23 +72,9 @@ class AtlasDataRepository {
         hasStarted ? await _loadWorkoutDay(effectiveDayNumber) : null;
     final starterWorkout =
         hasStarted ? null : await _loadWorkoutDay(effectiveDayNumber);
-    final library = await _loadExerciseLibrary();
     const templateExercises = <AtlasWorkoutExercise>[];
-    final completedThisWeek = await _countWorkouts(
-      _startOfWeek(DateTime.now()),
-      DateTime.now(),
-    );
-    final monthWorkouts = await _countWorkouts(
-      DateTime(DateTime.now().year, DateTime.now().month),
-      DateTime.now(),
-    );
-    final latestWeight = await _latestWeight();
-    final hydrationToday = await _hydrationToday();
-    final activeGoals = await loadGoals();
-    final lastWorkoutTitle = await _lastWorkoutTitle();
     final todayReport =
         completedToday ? await loadWorkoutReport(DateTime.now()) : null;
-    final currentStreak = await _currentWorkoutStreak();
 
     final snapshot = AtlasDashboardSnapshot(
       todayWorkout: todayWorkout,
@@ -84,6 +97,8 @@ class AtlasDataRepository {
       todayReport: todayReport,
     );
     _cachedSnapshot = snapshot;
+    _cachedDate = _date(now);
+    changes.value += 1;
     await _preferences?.setDashboardSnapshot(
       _userId,
       _snapshotToJson(snapshot),
@@ -108,7 +123,9 @@ class AtlasDataRepository {
         weeklyTarget: raw['weeklyTarget'] as int? ?? 5,
         totalWorkouts: raw['totalWorkouts'] as int? ?? 0,
         monthWorkouts: raw['monthWorkouts'] as int? ?? 0,
-        completedToday: raw['completedToday'] as bool? ?? false,
+        completedToday:
+            raw['date'] == _date(DateTime.now()) &&
+            (raw['completedToday'] as bool? ?? false),
         cycleStarted: raw['cycleStarted'] as bool? ?? false,
         currentStreak: raw['currentStreak'] as int? ?? 0,
         latestWeight: latestWeight,
@@ -117,7 +134,10 @@ class AtlasDataRepository {
             latestWeightDate is String
                 ? DateTime.tryParse(latestWeightDate)
                 : null,
-        hydrationToday: raw['hydrationToday'] as int? ?? 0,
+        hydrationToday:
+            raw['date'] == _date(DateTime.now())
+                ? raw['hydrationToday'] as int? ?? 0
+                : 0,
         activeGoals:
             goals is List
                 ? [
@@ -153,6 +173,7 @@ class AtlasDataRepository {
 
   Map<String, dynamic> _snapshotToJson(AtlasDashboardSnapshot snapshot) {
     return {
+      'date': _date(DateTime.now()),
       'todayWorkout': _workoutDayToJson(snapshot.todayWorkout),
       'starterWorkout': _workoutDayToJson(snapshot.starterWorkout),
       'completedThisWeek': snapshot.completedThisWeek,
@@ -226,27 +247,31 @@ class AtlasDataRepository {
                 'template_id': day.templateId,
                 'session_date': _date(now),
                 'started_at': now.toUtc().toIso8601String(),
-                'completed_at': now.toUtc().toIso8601String(),
-                'status': 'completed',
+                'status': 'in_progress',
                 'title': day.name,
               })
               .select('id')
               .single();
 
       sessionId = session['id'] as String;
+      final sessionExercises = await _client
+          .from('workout_session_exercises')
+          .insert([
+            for (var index = 0; index < entries.length; index++)
+              {
+                'workout_session_id': sessionId,
+                'exercise_id': _uuidOrNull(entries[index].exercise.id),
+                'display_order': index + 1,
+                'name_snapshot': entries[index].exercise.name,
+              },
+          ])
+          .select('id, display_order');
+      final allSets = <Map<String, dynamic>>[];
       for (var index = 0; index < entries.length; index++) {
         final entry = entries[index];
-        final sessionExercise =
-            await _client
-                .from('workout_session_exercises')
-                .insert({
-                  'workout_session_id': sessionId,
-                  'exercise_id': _uuidOrNull(entry.exercise.id),
-                  'display_order': index + 1,
-                  'name_snapshot': entry.exercise.name,
-                })
-                .select('id')
-                .single();
+        final sessionExercise = sessionExercises.firstWhere(
+          (row) => row['display_order'] == index + 1,
+        );
 
         final sessionExerciseId = sessionExercise['id'] as String;
         final setLogs =
@@ -260,7 +285,7 @@ class AtlasDataRepository {
                     ),
                 ]
                 : entry.setLogs;
-        await _client.from('workout_sets').insert([
+        allSets.addAll([
           for (final set in setLogs)
             {
               'workout_session_exercise_id': sessionExerciseId,
@@ -272,6 +297,15 @@ class AtlasDataRepository {
             },
         ]);
       }
+      await _client.from('workout_sets').insert(allSets);
+      await _client
+          .from('workout_sessions')
+          .update({
+            'status': 'completed',
+            'completed_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', sessionId)
+          .eq('user_id', _userId);
     } catch (_) {
       if (sessionId != null) {
         await _client
@@ -301,6 +335,35 @@ class AtlasDataRepository {
   Future<void> saveHydration() async {
     await _client.from('hydration_events').insert({'user_id': _userId});
     await loadSnapshot();
+  }
+
+  Future<void> syncWidgetHydration() =>
+      _widgetSync ??= _syncWidgetHydration().whenComplete(
+        () => _widgetSync = null,
+      );
+
+  Future<void> _syncWidgetHydration() async {
+    final preferences = _preferences;
+    if (preferences == null) return;
+    await preferences.reload();
+    final count = preferences.widgetPendingHydrationSips;
+    if (count == 0) return;
+    final date = preferences.widgetPendingHydrationDate;
+    final parsed = date == null ? null : DateTime.tryParse(date);
+    // Undated taps from older releases cannot be assigned to today's log.
+    if (parsed != null) {
+      final occurredAt =
+          (date == _date(DateTime.now())
+                  ? DateTime.now()
+                  : DateTime(parsed.year, parsed.month, parsed.day, 12))
+              .toUtc()
+              .toIso8601String();
+      await _client.from('hydration_events').insert([
+        for (var index = 0; index < count; index++)
+          {'user_id': _userId, 'occurred_at': occurredAt},
+      ]);
+    }
+    await preferences.acknowledgeWidgetSips(count, date);
   }
 
   Future<void> saveCardio({
@@ -657,7 +720,10 @@ class AtlasDataRepository {
     return fallbackCycle[(dayNumber - 1).clamp(0, fallbackCycle.length - 1)];
   }
 
-  Future<List<AtlasExercise>> _loadExerciseLibrary() async {
+  Future<List<AtlasExercise>> _loadExerciseLibrary() =>
+      _libraryFuture ??= _fetchExerciseLibrary();
+
+  Future<List<AtlasExercise>> _fetchExerciseLibrary() async {
     try {
       final rows = await _client
           .from('exercises')
@@ -771,21 +837,13 @@ class AtlasDataRepository {
   }
 
   Future<int> _hydrationToday() async {
-    final rows = await _client
-        .from('hydration_events')
-        .select('id')
-        .eq('user_id', _userId)
-        .gte(
-          'occurred_at',
-          DateTime.now().toUtc().copyWith(hour: 0, minute: 0).toIso8601String(),
-        );
-    return rows.length;
+    return _hydrationCountOn(DateTime.now());
   }
 
   Future<int> _hydrationCountOn(DateTime date) async {
     final local = DateTime(date.year, date.month, date.day);
     final start = local.toUtc();
-    final end = local.add(const Duration(days: 1)).toUtc();
+    final end = DateTime(date.year, date.month, date.day + 1).toUtc();
     final rows = await _client
         .from('hydration_events')
         .select('id')
@@ -1113,6 +1171,14 @@ bool _exerciseHasMedia(AtlasExercise exercise) {
 List<AtlasExercise> _dedupeExercises(List<AtlasExercise> exercises) {
   final byExerciseKey = <String, AtlasExercise>{};
   for (final exercise in exercises) {
+    final key = _normalizeExerciseKeyPart(exercise.name);
+    final existing = byExerciseKey[key];
+    if (existing != null &&
+        !_exerciseHasMedia(existing) &&
+        _exerciseHasMedia(exercise)) {
+      byExerciseKey[key] = existing.withMediaFrom(exercise);
+      continue;
+    }
     byExerciseKey.putIfAbsent(
       _normalizeExerciseKeyPart(exercise.name),
       () => exercise,
@@ -1349,7 +1415,7 @@ const fallbackExercises = [
     primaryMuscle: 'Chest',
     equipment: 'Barbell',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg',
   ),
   AtlasExercise(
     id: 'incline',
@@ -1360,7 +1426,7 @@ const fallbackExercises = [
     primaryMuscle: 'Chest',
     equipment: 'Dumbbells',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Bench_Press/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/0.jpg',
   ),
   AtlasExercise(
     id: 'fly',
@@ -1382,7 +1448,7 @@ const fallbackExercises = [
     primaryMuscle: 'Chest',
     equipment: 'Bodyweight',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Dip/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dips_-_Chest_Version/0.jpg',
   ),
   AtlasExercise(
     id: 'pushdown',
@@ -1426,7 +1492,7 @@ const fallbackExercises = [
     primaryMuscle: 'Back',
     equipment: 'Cable',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lat_Pulldown/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Wide-Grip_Lat_Pulldown/0.jpg',
   ),
   AtlasExercise(
     id: 'row',
@@ -1437,7 +1503,7 @@ const fallbackExercises = [
     primaryMuscle: 'Back',
     equipment: 'Cable',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Row/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg',
   ),
   AtlasExercise(
     id: 'curl',
@@ -1459,7 +1525,7 @@ const fallbackExercises = [
     primaryMuscle: 'Shoulders',
     equipment: 'Dumbbells',
     imageUrl:
-        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Lateral_Raise/0.jpg',
+        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/0.jpg',
   ),
   AtlasExercise(
     id: 'press',

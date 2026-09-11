@@ -130,6 +130,14 @@ class AtlasPreferences {
       if (decoded is! Map || decoded['userId'] != userId) {
         return null;
       }
+      final saved = DateTime.tryParse(decoded['savedAt'] as String? ?? '');
+      final now = DateTime.now();
+      if (saved == null ||
+          saved.year != now.year ||
+          saved.month != now.month ||
+          saved.day != now.day) {
+        return null;
+      }
       return {
         for (final entry in decoded.entries)
           if (entry.key is String) entry.key as String: entry.value,
@@ -176,6 +184,18 @@ class AtlasPreferences {
 
   int get widgetPendingHydrationSips =>
       _prefs.getInt(_widgetPendingHydrationSipsKey) ?? 0;
+
+  String? get widgetPendingHydrationDate =>
+      _prefs.getString('${_widgetPendingHydrationSipsKey}_date');
+
+  Future<void> reload() => _prefs.reload();
+
+  Future<void> acknowledgeWidgetSips(int count, String? date) async {
+    await _prefs.reload();
+    if (widgetPendingHydrationDate != date) return;
+    final remaining = (widgetPendingHydrationSips - count).clamp(0, 99999);
+    await _prefs.setInt(_widgetPendingHydrationSipsKey, remaining);
+  }
 
   Future<void> clearWidgetPendingHydrationSips() {
     return _prefs.remove(_widgetPendingHydrationSipsKey);

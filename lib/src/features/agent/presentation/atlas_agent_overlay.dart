@@ -251,8 +251,10 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
             role: AtlasAgentRole.assistant,
             content:
                 appliedCount == 0
-                    ? reply.message
-                    : '${reply.message}\n\nAdded $appliedCount exercise${appliedCount == 1 ? '' : 's'} to today\'s workout draft. Open Train to review and edit before saving.',
+                    ? (reply.workoutEntries.isEmpty
+                        ? reply.message
+                        : 'No exercises were added. Today may already be completed, or those exercise names could not be matched. Check Train before retrying.')
+                    : 'Added $appliedCount exercise${appliedCount == 1 ? '' : 's'} to Train. Your sets, reps, and weights are ready to review.${appliedCount < reply.workoutEntries.length ? ' Some exercise names could not be matched.' : ''}',
           ),
         );
       });
@@ -281,8 +283,26 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
   }
 
   Future<int> _applyWorkoutEntries(List<AtlasAgentWorkoutEntry> entries) async {
-    final snapshot = await widget.repository.loadSnapshot();
-    final workout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final snapshot =
+        widget.repository.cachedSnapshot ??
+        await widget.repository.loadSnapshot();
+    final baseWorkout = snapshot.todayWorkout ?? snapshot.starterWorkout;
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final selectedDay = widget.preferences.selectedWorkoutDayFor(
+      widget.repository.currentUserId,
+      dateKey,
+    );
+    final workout =
+        baseWorkout == null
+            ? null
+            : AtlasWorkoutDay(
+              dayNumber: selectedDay ?? baseWorkout.dayNumber,
+              name: baseWorkout.name,
+              focus: baseWorkout.focus,
+              isRestDay: false,
+            );
     if (workout == null || snapshot.completedToday) return 0;
 
     final userId = widget.repository.currentUserId;
@@ -302,6 +322,8 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
         if (exerciseId is! String || byId[exerciseId] == null) continue;
         merged.add({
           'exerciseId': exerciseId,
+          'exerciseName': byId[exerciseId]!.name,
+          if (item['setRows'] != null) 'setRows': item['setRows'],
           'sets': _safeInt(item['sets'], fallback: 3),
           'reps': _safeInt(item['reps'], fallback: 15),
           'weight': _safeDouble(item['weight']),
@@ -315,6 +337,7 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
       if (exercise == null) continue;
       final next = {
         'exerciseId': exercise.id,
+        'exerciseName': exercise.name,
         'sets': (entry.sets ?? exercise.defaultSets).clamp(1, 99),
         'reps': (entry.reps ?? _firstNumber(exercise.defaultReps)).clamp(
           1,
@@ -489,12 +512,7 @@ class _BuddyHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            IconButton.filledTonal(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Open Buddy menu',
-              onPressed: () {},
-              icon: const Icon(Icons.menu_rounded),
-            ),
+            const _PlateBuddyFace(size: 40),
             const SizedBox(width: 10),
             Expanded(
               child: Row(

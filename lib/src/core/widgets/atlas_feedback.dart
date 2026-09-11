@@ -79,37 +79,84 @@ Future<void> showCompletionCelebration(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (context) {
-      return Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const _CelebrationBurst(),
-              const SizedBox(height: 18),
-              Text(
-                'Workout Complete',
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 2400),
+                builder:
+                    (context, progress, _) =>
+                        CustomPaint(painter: _ConfettiPainter(progress)),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Your workout has been saved to Atlas.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 22),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
-            ],
+            ),
           ),
-        ),
+          Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  const _CelebrationBurst(),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Workout Complete',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your workout has been saved to Atlas.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 22),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     },
   );
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter(this.progress);
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = math.Random(42);
+    final paint = Paint();
+    for (var index = 0; index < 85; index++) {
+      final x = random.nextDouble() * size.width;
+      final speed = 0.65 + random.nextDouble() * 0.6;
+      final y = -size.height * 0.3 + progress * size.height * speed * 1.5;
+      paint.color = [
+        AtlasColors.accent,
+        AtlasColors.success,
+        AtlasColors.warning,
+        Colors.white,
+      ][index % 4].withValues(alpha: (1 - progress).clamp(0, 1));
+      canvas.save();
+      canvas.translate(x + math.sin(progress * 8 + index) * 25, y);
+      canvas.rotate(progress * 8 + index);
+      canvas.drawRect(const Rect.fromLTWH(-3, -5, 6, 10), paint);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter oldDelegate) =>
+      progress != oldDelegate.progress;
 }
 
 class _PreviewRow extends StatelessWidget {

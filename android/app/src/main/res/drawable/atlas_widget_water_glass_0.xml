@@ -1,22 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape>
-            <corners
-                android:bottomLeftRadius="11dp"
-                android:bottomRightRadius="11dp"
-                android:topLeftRadius="4dp"
-                android:topRightRadius="4dp" />
-            <solid android:color="#18FFFFFF" />
-            <stroke
-                android:width="2dp"
-                android:color="#DDF3FF" />
-        </shape>
-    </item>
-    <item android:top="3dp" android:left="9dp" android:right="9dp" android:bottom="51dp">
-        <shape>
-            <corners android:radius="2dp" />
-            <solid android:color="#FFFFFFFF" />
-        </shape>
-    </item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="50dp" android:height="58dp"
+    android:viewportWidth="150" android:viewportHeight="174">
+    <path android:fillColor="#18FFFFFF"
+        android:pathData="M12,18 L138,18 L120,166 L30,166 Z" />
+    <path android:fillColor="@android:color/transparent"
+        android:strokeColor="#D4F7FF" android:strokeWidth="4"
+        android:strokeLineJoin="miter"
+        android:pathData="M12,18 L30,166 L120,166 L138,18" />
+</vector>

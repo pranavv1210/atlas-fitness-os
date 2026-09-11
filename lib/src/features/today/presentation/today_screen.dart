@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/atlas_colors.dart';
@@ -29,14 +30,61 @@ class TodayScreen extends StatefulWidget {
   State<TodayScreen> createState() => _TodayScreenState();
 }
 
-class _TodayScreenState extends State<TodayScreen> {
+class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   Future<AtlasDashboardSnapshot>? _future;
   AtlasDataRepository? _repository;
+  Timer? _midnightTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleMidnight();
+  }
+
+  void _scheduleMidnight() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    _midnightTimer = Timer(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+      () {
+        if (mounted) _refresh();
+        _scheduleMidnight();
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh();
+      _scheduleMidnight();
+    }
+  }
+
+  void _snapshotChanged() {
+    if (mounted) {
+      setState(() => _future = Future.value(_repository!.cachedSnapshot));
+    }
+  }
+
+  @override
+  void dispose() {
+    _repository?.changes.removeListener(_snapshotChanged);
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _repository = AppScope.maybeRead(context)?.atlasDataRepository;
+    final repository = AppScope.maybeRead(context)?.atlasDataRepository;
+    if (_repository != repository) {
+      _repository?.changes.removeListener(_snapshotChanged);
+      _repository = repository;
+      _repository?.changes.addListener(_snapshotChanged);
+    }
     _future ??= _load();
   }
 
@@ -52,6 +100,7 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget build(BuildContext context) {
     final displayName = _displayName(widget.profile);
     return FutureBuilder<AtlasDashboardSnapshot>(
+      key: ValueKey(DateUtils.dateOnly(DateTime.now())),
       future: _future,
       builder: (context, snapshot) {
         final data =

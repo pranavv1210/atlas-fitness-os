@@ -181,10 +181,7 @@ class AppDependencies {
     if (pendingSips <= 0 || repository == null) return;
     unawaited(
       () async {
-        for (var index = 0; index < pendingSips; index++) {
-          await repository.saveHydration();
-        }
-        await preferences.clearWidgetPendingHydrationSips();
+        await repository.syncWidgetHydration();
         await repository.loadSnapshot();
       }().catchError((Object error, StackTrace stack) {
         logger.warning(

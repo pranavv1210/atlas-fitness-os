@@ -24,14 +24,14 @@
             android:layout_width="60dp"
             android:layout_height="64dp">
 
-            <TextView
+            <ImageView
                 android:id="@+id/atlas_widget_water_glass"
                 android:layout_width="50dp"
                 android:layout_height="58dp"
                 android:layout_gravity="center"
-                android:background="@drawable/atlas_widget_water_glass_0"
-                android:gravity="center"
-                android:textSize="0sp" />
+                android:contentDescription="Water level"
+                android:src="@drawable/atlas_widget_water_glass_0"
+                android:scaleType="fitXY" />
 
             <TextView
                 android:id="@+id/atlas_widget_water_percent"
@@ -39,6 +39,10 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:text="0%"
+                android:maxLines="1"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="12sp"
+                android:autoSizeMaxTextSize="18sp"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"
                 android:textStyle="bold" />

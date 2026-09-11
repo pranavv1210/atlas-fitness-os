@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/atlas_exercise_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -35,6 +35,7 @@ class _TrainScreenState extends State<TrainScreen> {
   ValueNotifier<int>? _draftVersionNotifier;
   int? _sessionDayOverrideNumber;
   bool _saving = false;
+  AtlasDashboardSnapshot? _loadedSnapshot;
 
   @override
   void didChangeDependencies() {
@@ -58,21 +59,54 @@ class _TrainScreenState extends State<TrainScreen> {
 
   void _handleExternalDraftChanged() {
     if (!mounted) return;
+    final snapshot = _loadedSnapshot;
+    if (snapshot != null && !snapshot.completedToday) {
+      final draft = _dependencies?.preferences.workoutDraftFor(
+        _repository!.currentUserId,
+      );
+      if (draft != null) {
+        _sessionDayOverrideNumber = draft['dayNumber'] as int?;
+        _entries.clear();
+        _restoreDraft(_activeWorkoutFor(snapshot), snapshot.exerciseLibrary);
+        setState(() {});
+        return;
+      }
+    }
     setState(() {
       _future = _load();
     });
   }
 
   Future<AtlasDashboardSnapshot> _load() async {
+    final userId = _repository?.currentUserId;
+    final draft =
+        userId == null
+            ? null
+            : _dependencies?.preferences.workoutDraftFor(userId);
+    if (draft != null) {
+      _sessionDayOverrideNumber = draft['dayNumber'] as int?;
+    }
     final snapshot =
         _repository == null
             ? emptyAtlasSnapshot()
+            : draft != null && _repository!.cachedSnapshot != null
+            ? _repository!.cachedSnapshot!
             : await _repository!.loadSnapshot();
+    final library =
+        draft != null &&
+                snapshot.exerciseLibrary.length <= fallbackExercises.length
+            ? await loadBundledExercises()
+            : snapshot.exerciseLibrary;
     _customPlan = _loadCustomWorkoutPlan(
       _dependencies?.preferences.customWorkoutPlan ?? const [],
-      snapshot.exerciseLibrary,
+      library,
     );
-    final effectiveSnapshot = _applyCustomWorkoutPlan(snapshot, _customPlan);
+    final effectiveSnapshot = _applyCustomWorkoutPlan(
+      snapshot,
+      _customPlan,
+      library: library,
+    );
+    _loadedSnapshot = effectiveSnapshot;
     _entries.clear();
     if (effectiveSnapshot.completedToday) {
       _sessionDayOverrideNumber = null;
@@ -90,7 +124,8 @@ class _TrainScreenState extends State<TrainScreen> {
     final plannedDay =
         activeWorkout == null
             ? null
-            : _customPlan[activeWorkout.dayNumber.clamp(1, 5) - 1];
+            : _customPlan[activeWorkout.dayNumber.clamp(1, _customPlan.length) -
+                1];
     if (plannedDay != null && !plannedDay.isRestDay) {
       _entries.addAll([
         for (final exercise in plannedDay.exercises)
@@ -459,7 +494,15 @@ class _TrainScreenState extends State<TrainScreen> {
       if (rawEntry is! Map) continue;
       final exerciseId = rawEntry['exerciseId'];
       if (exerciseId is! String) continue;
-      final exercise = byId[exerciseId];
+      final exercise =
+          byId[exerciseId] ??
+          library
+              .where(
+                (item) =>
+                    item.name.toLowerCase() ==
+                    (rawEntry['exerciseName'] as String? ?? '').toLowerCase(),
+              )
+              .firstOrNull;
       if (exercise == null) continue;
       restored.add(
         _EditableWorkoutEntry.fromDraft(
@@ -493,6 +536,7 @@ class _TrainScreenState extends State<TrainScreen> {
         for (final entry in _entries)
           {
             'exerciseId': entry.exercise.id,
+            'exerciseName': entry.exercise.name,
             'sets': entry.sets,
             'reps': entry.reps,
             'weight': entry.weight,
@@ -978,19 +1022,9 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                const Expanded(child: SectionTitle('Workout Plan')),
-                TextButton.icon(
-                  onPressed: _addDay,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add day'),
-                ),
-              ],
+              children: [const Expanded(child: SectionTitle('Workout Plan'))],
             ),
-            Text(
-              'Auto-saved as you edit. Delete or add days to match your cycle.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('Workout cycle', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 10),
             SizedBox(
               height: 42,
@@ -1049,12 +1083,6 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
-                if (_plan.length > 1)
-                  TextButton.icon(
-                    onPressed: _deleteSelectedDay,
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Delete day'),
-                  ),
                 TextButton.icon(
                   onPressed: day.isRestDay ? null : _addExercise,
                   icon: const Icon(Icons.add_rounded),
@@ -1120,37 +1148,6 @@ class _WorkoutPlanEditorSheetState extends State<_WorkoutPlanEditorSheet> {
     setState(() {
       final exercise = day.exercises.removeAt(index);
       day.exercises.insert(target, exercise);
-      _commit();
-    });
-  }
-
-  void _addDay() {
-    if (_plan.length >= 14) return;
-    setState(() {
-      final nextNumber = _plan.length + 1;
-      final fallback =
-          fallbackCycle[(nextNumber - 1).clamp(0, fallbackCycle.length - 1)];
-      _plan.add(
-        _CustomWorkoutPlanDay(
-          dayNumber: nextNumber,
-          name:
-              nextNumber <= fallbackCycle.length
-                  ? fallback.name
-                  : 'Workout Day $nextNumber',
-          isRestDay: false,
-          exercises: [],
-        ),
-      );
-      _selectedDay = _plan.length - 1;
-      _commit();
-    });
-  }
-
-  void _deleteSelectedDay() {
-    if (_plan.length <= 1) return;
-    setState(() {
-      _plan.removeAt(_selectedDay);
-      if (_selectedDay >= _plan.length) _selectedDay = _plan.length - 1;
       _commit();
     });
   }
@@ -1562,7 +1559,7 @@ class _ReportExerciseMedia extends StatelessWidget {
                 color: AtlasColors.accentSoft,
                 child: const Icon(Icons.fitness_center_rounded),
               )
-              : CachedNetworkImage(
+              : AtlasExerciseImage(
                 imageUrl: mediaUrl,
                 width: size,
                 height: size,
@@ -2320,7 +2317,7 @@ class _ExerciseMediaPreview extends StatelessWidget {
       borderRadius: BorderRadius.circular(size * 0.28),
       child: Stack(
         children: [
-          CachedNetworkImage(
+          AtlasExerciseImage(
             imageUrl: mediaUrl,
             width: size,
             height: size,
@@ -2449,6 +2446,18 @@ class _StrengthSetRows extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF223B70)
+                          : null,
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : null,
+                  side: const BorderSide(color: Color(0xFF638BE5)),
+                  minimumSize: const Size(0, 48),
+                ),
                 onPressed: () {
                   entry.setSetCount(entry.sets + 1);
                   onChanged();
@@ -2460,6 +2469,18 @@ class _StrengthSetRows extends StatelessWidget {
             if (entry.sets > 1) ...[
               const SizedBox(width: 10),
               IconButton.filledTonal(
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF223B70)
+                          : null,
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : null,
+                  side: const BorderSide(color: Color(0xFF638BE5)),
+                  minimumSize: const Size(48, 48),
+                ),
                 onPressed: () {
                   entry.setSetCount(entry.sets - 1);
                   onChanged();
@@ -2961,8 +2982,9 @@ List<_CustomWorkoutPlanDay> _loadCustomWorkoutPlan(
 
 AtlasDashboardSnapshot _applyCustomWorkoutPlan(
   AtlasDashboardSnapshot snapshot,
-  List<_CustomWorkoutPlanDay> plan,
-) {
+  List<_CustomWorkoutPlanDay> plan, {
+  List<AtlasExercise>? library,
+}) {
   AtlasWorkoutDay? mapDay(AtlasWorkoutDay? source) {
     if (source == null) return null;
     final index = source.dayNumber.clamp(1, plan.length) - 1;
@@ -2999,7 +3021,7 @@ AtlasDashboardSnapshot _applyCustomWorkoutPlan(
     todayWorkout: snapshot.todayWorkout == null ? null : workout,
     starterWorkout: snapshot.starterWorkout == null ? null : workout,
     templateExercises: plannedExercises,
-    exerciseLibrary: snapshot.exerciseLibrary,
+    exerciseLibrary: library ?? snapshot.exerciseLibrary,
     completedThisWeek: snapshot.completedThisWeek,
     weeklyTarget: snapshot.weeklyTarget,
     totalWorkouts: snapshot.totalWorkouts,
