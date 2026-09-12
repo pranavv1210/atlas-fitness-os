@@ -59,11 +59,28 @@ class AtlasWidgetProvider : AppWidgetProvider() {
         private const val ACTION_WATER_TAP = "com.pranav.atlas.ACTION_WATER_TAP"
         private const val ACTION_MIDNIGHT = "com.pranav.atlas.ACTION_MIDNIGHT"
         private const val PREFS = "FlutterSharedPreferences"
+        private const val WIDGET_STATE_PREFS = "AtlasWidgetState"
         private const val SNAPSHOT_KEY = "flutter.atlas.dashboard_snapshot"
         private const val PENDING_SIPS_KEY = "flutter.atlas.widget_pending_hydration_sips"
         private const val DAILY_SIP_TARGET = 24
         private var animationGeneration = 0
         private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+        fun saveState(
+            context: Context,
+            date: String?,
+            hydration: Int?,
+            streak: Int?,
+            completedToday: Boolean?,
+        ) {
+            if (date == null || hydration == null || streak == null || completedToday == null) return
+            context.getSharedPreferences(WIDGET_STATE_PREFS, Context.MODE_PRIVATE).edit()
+                .putString("date", date)
+                .putInt("hydrationToday", hydration.coerceAtLeast(0))
+                .putInt("currentStreak", streak.coerceAtLeast(0))
+                .putBoolean("completedToday", completedToday)
+                .commit()
+        }
 
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -102,18 +119,25 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             frame: Int = -1,
         ) {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val widgetState = context.getSharedPreferences(WIDGET_STATE_PREFS, Context.MODE_PRIVATE)
             val snapshot = prefs.getString(SNAPSHOT_KEY, null)
             val json = snapshot?.let { runCatching { JSONObject(it) }.getOrNull() }
             val currentDate = today()
-            val hydration = (if (json?.optString("date") == currentDate)
-                json.optInt("hydrationToday", 0) else 0) +
+            val stateIsCurrent = widgetState.getString("date", "") == currentDate
+            val snapshotIsCurrent = json?.optString("date") == currentDate
+            val hydration = (if (stateIsCurrent)
+                widgetState.getInt("hydrationToday", 0)
+            else if (snapshotIsCurrent) json?.optInt("hydrationToday", 0) ?: 0 else 0) +
                 (if (prefs.getString("${PENDING_SIPS_KEY}_date", "") == currentDate)
-                    prefs.getInt(PENDING_SIPS_KEY, 0) else 0)
-            val streak = json?.optInt("currentStreak", 0) ?: 0
+                    preferenceNumber(prefs, PENDING_SIPS_KEY) else 0)
+            val streak = if (widgetState.contains("currentStreak"))
+                widgetState.getInt("currentStreak", 0)
+            else json?.optInt("currentStreak", 0) ?: 0
             val percent = ((hydration * 100) / DAILY_SIP_TARGET).coerceIn(0, 100)
             val displayPercent = animatedPercent ?: percent
-            val completedToday = json?.optString("date") == currentDate &&
-                json.optBoolean("completedToday", false)
+            val completedToday = if (stateIsCurrent)
+                widgetState.getBoolean("completedToday", false)
+            else snapshotIsCurrent && json?.optBoolean("completedToday", false) == true
 
             val views = RemoteViews(context.packageName, R.layout.atlas_home_widget)
             views.setInt(
@@ -154,21 +178,30 @@ class AtlasWidgetProvider : AppWidgetProvider() {
         private fun addLocalSip(context: Context) {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val pending = if (prefs.getString("${PENDING_SIPS_KEY}_date", "") == today())
-                prefs.getInt(PENDING_SIPS_KEY, 0) else 0
-            prefs.edit().putInt(PENDING_SIPS_KEY, pending + 1)
-                .putString("${PENDING_SIPS_KEY}_date", today()).apply()
+                preferenceNumber(prefs, PENDING_SIPS_KEY) else 0
+            prefs.edit().putLong(PENDING_SIPS_KEY, (pending + 1).toLong())
+                .putString("${PENDING_SIPS_KEY}_date", today()).commit()
         }
 
         private fun hydrationPercent(context: Context): Int {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val widgetState = context.getSharedPreferences(WIDGET_STATE_PREFS, Context.MODE_PRIVATE)
             val snapshot = prefs.getString(SNAPSHOT_KEY, null)
             val json = snapshot?.let { runCatching { JSONObject(it) }.getOrNull() }
-            val hydration = (if (json?.optString("date") == today())
-                json.optInt("hydrationToday", 0) else 0) +
-                (if (prefs.getString("${PENDING_SIPS_KEY}_date", "") == today())
-                    prefs.getInt(PENDING_SIPS_KEY, 0) else 0)
+            val currentDate = today()
+            val hydration = (if (widgetState.getString("date", "") == currentDate)
+                widgetState.getInt("hydrationToday", 0)
+            else if (json?.optString("date") == currentDate)
+                json?.optInt("hydrationToday", 0) ?: 0 else 0) +
+                (if (prefs.getString("${PENDING_SIPS_KEY}_date", "") == currentDate)
+                    preferenceNumber(prefs, PENDING_SIPS_KEY) else 0)
             return ((hydration * 100) / DAILY_SIP_TARGET).coerceIn(0, 100)
         }
+
+        private fun preferenceNumber(
+            prefs: android.content.SharedPreferences,
+            key: String,
+        ): Int = (prefs.all[key] as? Number)?.toInt() ?: 0
 
         private fun animateWaterFill(context: Context, startPercent: Int, endPercent: Int, finished: () -> Unit) {
             val generation = ++animationGeneration

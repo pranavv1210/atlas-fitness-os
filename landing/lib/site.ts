@@ -29,11 +29,11 @@ export const SITE = {
   baseUrl: 'https://atlas-fitness-os-henna.vercel.app',
   repoUrl: 'https://github.com/pranavv1210/atlas-fitness-os',
 
-  /** Verified: landing/public/downloads/atlas-release.apk, 61,103,544 bytes. */
+  /** Verified: landing/public/downloads/atlas-release.apk, 61,103,531 bytes. */
   apkUrl: '/downloads/atlas-release.apk',
-  apkVersion: '1.0.3',
+  apkVersion: '1.0.4',
   apkSize: '58 MB',
-  apkBytes: 61_103_544,
+  apkBytes: 61_103_531,
 
   /** android/app/build.gradle.kts */
   packageId: 'com.pranav.atlas',

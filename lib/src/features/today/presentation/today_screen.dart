@@ -147,7 +147,6 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   }
 }
 
-@visibleForTesting
 DateTime nextLocalMidnight(DateTime now) {
   return DateTime(now.year, now.month, now.day + 1);
 }

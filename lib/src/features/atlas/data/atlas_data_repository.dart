@@ -103,7 +103,7 @@ class AtlasDataRepository {
       _userId,
       _snapshotToJson(snapshot),
     );
-    await _notifyWidgetUpdate();
+    await _notifyWidgetUpdate(snapshot);
     return snapshot;
   }
 
@@ -163,9 +163,19 @@ class AtlasDataRepository {
     }
   }
 
-  Future<void> _notifyWidgetUpdate() async {
+  Future<void> _notifyWidgetUpdate([AtlasDashboardSnapshot? snapshot]) async {
     try {
-      await _widgetChannel.invokeMethod<void>('updateAtlasWidget');
+      await _widgetChannel.invokeMethod<void>(
+        'updateAtlasWidget',
+        snapshot == null
+            ? null
+            : {
+              'date': _date(DateTime.now()),
+              'hydrationToday': snapshot.hydrationToday,
+              'currentStreak': snapshot.currentStreak,
+              'completedToday': snapshot.completedToday,
+            },
+      );
     } catch (_) {
       // Native widgets exist only on Android; other targets can ignore this.
     }

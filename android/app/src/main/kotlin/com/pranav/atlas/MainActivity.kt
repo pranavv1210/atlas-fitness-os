@@ -12,7 +12,15 @@ class MainActivity : FlutterFragmentActivity() {
             "com.pranav.atlas/widget",
         ).setMethodCallHandler { call, result ->
             if (call.method == "updateAtlasWidget") {
-                AtlasWidgetProvider.updateAll(this)
+                val values = call.arguments as? Map<*, *>
+                AtlasWidgetProvider.saveState(
+                    applicationContext,
+                    date = values?.get("date") as? String,
+                    hydration = (values?.get("hydrationToday") as? Number)?.toInt(),
+                    streak = (values?.get("currentStreak") as? Number)?.toInt(),
+                    completedToday = values?.get("completedToday") as? Boolean,
+                )
+                AtlasWidgetProvider.updateAll(applicationContext)
                 result.success(null)
             } else {
                 result.notImplemented()
