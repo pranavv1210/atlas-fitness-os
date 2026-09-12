@@ -30,16 +30,16 @@ class AtlasWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray,
     ) {
         for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId)
+            runCatching { updateWidget(context, appWidgetManager, appWidgetId) }
         }
-        scheduleMidnight(context)
+        runCatching { scheduleMidnight(context) }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action in listOf(ACTION_MIDNIGHT, Intent.ACTION_DATE_CHANGED,
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED,
                 Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)) {
-            updateAll(context)
+            runCatching { updateAll(context) }
             return
         }
         if (intent.action == ACTION_WATER_TAP) {
@@ -47,7 +47,9 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             addLocalSip(context)
             val after = hydrationPercent(context)
             val pendingResult = goAsync()
-            animateWaterFill(context, before, after) { pendingResult.finish() }
+            runCatching {
+                animateWaterFill(context, before, after) { pendingResult.finish() }
+            }.onFailure { pendingResult.finish() }
             return
         }
         super.onReceive(context, intent)
@@ -67,8 +69,10 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, AtlasWidgetProvider::class.java)
             val ids = manager.getAppWidgetIds(component)
-            for (id in ids) updateWidget(context, manager, id)
-            if (ids.isNotEmpty()) scheduleMidnight(context)
+            for (id in ids) {
+                runCatching { updateWidget(context, manager, id) }
+            }
+            if (ids.isNotEmpty()) runCatching { scheduleMidnight(context) }
         }
 
         private fun scheduleMidnight(context: Context) {
@@ -81,7 +85,9 @@ class AtlasWidgetProvider : AppWidgetProvider() {
             val operation = PendingIntent.getBroadcast(context, 4103,
                 Intent(context, AtlasWidgetProvider::class.java).setAction(ACTION_MIDNIGHT),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            if (Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) {
+            val canScheduleExact = Build.VERSION.SDK_INT < 31 ||
+                runCatching { alarm.canScheduleExactAlarms() }.getOrDefault(false)
+            if (canScheduleExact) {
                 alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.timeInMillis, operation)
             } else {
                 alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.timeInMillis, operation)
@@ -179,8 +185,11 @@ class AtlasWidgetProvider : AppWidgetProvider() {
                 handler.postDelayed(
                     {
                         for (id in ids) {
-                            if (generation == animationGeneration)
-                                updateWidget(context, manager, id, percent, if (index == 16) -1 else index)
+                            if (generation == animationGeneration) {
+                                runCatching {
+                                    updateWidget(context, manager, id, percent, if (index == 16) -1 else index)
+                                }
+                            }
                         }
                         if (index == 16) finished()
                     },

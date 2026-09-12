@@ -22,6 +22,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        AtlasWidgetProvider.updateAll(this)
+        // A launcher or OEM RemoteViews failure must never prevent Atlas from opening.
+        runCatching { AtlasWidgetProvider.updateAll(applicationContext) }
     }
 }
