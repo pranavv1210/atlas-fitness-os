@@ -26,7 +26,7 @@ class TrainScreen extends StatefulWidget {
   State<TrainScreen> createState() => _TrainScreenState();
 }
 
-class _TrainScreenState extends State<TrainScreen> {
+class _TrainScreenState extends State<TrainScreen> with WidgetsBindingObserver {
   Future<AtlasDashboardSnapshot>? _future;
   AtlasDataRepository? _repository;
   AppDependencies? _dependencies;
@@ -36,6 +36,42 @@ class _TrainScreenState extends State<TrainScreen> {
   int? _sessionDayOverrideNumber;
   bool _saving = false;
   AtlasDashboardSnapshot? _loadedSnapshot;
+  String? _loadedDateKey;
+  Timer? _midnightTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleMidnightRollover();
+  }
+
+  void _scheduleMidnightRollover() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    _midnightTimer = Timer(nextLocalMidnight(now).difference(now), () {
+      if (mounted) _reloadForNewDay();
+      _scheduleMidnightRollover();
+    });
+  }
+
+  void _reloadForNewDay() {
+    _sessionDayOverrideNumber = null;
+    _entries.clear();
+    _loadedSnapshot = null;
+    setState(() => _future = _load());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final loaded = _loadedSnapshot;
+      if (loaded == null || _loadedDateKey != _dateKey(DateTime.now())) {
+        _reloadForNewDay();
+      }
+      _scheduleMidnightRollover();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -54,6 +90,8 @@ class _TrainScreenState extends State<TrainScreen> {
   @override
   void dispose() {
     _draftVersionNotifier?.removeListener(_handleExternalDraftChanged);
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -107,6 +145,7 @@ class _TrainScreenState extends State<TrainScreen> {
       library: library,
     );
     _loadedSnapshot = effectiveSnapshot;
+    _loadedDateKey = _dateKey(DateTime.now());
     _entries.clear();
     if (effectiveSnapshot.completedToday) {
       _sessionDayOverrideNumber = null;

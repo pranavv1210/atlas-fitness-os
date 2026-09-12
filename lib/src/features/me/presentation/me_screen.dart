@@ -330,7 +330,7 @@ class _PreferenceCardState extends State<_PreferenceCard> {
                 const SectionTitle('Water interval'),
                 const SizedBox(height: 8),
                 Text(
-                  'Atlas will send gentle hydration nudges between 7 AM and 11:30 PM.',
+                  'Atlas notifications run strictly from 6:30 AM to 11:30 PM.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),

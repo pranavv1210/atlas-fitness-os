@@ -1,12 +1,38 @@
 import 'dart:io';
 import 'package:atlas_fitness_os/src/core/services/atlas_preferences.dart';
+import 'package:atlas_fitness_os/src/core/services/atlas_notification_service.dart';
 import 'package:atlas_fitness_os/src/features/agent/data/atlas_agent_service.dart';
 import 'package:atlas_fitness_os/src/features/atlas/data/atlas_data_repository.dart';
+import 'package:atlas_fitness_os/src/features/today/presentation/today_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('notifications stay inside the 6:30 AM to 11:30 PM window', () {
+    expect(
+      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 6, 29)),
+      isFalse,
+    );
+    expect(
+      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 6, 30)),
+      isTrue,
+    );
+    expect(
+      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 23, 30)),
+      isTrue,
+    );
+    expect(
+      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 23, 31)),
+      isFalse,
+    );
+  });
+
+  test('workout day rolls over at local midnight', () {
+    final beforeMidnight = DateTime(2026, 9, 12, 23, 59, 59, 999);
+    expect(nextLocalMidnight(beforeMidnight), DateTime(2026, 9, 13));
+  });
 
   test('Buddy parses all four exercises with joined kg and shared sets', () {
     final entries = parseWorkoutEntries(

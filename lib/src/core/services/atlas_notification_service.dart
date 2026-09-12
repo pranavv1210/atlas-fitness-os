@@ -74,7 +74,8 @@ class AtlasNotificationService {
   static const _workoutNotificationMaxId = 2300;
   static const _goalNotificationBaseId = 2400;
   static const _goalNotificationMaxId = 2500;
-  static const _hydrationStartHour = 7;
+  static const _notificationStartHour = 6;
+  static const _notificationStartMinute = 30;
   static const _hydrationEndHour = 23;
   static const _hydrationEndMinute = 30;
   static const _minHydrationIntervalMinutes = 90;
@@ -89,7 +90,13 @@ class AtlasNotificationService {
       _maxHydrationIntervalMinutes,
     );
     var notificationId = _hydrationNotificationBaseId;
-    final start = DateTime(2000, 1, 1, _hydrationStartHour);
+    final start = DateTime(
+      2000,
+      1,
+      1,
+      _notificationStartHour,
+      _notificationStartMinute,
+    );
     final end = DateTime(2000, 1, 1, _hydrationEndHour, _hydrationEndMinute);
     for (
       var slot = start;
@@ -151,6 +158,10 @@ class AtlasNotificationService {
     required String workoutName,
   }) async {
     if (!await notificationsEnabled()) {
+      return;
+    }
+    final now = tz.TZDateTime.now(tz.local);
+    if (!isWithinAtlasNotificationWindow(now)) {
       return;
     }
     await _plugin.show(
@@ -317,4 +328,12 @@ class AtlasNotificationService {
       enableVibration: true,
     ),
   );
+}
+
+@visibleForTesting
+bool isWithinAtlasNotificationWindow(DateTime value) {
+  final minutes = value.hour * 60 + value.minute;
+  const startMinutes = 6 * 60 + 30;
+  const endMinutes = 23 * 60 + 30;
+  return minutes >= startMinutes && minutes <= endMinutes;
 }

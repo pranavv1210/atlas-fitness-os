@@ -45,13 +45,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   void _scheduleMidnight() {
     _midnightTimer?.cancel();
     final now = DateTime.now();
-    _midnightTimer = Timer(
-      DateTime(now.year, now.month, now.day + 1).difference(now),
-      () {
-        if (mounted) _refresh();
-        _scheduleMidnight();
-      },
-    );
+    _midnightTimer = Timer(nextLocalMidnight(now).difference(now), () {
+      if (mounted) _refresh();
+      _scheduleMidnight();
+    });
   }
 
   @override
@@ -148,6 +145,11 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     }
     return 'Good Evening';
   }
+}
+
+@visibleForTesting
+DateTime nextLocalMidnight(DateTime now) {
+  return DateTime(now.year, now.month, now.day + 1);
 }
 
 class _FocusCard extends StatelessWidget {
