@@ -62,7 +62,6 @@ class AtlasAgentService {
 }
 
 AtlasAgentReply _withLocalEntries(AtlasAgentReply reply, String message) {
-  if (reply.workoutEntries.isNotEmpty) return reply;
   final localEntries = parseWorkoutEntries(message);
   if (localEntries.isEmpty) return reply;
   return AtlasAgentReply(
@@ -186,6 +185,11 @@ AtlasAgentWorkoutEntry? _localEntryFromPart(
   final muscle =
       source.contains('tricep')
           ? 'Triceps'
+          : source.contains('back') ||
+              source.contains('lat ') ||
+              source.startsWith('lat ') ||
+              source.contains('row')
+          ? 'Back'
           : source.contains('abs') || source.contains('crunch')
           ? 'Abs'
           : source.contains('bicep') || source.contains('curl')

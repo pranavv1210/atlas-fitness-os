@@ -294,46 +294,34 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
       widget.repository.currentUserId,
       dateKey,
     );
+    final activeDayNumber = selectedDay ?? baseWorkout?.dayNumber;
+    final selectedPlanDay =
+        widget.preferences.customWorkoutPlan
+            .where((day) => day['dayNumber'] == activeDayNumber)
+            .firstOrNull;
     final workout =
-        baseWorkout == null
+        baseWorkout == null || activeDayNumber == null
             ? null
             : AtlasWorkoutDay(
-              dayNumber: selectedDay ?? baseWorkout.dayNumber,
-              name: baseWorkout.name,
+              dayNumber: activeDayNumber,
+              name:
+                  (selectedPlanDay?['name'] as String?)?.trim().isNotEmpty ==
+                          true
+                      ? (selectedPlanDay!['name'] as String).trim()
+                      : baseWorkout.name,
               focus: baseWorkout.focus,
-              isRestDay: false,
+              isRestDay: selectedPlanDay?['isRestDay'] as bool? ?? false,
             );
     if (workout == null || snapshot.completedToday) return 0;
 
     final userId = widget.repository.currentUserId;
-    final draft = widget.preferences.workoutDraftFor(userId);
-    final rawEntries =
-        draft != null && draft['dayNumber'] == workout.dayNumber
-            ? draft['entries']
-            : null;
-    final byId = {
-      for (final exercise in snapshot.exerciseLibrary) exercise.id: exercise,
-    };
+    // A workout described in chat is an explicit list. Start a fresh draft so
+    // exercises from an earlier plan or chat message cannot leak into it.
     final merged = <Map<String, dynamic>>[];
-    if (rawEntries is List) {
-      for (final item in rawEntries) {
-        if (item is! Map) continue;
-        final exerciseId = item['exerciseId'];
-        if (exerciseId is! String || byId[exerciseId] == null) continue;
-        merged.add({
-          'exerciseId': exerciseId,
-          'exerciseName': byId[exerciseId]!.name,
-          if (item['setRows'] != null) 'setRows': item['setRows'],
-          'sets': _safeInt(item['sets'], fallback: 3),
-          'reps': _safeInt(item['reps'], fallback: 15),
-          'weight': _safeDouble(item['weight']),
-        });
-      }
-    }
 
     var applied = 0;
     for (final entry in entries) {
-      final exercise = _matchExercise(entry, snapshot.exerciseLibrary);
+      final exercise = matchAgentExercise(entry, snapshot.exerciseLibrary);
       if (exercise == null) continue;
       final next = {
         'exerciseId': exercise.id,
@@ -1010,7 +998,7 @@ class _CurlLoaderPainter extends CustomPainter {
   }
 }
 
-AtlasExercise? _matchExercise(
+AtlasExercise? matchAgentExercise(
   AtlasAgentWorkoutEntry entry,
   List<AtlasExercise> library,
 ) {
@@ -1036,6 +1024,21 @@ int _exerciseMatchScore(
   final name = _normalize(exercise.name);
   final wantedTokens = _tokens(wanted);
   final nameTokens = _tokens(name);
+  final meaningfulWantedTokens = wantedTokens.difference(
+    _genericExerciseTokens,
+  );
+  final hasMeaningfulNameMatch = meaningfulWantedTokens.any(
+    (token) =>
+        nameTokens.contains(token) ||
+        (token.length > 3 &&
+            nameTokens.any(
+              (candidate) =>
+                  candidate.startsWith(token) || token.startsWith(candidate),
+            )),
+  );
+  final isDirectNameMatch =
+      name == wanted || name.contains(wanted) || wanted.contains(name);
+  if (!isDirectNameMatch && !hasMeaningfulNameMatch) return 0;
   var score = 0;
   if (name == wanted) score += 20;
   if (name.contains(wanted) || wanted.contains(name)) score += 10;
@@ -1053,6 +1056,7 @@ int _exerciseMatchScore(
   if (muscle.isNotEmpty) {
     final primary = _normalize(exercise.primaryMuscle);
     final secondary = exercise.secondaryMuscles.map(_normalize).join(' ');
+    if (!_muscleMatches(muscle, '$primary $secondary')) return 0;
     if (primary.contains(muscle) || muscle.contains(primary)) score += 5;
     if (secondary.contains(muscle)) score += 3;
   }
@@ -1068,6 +1072,43 @@ int _exerciseMatchScore(
   if (wanted.contains('bench') && name.contains('press')) score += 5;
   return score;
 }
+
+const _genericExerciseTokens = {
+  'cable',
+  'machine',
+  'dumbbell',
+  'barbell',
+  'rope',
+  'incline',
+  'seated',
+  'standing',
+  'single',
+  'arm',
+  'for',
+};
+
+bool _muscleMatches(String requested, String actual) {
+  final requestedGroup = _muscleGroup(requested);
+  if (requestedGroup == null) return actual.contains(requested);
+  return _tokens(
+    actual,
+  ).any((token) => _muscleAliases[requestedGroup]!.contains(token));
+}
+
+String? _muscleGroup(String value) {
+  final tokens = _tokens(value);
+  for (final entry in _muscleAliases.entries) {
+    if (tokens.any(entry.value.contains)) return entry.key;
+  }
+  return null;
+}
+
+const _muscleAliases = <String, Set<String>>{
+  'back': {'back', 'lat', 'lats', 'trapezius', 'rhomboid'},
+  'biceps': {'bicep', 'biceps', 'brachialis'},
+  'triceps': {'tricep', 'triceps'},
+  'abs': {'ab', 'abs', 'abdominal', 'abdominals', 'core'},
+};
 
 Set<String> _tokens(String value) {
   return value
@@ -1091,15 +1132,4 @@ String _normalize(String value) {
 int _firstNumber(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
   return int.tryParse(match?.group(0) ?? '') ?? 15;
-}
-
-int _safeInt(Object? value, {required int fallback}) {
-  if (value is int) return value;
-  if (value is num) return value.round();
-  return fallback;
-}
-
-double _safeDouble(Object? value) {
-  if (value is num) return value.toDouble();
-  return 0;
 }

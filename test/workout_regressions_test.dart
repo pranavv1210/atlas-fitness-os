@@ -3,6 +3,8 @@ import 'package:atlas_fitness_os/src/core/services/atlas_preferences.dart';
 import 'package:atlas_fitness_os/src/core/services/atlas_notification_service.dart';
 import 'package:atlas_fitness_os/src/features/agent/data/atlas_agent_service.dart';
 import 'package:atlas_fitness_os/src/features/atlas/data/atlas_data_repository.dart';
+import 'package:atlas_fitness_os/src/features/atlas/data/atlas_models.dart';
+import 'package:atlas_fitness_os/src/features/agent/presentation/atlas_agent_overlay.dart';
 import 'package:atlas_fitness_os/src/features/today/presentation/today_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,6 +51,67 @@ void main() {
       'lat pulldown 35kg 3 sets 15 reps, no biceps today',
     );
     expect(entries, hasLength(1));
+  });
+
+  test('Buddy keeps only exercises explicitly named in chat', () {
+    final entries = parseWorkoutEntries(
+      'lat pulldown 35kg and seated cable row 30kg',
+    );
+
+    expect(entries.map((entry) => entry.name), [
+      'lat pulldown',
+      'seated cable row',
+    ]);
+    expect(entries.any((entry) => entry.name.contains('tricep')), isFalse);
+  });
+
+  test('Buddy does not match a generic cable token to triceps', () {
+    const library = [
+      AtlasExercise(
+        id: 'triceps',
+        name: 'Cable Incline Triceps Extension',
+        pattern: 'extension',
+        defaultSets: 3,
+        defaultReps: '15',
+        primaryMuscle: 'Triceps',
+        equipment: 'Cable',
+      ),
+      AtlasExercise(
+        id: 'row',
+        name: 'Seated Cable Row',
+        pattern: 'row',
+        defaultSets: 3,
+        defaultReps: '15',
+        primaryMuscle: 'Back',
+        equipment: 'Cable',
+      ),
+    ];
+    const request = AtlasAgentWorkoutEntry(
+      name: 'cable row for back',
+      muscle: 'Back',
+    );
+
+    expect(matchAgentExercise(request, library)?.id, 'row');
+  });
+
+  test('Buddy rejects a muscle-incompatible fuzzy match', () {
+    const library = [
+      AtlasExercise(
+        id: 'triceps',
+        name: 'Cable Incline Triceps Extension',
+        pattern: 'extension',
+        defaultSets: 3,
+        defaultReps: '15',
+        primaryMuscle: 'Triceps',
+        equipment: 'Cable',
+      ),
+    ];
+    const request = AtlasAgentWorkoutEntry(
+      name: 'cable movement for back',
+      muscle: 'Back',
+    );
+
+    expect(matchAgentExercise(request, library), isNull);
   });
 
   test(
