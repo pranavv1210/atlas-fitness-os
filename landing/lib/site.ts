@@ -31,9 +31,9 @@ export const SITE = {
 
   /** Verified against landing/public/downloads/atlas-release.apk. */
   apkUrl: '/downloads/atlas-release.apk',
-  apkVersion: '1.0.5',
+  apkVersion: '1.0.6',
   apkSize: '58 MB',
-  apkBytes: 61_103_540,
+  apkBytes: 61_119_914,
 
   /** android/app/build.gradle.kts */
   packageId: 'com.pranav.atlas',

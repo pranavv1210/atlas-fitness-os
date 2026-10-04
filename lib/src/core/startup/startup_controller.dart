@@ -220,6 +220,8 @@ class StartupController {
         await _dependencies.notificationService.scheduleAtlasReminders(
           hydrationIntervalMinutes: preferences.hydrationIntervalMinutes,
         );
+      } else {
+        await _dependencies.notificationService.cancelAtlasReminders();
       }
       return;
     }

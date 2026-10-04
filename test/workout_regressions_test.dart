@@ -8,19 +8,18 @@ import 'package:atlas_fitness_os/src/features/agent/presentation/atlas_agent_ove
 import 'package:atlas_fitness_os/src/features/today/presentation/today_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tz.initializeTimeZones();
 
-  test('notifications stay inside the 6:30 AM to 11:30 PM window', () {
+  test('notifications stay inside the 6:00 AM to 11:30 PM window', () {
     expect(
-      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 6, 29)),
+      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 5, 59)),
       isFalse,
     );
-    expect(
-      isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 6, 30)),
-      isTrue,
-    );
+    expect(isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 6)), isTrue);
     expect(
       isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 23, 30)),
       isTrue,
@@ -28,6 +27,15 @@ void main() {
     expect(
       isWithinAtlasNotificationWindow(DateTime(2026, 9, 12, 23, 31)),
       isFalse,
+    );
+  });
+
+  test('notification timezone aliases resolve to India local time', () {
+    expect(resolveAtlasTimezone('IST').name, 'Asia/Kolkata');
+    expect(resolveAtlasTimezone('Asia/Calcutta').name, 'Asia/Kolkata');
+    expect(
+      fallbackAtlasTimezone(const Duration(hours: 5, minutes: 30))?.name,
+      'Asia/Kolkata',
     );
   });
 
@@ -112,6 +120,97 @@ void main() {
     );
 
     expect(matchAgentExercise(request, library), isNull);
+  });
+
+  test('Back and biceps day rejects chest, triceps, and abs exercises', () {
+    const back = AtlasExercise(
+      id: 'back',
+      name: 'Cable Row',
+      pattern: 'row',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Back',
+    );
+    const biceps = AtlasExercise(
+      id: 'biceps',
+      name: 'Barbell Curl',
+      pattern: 'curl',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Biceps',
+    );
+    const chest = AtlasExercise(
+      id: 'chest',
+      name: 'Cable Fly',
+      pattern: 'fly',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Chest',
+    );
+    const triceps = AtlasExercise(
+      id: 'triceps',
+      name: 'Cable Triceps Extension',
+      pattern: 'extension',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Triceps',
+    );
+    const abs = AtlasExercise(
+      id: 'abs',
+      name: 'Cable Side Bend',
+      pattern: 'bend',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Abs',
+    );
+
+    expect(exerciseAllowedForWorkout(back, 'Back + Biceps'), isTrue);
+    expect(exerciseAllowedForWorkout(biceps, 'Back + Biceps'), isTrue);
+    expect(exerciseAllowedForWorkout(chest, 'Back + Biceps'), isFalse);
+    expect(exerciseAllowedForWorkout(triceps, 'Back + Biceps'), isFalse);
+    expect(exerciseAllowedForWorkout(abs, 'Back + Biceps'), isFalse);
+  });
+
+  test('Chest and triceps day rejects exercises from other workout days', () {
+    const chest = AtlasExercise(
+      id: 'chest',
+      name: 'Cable Fly',
+      pattern: 'fly',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Chest',
+    );
+    const triceps = AtlasExercise(
+      id: 'triceps',
+      name: 'Cable Triceps Extension',
+      pattern: 'extension',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Triceps',
+    );
+    const back = AtlasExercise(
+      id: 'back',
+      name: 'Cable Row',
+      pattern: 'row',
+      defaultSets: 3,
+      defaultReps: '15',
+      primaryMuscle: 'Back',
+    );
+
+    expect(exerciseAllowedForWorkout(chest, 'Chest + Triceps'), isTrue);
+    expect(exerciseAllowedForWorkout(triceps, 'Chest + Triceps'), isTrue);
+    expect(exerciseAllowedForWorkout(back, 'Chest + Triceps'), isFalse);
+  });
+
+  test('Arms and abs plus leg days expand to their related muscle groups', () {
+    expect(
+      allowedMuscleGroupsForWorkout('Arms + Abs'),
+      containsAll({'biceps', 'triceps', 'forearms', 'abs'}),
+    );
+    expect(
+      allowedMuscleGroupsForWorkout('Shoulders + Legs'),
+      containsAll({'shoulders', 'legs', 'glutes'}),
+    );
   });
 
   test(

@@ -322,7 +322,10 @@ class _AtlasAgentSheetState extends State<AtlasAgentSheet> {
     var applied = 0;
     for (final entry in entries) {
       final exercise = matchAgentExercise(entry, snapshot.exerciseLibrary);
-      if (exercise == null) continue;
+      if (exercise == null ||
+          !exerciseAllowedForWorkout(exercise, workout.name)) {
+        continue;
+      }
       final next = {
         'exerciseId': exercise.id,
         'exerciseName': exercise.name,
@@ -1015,6 +1018,66 @@ AtlasExercise? matchAgentExercise(
   }
   return bestScore >= 3 ? best : null;
 }
+
+bool exerciseAllowedForWorkout(AtlasExercise exercise, String workoutName) {
+  final allowedGroups = allowedMuscleGroupsForWorkout(workoutName);
+  if (allowedGroups.isEmpty) return true;
+  return allowedGroups.contains(_canonicalMuscleGroup(exercise.primaryMuscle));
+}
+
+Set<String> allowedMuscleGroupsForWorkout(String workoutName) {
+  final normalized = _normalize(workoutName);
+  final allowed = <String>{};
+  final nameTokens = _tokens(normalized);
+  if (nameTokens.contains('arm')) {
+    allowed.addAll(const {'biceps', 'triceps', 'forearms'});
+  }
+  for (final entry in _workoutMuscleTerms.entries) {
+    if (entry.value.any(
+      (term) =>
+          RegExp('(?:^| )${RegExp.escape(term)}(?: |\$)').hasMatch(normalized),
+    )) {
+      allowed.add(entry.key);
+    }
+  }
+  if (allowed.contains('legs')) allowed.add('glutes');
+  return allowed;
+}
+
+String _canonicalMuscleGroup(String value) {
+  final normalized = _normalize(value);
+  for (final entry in _workoutMuscleTerms.entries) {
+    if (entry.value.any(
+      (term) =>
+          RegExp('(?:^| )${RegExp.escape(term)}(?: |\$)').hasMatch(normalized),
+    )) {
+      return entry.key;
+    }
+  }
+  return normalized;
+}
+
+const _workoutMuscleTerms = <String, Set<String>>{
+  'back': {'back', 'lat', 'lats', 'trapezius', 'rhomboid'},
+  'biceps': {'bicep', 'biceps', 'brachialis'},
+  'triceps': {'tricep', 'triceps'},
+  'chest': {'chest', 'pectoral', 'pectorals'},
+  'abs': {'ab', 'abs', 'abdominal', 'abdominals', 'core', 'oblique'},
+  'forearms': {'forearm', 'forearms'},
+  'shoulders': {'shoulder', 'shoulders', 'deltoid', 'deltoids'},
+  'legs': {
+    'leg',
+    'legs',
+    'quad',
+    'quads',
+    'hamstring',
+    'hamstrings',
+    'calf',
+    'calves',
+  },
+  'glutes': {'glute', 'glutes'},
+  'cardio': {'cardio'},
+};
 
 int _exerciseMatchScore(
   AtlasAgentWorkoutEntry entry,

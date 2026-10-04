@@ -15,9 +15,11 @@ class AtlasNotificationService {
     tz.initializeTimeZones();
     try {
       final timezone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(timezone.identifier));
-    } catch (_) {
-      // Keep tz.local as the package default if Android cannot report a zone.
+      tz.setLocalLocation(resolveAtlasTimezone(timezone.identifier));
+    } catch (error) {
+      debugPrint('Atlas notifications: local timezone lookup failed: $error');
+      final fallback = fallbackAtlasTimezone(DateTime.now().timeZoneOffset);
+      if (fallback != null) tz.setLocalLocation(fallback);
     }
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const settings = InitializationSettings(android: android);
@@ -75,7 +77,7 @@ class AtlasNotificationService {
   static const _goalNotificationBaseId = 2400;
   static const _goalNotificationMaxId = 2500;
   static const _notificationStartHour = 6;
-  static const _notificationStartMinute = 30;
+  static const _notificationStartMinute = 0;
   static const _hydrationEndHour = 23;
   static const _hydrationEndMinute = 30;
   static const _minHydrationIntervalMinutes = 90;
@@ -175,6 +177,9 @@ class AtlasNotificationService {
   Future<void> scheduleAtlasReminders({
     required int hydrationIntervalMinutes,
   }) async {
+    // Remove every pending notification created by older releases before
+    // rebuilding the strictly bounded schedule below.
+    await _plugin.cancelAllPendingNotifications();
     await scheduleHydrationNudges(intervalMinutes: hydrationIntervalMinutes);
     await scheduleDailyReminders();
     await scheduleWorkoutReminders();
@@ -182,9 +187,7 @@ class AtlasNotificationService {
   }
 
   Future<void> cancelAtlasReminders() async {
-    await cancelHydrationNudge();
-    await cancelDailyReminders();
-    await cancelWorkoutReminders();
+    await _plugin.cancelAllPendingNotifications();
   }
 
   Future<void> cancelHydrationNudge() async {
@@ -255,6 +258,12 @@ class AtlasNotificationService {
     required NotificationDetails details,
     String? payload,
   }) async {
+    if (!isWithinAtlasNotificationWindow(scheduledAt)) {
+      debugPrint(
+        'Atlas notifications: refused out-of-window schedule at $scheduledAt.',
+      );
+      return;
+    }
     try {
       await _plugin.zonedSchedule(
         id,
@@ -333,7 +342,21 @@ class AtlasNotificationService {
 @visibleForTesting
 bool isWithinAtlasNotificationWindow(DateTime value) {
   final minutes = value.hour * 60 + value.minute;
-  const startMinutes = 6 * 60 + 30;
+  const startMinutes = 6 * 60;
   const endMinutes = 23 * 60 + 30;
   return minutes >= startMinutes && minutes <= endMinutes;
+}
+
+@visibleForTesting
+tz.Location resolveAtlasTimezone(String identifier) {
+  const aliases = {'IST': 'Asia/Kolkata', 'Asia/Calcutta': 'Asia/Kolkata'};
+  return tz.getLocation(aliases[identifier] ?? identifier);
+}
+
+@visibleForTesting
+tz.Location? fallbackAtlasTimezone(Duration utcOffset) {
+  if (utcOffset == const Duration(hours: 5, minutes: 30)) {
+    return tz.getLocation('Asia/Kolkata');
+  }
+  return null;
 }
